@@ -19,10 +19,6 @@ fun DashboardScreen(viewModel: RouterViewModel) {
     val isLoading by viewModel.isLoading.collectAsState()
     val interfaces by viewModel.interfaces.collectAsState()
 
-    LaunchedEffect(Unit) {
-        viewModel.refreshAll()
-    }
-
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(16.dp),
@@ -58,6 +54,16 @@ fun DashboardScreen(viewModel: RouterViewModel) {
         items(interfaces.size) { index ->
             val iface = interfaces[index]
             InterfaceCard(iface)
+        }
+
+        if (interfaces.isEmpty()) {
+            item {
+                Text(
+                    text = "Нет данных. Нажмите 🔄 для обновления.",
+                    color = KeeneticColors.TextSecondary,
+                    modifier = Modifier.padding(16.dp)
+                )
+            }
         }
     }
 
@@ -118,10 +124,10 @@ fun QuickActionsCard(viewModel: RouterViewModel) {
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceEvenly
             ) {
-                ActionButton(Icons.Default.Refresh, "Перезагрузить") { viewModel.reboot() }
-                ActionButton(Icons.Default.Wifi, "Wi-Fi") { /* navigate */ }
-                ActionButton(Icons.Default.Devices, "Устройства") { /* navigate */ }
-                ActionButton(Icons.Default.Terminal, "Терминал") { /* navigate */ }
+                ActionButton(Icons.Default.Refresh, "Обновить") { viewModel.refreshAll() }
+                ActionButton(Icons.Default.Wifi, "Wi-Fi") { }
+                ActionButton(Icons.Default.Devices, "Устройства") { }
+                ActionButton(Icons.Default.Terminal, "Терминал") { }
             }
         }
     }

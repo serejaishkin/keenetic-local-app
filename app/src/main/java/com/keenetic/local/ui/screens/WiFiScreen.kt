@@ -18,10 +18,6 @@ fun WiFiScreen(viewModel: RouterViewModel) {
     val interfaces by viewModel.interfaces.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
 
-    LaunchedEffect(Unit) {
-        viewModel.loadInterfaces()
-    }
-
     val wifiInterfaces = interfaces.filter {
         it.id?.contains("Wifi", ignoreCase = true) == true ||
         it.id?.contains("AccessPoint", ignoreCase = true) == true
@@ -39,6 +35,15 @@ fun WiFiScreen(viewModel: RouterViewModel) {
             items(wifiInterfaces.size) { index ->
                 val iface = wifiInterfaces[index]
                 WiFiCard(iface, viewModel)
+            }
+            if (wifiInterfaces.isEmpty()) {
+                item {
+                    Text(
+                        "Нет данных. Нажмите 🔄 для обновления.",
+                        color = KeeneticColors.TextSecondary,
+                        modifier = Modifier.padding(16.dp)
+                    )
+                }
             }
         }
     }

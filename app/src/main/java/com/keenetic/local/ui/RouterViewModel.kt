@@ -1,6 +1,8 @@
 package com.keenetic.local.ui
 
 import android.app.Application
+import android.util.Log
+import android.widget.Toast
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.keenetic.local.api.*
@@ -13,6 +15,7 @@ class RouterViewModel(application: Application) : AndroidViewModel(application) 
 
     private val repository = RouterRepository(application)
     private val dataStore = DataStoreManager(application)
+    private val context = application.applicationContext
 
     private val _isLoggedIn = MutableStateFlow(false)
     val isLoggedIn: StateFlow<Boolean> = _isLoggedIn.asStateFlow()
@@ -46,13 +49,28 @@ class RouterViewModel(application: Application) : AndroidViewModel(application) 
             _isLoading.value = true
             _error.value = null
             try {
+                Log.d("Keenetic", "login() start: ip=$ip")
                 dataStore.saveRouterIp(ip)
                 dataStore.saveRouterLogin(login)
-                repository.savePassword(password)
+
+                val testResult = repository.initClients(password)
+                Log.d("Keenetic", "initClients result: $testResult")
+
+                if (testResult.startsWith("FAIL")) {
+                    Toast.makeText(context, "Роутер недоступен:\n$testResult", Toast.LENGTH_LONG).show()
+                    _isLoggedIn.value = false
+                    return@launch
+                }
+
+                Toast.makeText(context, "Подключено: $testResult", Toast.LENGTH_SHORT).show()
                 _isLoggedIn.value = true
-                refreshAll()
+                // НЕ вызываем refreshAll() автоматически — ждём нажатия кнопки 🔄
+
             } catch (e: Exception) {
-                _error.value = "Ошибка авторизации: ${e.message}"
+                val msg = "${e.javaClass.simpleName}: ${e.message?.take(200)}"
+                Log.e("Keenetic", "login crash", e)
+                Toast.makeText(context, "CRASH: $msg", Toast.LENGTH_LONG).show()
+                _error.value = msg
                 _isLoggedIn.value = false
             } finally {
                 _isLoading.value = false
@@ -61,51 +79,63 @@ class RouterViewModel(application: Application) : AndroidViewModel(application) 
     }
 
     fun refreshAll() {
-        loadSystemInfo()
-        loadClients()
-        loadInterfaces()
-    }
-
-    fun loadSystemInfo() {
         viewModelScope.launch {
             _isLoading.value = true
             try {
-                val response = repository.getRestApi().getSystem()
-                if (response.isSuccessful) {
-                    _systemInfo.value = response.body()
-                } else {
-                    _error.value = "HTTP ${response.code()}"
-                }
+                Log.d("Keenetic", "refreshAll start")
+                loadSystemInfo()
+                loadClients()
+                loadInterfaces()
+                Log.d("Keenetic", "refreshAll done")
             } catch (e: Exception) {
-                _error.value = "Ошибка: ${e.message}"
+                Log.e("Keenetic", "refreshAll crash", e)
+                Toast.makeText(context, "refreshAll: ${e.message}", Toast.LENGTH_LONG).show()
             } finally {
                 _isLoading.value = false
             }
         }
     }
 
-    fun loadClients() {
+    private fun loadSystemInfo() {
         viewModelScope.launch {
             try {
-                val response = repository.getRestApi().getClients()
+                val response = repository.getRestApi().getSystem()
+                Log.d("Keenetic", "System HTTP: ${response.code()}")
                 if (response.isSuccessful) {
-                    _clients.value = response.body() ?: emptyList()
+                    _systemInfo.value = response.body()
+                } else {
+                    Log.w("Keenetic", "System not OK: ${response.code()}")
                 }
             } catch (e: Exception) {
-                _error.value = "Ошибка загрузки устройств: ${e.message}"
+                Log.e("Keenetic", "System error: ${e.message}", e)
             }
         }
     }
 
-    fun loadInterfaces() {
+    private fun loadClients() {
+        viewModelScope.launch {
+            try {
+                val response = repository.getRestApi().getClients()
+                Log.d("Keenetic", "Clients HTTP: ${response.code()}")
+                if (response.isSuccessful) {
+                    _clients.value = response.body() ?: emptyList()
+                }
+            } catch (e: Exception) {
+                Log.e("Keenetic", "Clients error: ${e.message}", e)
+            }
+        }
+    }
+
+    private fun loadInterfaces() {
         viewModelScope.launch {
             try {
                 val response = repository.getRestApi().getInterfaces()
+                Log.d("Keenetic", "Interfaces HTTP: ${response.code()}")
                 if (response.isSuccessful) {
                     _interfaces.value = response.body() ?: emptyList()
                 }
             } catch (e: Exception) {
-                _error.value = "Ошибка загрузки интерфейсов: ${e.message}"
+                Log.e("Keenetic", "Interfaces error: ${e.message}", e)
             }
         }
     }
@@ -118,7 +148,7 @@ class RouterViewModel(application: Application) : AndroidViewModel(application) 
                 )
                 loadClients()
             } catch (e: Exception) {
-                _error.value = "Ошибка: ${e.message}"
+                Log.e("Keenetic", "toggleClient error", e)
             }
         }
     }
@@ -128,7 +158,7 @@ class RouterViewModel(application: Application) : AndroidViewModel(application) 
             try {
                 repository.getRestApi().reboot()
             } catch (e: Exception) {
-                _error.value = "Ошибка перезагрузки: ${e.message}"
+                Log.e("Keenetic", "reboot error", e)
             }
         }
     }
@@ -142,7 +172,7 @@ class RouterViewModel(application: Application) : AndroidViewModel(application) 
                 )
                 loadInterfaces()
             } catch (e: Exception) {
-                _error.value = "Ошибка: ${e.message}"
+                Log.e("Keenetic", "toggleInterface error", e)
             }
         }
     }

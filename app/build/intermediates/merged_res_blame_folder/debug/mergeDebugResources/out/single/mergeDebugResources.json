@@ -1,0 +1,6 @@
+[
+    {
+        "merged": "com.keenetic.local.app-debug-61:/xml_network_security_config.xml.flat",
+        "source": "com.keenetic.local.app-main-63:/xml/network_security_config.xml"
+    }
+]

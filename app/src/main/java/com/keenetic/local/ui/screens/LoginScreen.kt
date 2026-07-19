@@ -20,8 +20,11 @@ import com.keenetic.local.ui.theme.KeeneticColors
 
 @Composable
 fun LoginScreen(viewModel: RouterViewModel, onLoginSuccess: () -> Unit) {
-    var ip by remember { mutableStateOf("192.168.1.1") }
-    var login by remember { mutableStateOf("admin") }
+    val savedIp by viewModel.routerIp.collectAsState()
+    val savedLogin by viewModel.routerLogin.collectAsState()
+
+    var ip by remember { mutableStateOf(savedIp) }
+    var login by remember { mutableStateOf(savedLogin) }
     var password by remember { mutableStateOf("") }
     var passwordVisible by remember { mutableStateOf(false) }
     val isLoading by viewModel.isLoading.collectAsState()

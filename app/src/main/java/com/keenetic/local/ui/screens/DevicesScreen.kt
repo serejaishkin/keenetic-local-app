@@ -19,10 +19,6 @@ fun DevicesScreen(viewModel: RouterViewModel) {
     val clients by viewModel.clients.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
 
-    LaunchedEffect(Unit) {
-        viewModel.loadClients()
-    }
-
     Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
         Text(
             text = "Подключённые устройства",
@@ -39,6 +35,15 @@ fun DevicesScreen(viewModel: RouterViewModel) {
         LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
             items(clients.size) { index ->
                 ClientCard(client = clients[index], viewModel = viewModel)
+            }
+            if (clients.isEmpty()) {
+                item {
+                    Text(
+                        "Нет данных. Нажмите 🔄 для обновления.",
+                        color = KeeneticColors.TextSecondary,
+                        modifier = Modifier.padding(16.dp)
+                    )
+                }
             }
         }
     }

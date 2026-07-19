@@ -15,19 +15,17 @@ object AutoDiscovery {
     )
 
     suspend fun discover(baseIp: String = "192.168.1"): List<DiscoveredRouter> = withContext(Dispatchers.IO) {
-        val results = mutableListOf<DiscoveredRouter>()
-        val jobs = (1..254).map { i ->
+        (1..254).mapNotNull { i ->
             val ip = "$baseIp.$i"
             try {
                 val addr = InetAddress.getByName(ip)
                 if (addr.isReachable(800)) {
-                    // Проверяем, отвечает ли на /rci/show/system
                     val url = URL("http://$ip/rci/show/system")
                     val conn = url.openConnection() as HttpURLConnection
                     conn.connectTimeout = 1500
                     conn.readTimeout = 1500
                     conn.requestMethod = "GET"
-                    val isKeenetic = conn.responseCode in 200..401 // 401 тоже ок, значит auth включен
+                    val isKeenetic = conn.responseCode in 200..401
                     conn.disconnect()
                     if (isKeenetic) {
                         DiscoveredRouter(ip, addr.hostName, true)
@@ -37,7 +35,6 @@ object AutoDiscovery {
                 null
             }
         }
-        jobs.filterNotNull()
     }
 
     suspend fun quickCheck(ip: String): Boolean = withContext(Dispatchers.IO) {
