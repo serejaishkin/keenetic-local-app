@@ -12,6 +12,7 @@ sealed class Screen(val route: String, val title: String) {
     object Devices : Screen("devices", "Устройства")
     object WiFi : Screen("wifi", "Wi-Fi")
     object Terminal : Screen("terminal", "Терминал")
+    object Settings : Screen("settings", "Настройки")
 }
 
 @Composable
@@ -35,6 +36,13 @@ fun KeeneticNavHost(navController: NavHostController, viewModel: RouterViewModel
         }
         composable(Screen.Terminal.route) {
             TerminalScreen(viewModel = viewModel)
+        }
+        composable(Screen.Settings.route) {
+            SettingsScreen(viewModel = viewModel, onLoggedOut = {
+                navController.navigate(Screen.Login.route) {
+                    popUpTo(0) { inclusive = true }
+                }
+            })
         }
     }
 }
