@@ -17,11 +17,6 @@ class RouterViewModel(application: Application) : AndroidViewModel(application) 
     private val _isLoggedIn = MutableStateFlow(false)
     val isLoggedIn: StateFlow<Boolean> = _isLoggedIn.asStateFlow()
 
-    // true пока идёт проверка автовхода при старте - экран логина ждёт этот флаг,
-    // чтобы не мигнуть формой входа, если сессию можно восстановить автоматически.
-    private val _isCheckingAutoLogin = MutableStateFlow(true)
-    val isCheckingAutoLogin: StateFlow<Boolean> = _isCheckingAutoLogin.asStateFlow()
-
     private val _systemInfo = MutableStateFlow<SystemInfo?>(null)
     val systemInfo: StateFlow<SystemInfo?> = _systemInfo.asStateFlow()
 
@@ -30,9 +25,6 @@ class RouterViewModel(application: Application) : AndroidViewModel(application) 
 
     private val _interfaces = MutableStateFlow<List<InterfaceInfo>>(emptyList())
     val interfaces: StateFlow<List<InterfaceInfo>> = _interfaces.asStateFlow()
-
-    private val _wifiNetworks = MutableStateFlow<List<WifiNetwork>>(emptyList())
-    val wifiNetworks: StateFlow<List<WifiNetwork>> = _wifiNetworks.asStateFlow()
 
     private val _sshOutput = MutableStateFlow("")
     val sshOutput: StateFlow<String> = _sshOutput.asStateFlow()
@@ -48,39 +40,17 @@ class RouterViewModel(application: Application) : AndroidViewModel(application) 
 
     val routerIp: StateFlow<String> = dataStore.routerIp.stateIn(viewModelScope, SharingStarted.Lazily, "192.168.1.1")
     val routerLogin: StateFlow<String> = dataStore.routerLogin.stateIn(viewModelScope, SharingStarted.Lazily, "admin")
-    val autoLoginEnabled: StateFlow<Boolean> = dataStore.autoLogin.stateIn(viewModelScope, SharingStarted.Lazily, false)
 
-    init {
-        viewModelScope.launch {
-            val autoLogin = dataStore.autoLogin.first()
-            val hasSaved = repository.hasSavedCredentials()
-            if (autoLogin && hasSaved) {
-                val result = repository.tryAutoLogin()
-                if (result == "OK" || result.startsWith("OK")) {
-                    _isLoggedIn.value = true
-                    refreshAll()
-                }
-            }
-            _isCheckingAutoLogin.value = false
-        }
-    }
-
-    fun login(password: String, ip: String = "192.168.1.1", login: String = "admin", rememberMe: Boolean = true) {
+    fun login(password: String, ip: String = "192.168.1.1", login: String = "admin") {
         viewModelScope.launch {
             _isLoading.value = true
             _error.value = null
             try {
                 dataStore.saveRouterIp(ip)
                 dataStore.saveRouterLogin(login)
-                val result = repository.login(password)
-                if (result == "OK" || result.startsWith("OK")) {
-                    dataStore.setAutoLogin(rememberMe)
-                    _isLoggedIn.value = true
-                    refreshAll()
-                } else {
-                    _error.value = result
-                    _isLoggedIn.value = false
-                }
+                repository.savePassword(password)
+                _isLoggedIn.value = true
+                refreshAll()
             } catch (e: Exception) {
                 _error.value = "Ошибка авторизации: ${e.message}"
                 _isLoggedIn.value = false
@@ -130,13 +100,9 @@ class RouterViewModel(application: Application) : AndroidViewModel(application) 
     fun loadInterfaces() {
         viewModelScope.launch {
             try {
-                val response = repository.getRestApi().getInterfacesRaw()
+                val response = repository.getRestApi().getInterfaces()
                 if (response.isSuccessful) {
-                    val raw = response.body() ?: emptyMap()
-                    _interfaces.value = InterfaceMapper.toInterfaceList(raw)
-                    _wifiNetworks.value = InterfaceMapper.toWifiNetworks(raw)
-                } else {
-                    _error.value = "HTTP ${response.code()}"
+                    _interfaces.value = response.body() ?: emptyList()
                 }
             } catch (e: Exception) {
                 _error.value = "Ошибка загрузки интерфейсов: ${e.message}"
@@ -210,31 +176,13 @@ class RouterViewModel(application: Application) : AndroidViewModel(application) 
         }
     }
 
-    /** Сохраняет настройки подключения из экрана "Настройки" и перелогинивается. */
-    fun saveConnectionSettings(ip: String, login: String, password: String?, autoLogin: Boolean) {
-        viewModelScope.launch {
-            dataStore.saveRouterIp(ip)
-            dataStore.saveRouterLogin(login)
-            dataStore.setAutoLogin(autoLogin)
-            if (!password.isNullOrBlank()) {
-                login(password, ip, login, rememberMe = autoLogin)
-            }
-        }
-    }
-
-    fun setAutoLogin(enabled: Boolean) {
-        viewModelScope.launch { dataStore.setAutoLogin(enabled) }
-    }
-
     fun logout() {
         viewModelScope.launch {
             dataStore.clear()
-            repository.clearSession()
             _isLoggedIn.value = false
             _systemInfo.value = null
             _clients.value = emptyList()
             _interfaces.value = emptyList()
-            _wifiNetworks.value = emptyList()
         }
     }
 
