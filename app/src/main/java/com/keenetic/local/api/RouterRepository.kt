@@ -60,7 +60,7 @@ class RouterRepository(private val context: Context) {
         val wwwAuth = authResp.headers()["WWW-Authenticate"] ?: ""
         val realm = authResp.headers()["X-NDM-Realm"]
             ?: extractRealm(wwwAuth)
-            ?: "Keenetic"
+            ?: "Keenetic KN-2311"
         val challenge = authResp.headers()["X-NDM-Challenge"] ?: return "FAIL: no challenge"
         val setCookie = authResp.headers()["Set-Cookie"] ?: return "FAIL: no Set-Cookie"
         val cookie = setCookie.split(";")[0].trim()
