@@ -1,7 +1,9 @@
 package com.keenetic.local.api
 
+import android.content.Context
 import android.util.Log
 import com.keenetic.local.data.DataStoreManager
+import com.keenetic.local.security.KeystoreManager
 import kotlinx.coroutines.flow.first
 import okhttp3.OkHttpClient
 import retrofit2.Retrofit
@@ -9,63 +11,92 @@ import retrofit2.converter.gson.GsonConverterFactory
 import java.security.MessageDigest
 import java.util.concurrent.TimeUnit
 
+/**
+ * Отвечает за аутентификацию на роутере (challenge/response как в веб-морде
+ * Keenetic) и за выдачу готовых клиентов (REST/SSH) остальному приложению.
+ */
 class RouterRepository(private val context: Context) {
+
     private val dataStore = DataStoreManager(context)
+    private val keystore = KeystoreManager()
+
     private var restApi: KeeneticRestApi? = null
+    private var sshClient: KeeneticSshClient? = null
     private var currentCookie: String? = null
 
+    /**
+     * Полный цикл входа: challenge -> md5/sha256 -> POST /auth -> постоянный
+     * клиент с куки на все последующие запросы.
+     */
     suspend fun login(password: String): String {
         val ip = dataStore.routerIp.first()
-        val login = dataStore.routerLogin.first() ?: "admin"
+        val login = dataStore.routerLogin.first()
         val baseUrl = "http://$ip/"
 
-        // 1. Temp client для challenge
         val tempClient = OkHttpClient.Builder()
             .connectTimeout(15, TimeUnit.SECONDS)
             .readTimeout(15, TimeUnit.SECONDS)
             .build()
 
-        val tempRetrofit = Retrofit.Builder()
+        val tempApi = Retrofit.Builder()
             .baseUrl(baseUrl)
             .client(tempClient)
+            .addConverterFactory(GsonConverterFactory.create())
             .build()
+            .create(KeeneticRestApi::class.java)
 
-        val tempApi = tempRetrofit.create(KeeneticRestApi::class.java)
+        val authResp = try {
+            tempApi.auth()
+        } catch (e: Exception) {
+            return "FAIL: GET /auth ${e.message}"
+        }
 
-        val authResp = try { tempApi.auth().execute() } 
-            catch (e: Exception) { return "FAIL: GET /auth ${e.message}" }
-
-        if (authResp.code() == 200) return "OK (no password)"
+        if (authResp.code() == 200) {
+            // Роутер без пароля - пропускаем challenge, но клиент всё равно нужен.
+            buildPermanentClient(baseUrl, cookie = null)
+            return "OK (no password)"
+        }
 
         val wwwAuth = authResp.headers()["WWW-Authenticate"] ?: ""
-        val realm = authResp.headers()["X-NDM-Realm"] 
-            ?: extractRealm(wwwAuth) 
+        val realm = authResp.headers()["X-NDM-Realm"]
+            ?: extractRealm(wwwAuth)
             ?: "Keenetic KN-2311"
         val challenge = authResp.headers()["X-NDM-Challenge"] ?: return "FAIL: no challenge"
-
         val setCookie = authResp.headers()["Set-Cookie"] ?: return "FAIL: no Set-Cookie"
         val cookie = setCookie.split(";")[0].trim()
 
         Log.d("KeeneticAuth", "Realm='$realm' Challenge='$challenge' Cookie='$cookie'")
 
-        // 2. Хэши (точно как в JS)
         val md5 = md5("$login:$realm:$password")
         val response = sha256("$challenge$md5")
 
-        val loginResp = tempApi.login(AuthRequest(login, response), cookie).execute()
+        val loginResp = tempApi.login(AuthRequest(login, response), cookie)
         if (!loginResp.isSuccessful) {
             return "FAIL: POST /auth ${loginResp.code()}"
         }
 
         currentCookie = cookie
+        buildPermanentClient(baseUrl, cookie)
 
-        // 3. Постоянный клиент
+        // Успешный вход - сохраняем пароль зашифрованным для автовхода.
+        savePassword(password)
+
+        return "OK"
+    }
+
+    private fun buildPermanentClient(baseUrl: String, cookie: String?) {
         val permanentClient = OkHttpClient.Builder()
-            .addInterceptor { chain ->
-                val req = chain.request().newBuilder()
-                    .addHeader("Cookie", cookie)
-                    .build()
-                chain.proceed(req)
+            .connectTimeout(15, TimeUnit.SECONDS)
+            .readTimeout(15, TimeUnit.SECONDS)
+            .apply {
+                if (cookie != null) {
+                    addInterceptor { chain ->
+                        val req = chain.request().newBuilder()
+                            .addHeader("Cookie", cookie)
+                            .build()
+                        chain.proceed(req)
+                    }
+                }
             }
             .build()
 
@@ -75,11 +106,47 @@ class RouterRepository(private val context: Context) {
             .addConverterFactory(GsonConverterFactory.create())
             .build()
             .create(KeeneticRestApi::class.java)
-
-        return "OK"
     }
 
-    fun getApi(): KeeneticRestApi = restApi ?: throw IllegalStateException("Not logged in")
+    fun getRestApi(): KeeneticRestApi = restApi ?: throw IllegalStateException("Not logged in")
+
+    suspend fun getSshClient(): KeeneticSshClient {
+        sshClient?.let { return it }
+        val ip = dataStore.routerIp.first()
+        val login = dataStore.routerLogin.first()
+        val password = readSavedPassword() ?: throw IllegalStateException("No saved password for SSH")
+        return KeeneticSshClient(host = ip, login = login, password = password).also { sshClient = it }
+    }
+
+    /** Шифрует и сохраняет пароль в DataStore через AndroidKeyStore. */
+    suspend fun savePassword(password: String) {
+        val encrypted = keystore.encrypt(password)
+        dataStore.saveEncryptedPassword(encrypted)
+    }
+
+    suspend fun readSavedPassword(): String? {
+        val encrypted = dataStore.encryptedPassword.first() ?: return null
+        return try {
+            keystore.decrypt(encrypted)
+        } catch (e: Exception) {
+            Log.w("KeeneticAuth", "Не удалось расшифровать сохранённый пароль: ${e.message}")
+            null
+        }
+    }
+
+    suspend fun hasSavedCredentials(): Boolean = readSavedPassword() != null
+
+    /** Пытается войти сохранённым паролем (для автовхода при старте приложения). */
+    suspend fun tryAutoLogin(): String {
+        val password = readSavedPassword() ?: return "FAIL: no saved password"
+        return login(password)
+    }
+
+    fun clearSession() {
+        restApi = null
+        sshClient = null
+        currentCookie = null
+    }
 
     private fun md5(str: String): String = digest("MD5", str)
     private fun sha256(str: String): String = digest("SHA-256", str)

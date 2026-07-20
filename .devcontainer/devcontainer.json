@@ -1,0 +1,11 @@
+{
+  "name": "keenetic-local-app",
+  "image": "mcr.microsoft.com/devcontainers/java:17",
+  "features": {
+    "ghcr.io/devcontainers/features/android-sdk:1": {
+      "additional_versions": "34.0.0",
+      "additional_apis": "34"
+    }
+  },
+  "postCreateCommand": "chmod +x gradlew"
+}

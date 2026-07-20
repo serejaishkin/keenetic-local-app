@@ -32,6 +32,7 @@ fun KeeneticAppTheme() {
     val navController = rememberNavController()
     val viewModel: RouterViewModel = viewModel()
     val isLoggedIn by viewModel.isLoggedIn.collectAsState()
+    val isCheckingAutoLogin by viewModel.isCheckingAutoLogin.collectAsState()
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
 
@@ -39,8 +40,26 @@ fun KeeneticAppTheme() {
         Screen.Dashboard to Icons.Default.Dashboard,
         Screen.Devices to Icons.Default.Devices,
         Screen.WiFi to Icons.Default.Wifi,
-        Screen.Terminal to Icons.Default.Terminal
+        Screen.Terminal to Icons.Default.Terminal,
+        Screen.Settings to Icons.Default.Settings
     )
+
+    // Пока проверяем сохранённые данные для автовхода, не показываем
+    // ни форму логина, ни основной интерфейс - только загрузку.
+    if (isCheckingAutoLogin) {
+        Box(modifier = Modifier.fillMaxSize(), contentAlignment = androidx.compose.ui.Alignment.Center) {
+            CircularProgressIndicator(color = KeeneticColors.Primary)
+        }
+        return
+    }
+
+    LaunchedEffect(isLoggedIn) {
+        if (isLoggedIn && currentRoute == Screen.Login.route) {
+            navController.navigate(Screen.Dashboard.route) {
+                popUpTo(Screen.Login.route) { inclusive = true }
+            }
+        }
+    }
 
     Scaffold(
         topBar = {

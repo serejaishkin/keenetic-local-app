@@ -1,5 +1,6 @@
 package com.keenetic.local.api
 
+import com.google.gson.JsonObject
 import retrofit2.Response
 import retrofit2.http.*
 
@@ -23,12 +24,32 @@ data class Client(
     val active: String? = null
 )
 
+/**
+ * Отображаемая модель интерфейса (после маппинга из сырого JSON-объекта,
+ * см. [InterfaceMapper]).
+ */
 data class InterfaceInfo(
-    val id: String? = null,
-    val state: String? = null,
-    val up: Boolean? = null,
-    val link: String? = null,
-    val connected: String? = null
+    val id: String = "",
+    val displayName: String = "",
+    val type: String? = null,
+    val description: String? = null,
+    val state: String? = null,      // административное состояние: "up" / "down"
+    val link: String? = null,       // физическое состояние линка: "up" / "down"
+    val connected: String? = null,
+    val address: String? = null,
+    val up: Boolean = false
+)
+
+/**
+ * Точка доступа Wi-Fi (интерфейсы с type == "AccessPoint").
+ */
+data class WifiNetwork(
+    val id: String,
+    val ssid: String,
+    val band: String,       // "2.4 ГГц" / "5 ГГц" / "—"
+    val security: String,   // напр. "WPA2/WPA3-PSK" или "Открыто"
+    val enabled: Boolean,
+    val guest: Boolean
 )
 
 data class WifiAssoc(
@@ -58,8 +79,10 @@ interface KeeneticRestApi {
     @GET("rci/show/ip/hotspot")
     suspend fun getClients(): Response<List<Client>>
 
+    // ВАЖНО: /rci/show/interface возвращает JSON-объект { "<id>": {...}, ... },
+    // а не массив, поэтому Map<String, JsonObject>, а не List.
     @GET("rci/show/interface")
-    suspend fun getInterfaces(@Query("name") name: String? = null): Response<List<InterfaceInfo>>
+    suspend fun getInterfacesRaw(): Response<Map<String, JsonObject>>
 
     @POST("rci/interface/{name}")
     suspend fun setInterface(
