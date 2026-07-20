@@ -36,6 +36,11 @@ object InterfaceMapper {
     fun toWifiNetworks(raw: Map<String, JsonObject>): List<WifiNetwork> =
         raw.entries
             .filter { (_, obj) -> typeOf(obj).equals("AccessPoint", ignoreCase = true) }
+            // Keenetic резервирует до 7 виртуальных AP на радиомодуль; реально
+            // настроенные всегда имеют непустое description (см. реальный дамп
+            // /rci/show/interface). Пустые слоты без description и без ssid
+            // отфильтровываем, иначе в списке будет десяток пустых карточек.
+            .filter { (_, obj) -> !str(obj, "description").isNullOrBlank() || !str(obj, "ssid").isNullOrBlank() }
             .map { (key, obj) -> toWifiNetwork(key, obj) }
 
     // ---- отдельный интерфейс ----
