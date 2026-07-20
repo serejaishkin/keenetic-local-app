@@ -10,17 +10,21 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import com.keenetic.local.api.WifiNetwork
 import com.keenetic.local.ui.RouterViewModel
 import com.keenetic.local.ui.theme.KeeneticColors
 
 @Composable
 fun WiFiScreen(viewModel: RouterViewModel) {
-    val wifiNetworks by viewModel.wifiNetworks.collectAsState()
+    val interfaces by viewModel.interfaces.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
 
     LaunchedEffect(Unit) {
         viewModel.loadInterfaces()
+    }
+
+    val wifiInterfaces = interfaces.filter {
+        it.id?.contains("Wifi", ignoreCase = true) == true ||
+        it.id?.contains("AccessPoint", ignoreCase = true) == true
     }
 
     Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
@@ -31,22 +35,15 @@ fun WiFiScreen(viewModel: RouterViewModel) {
         )
         Spacer(modifier = Modifier.height(16.dp))
 
-        if (!isLoading && wifiNetworks.isEmpty()) {
-            Text(
-                text = "Точки доступа не найдены. Потяните для обновления или проверьте соединение.",
-                style = MaterialTheme.typography.bodyMedium,
-                color = KeeneticColors.TextSecondary
-            )
-        }
-
         LazyColumn(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            items(wifiNetworks.size) { index ->
-                WiFiCard(wifiNetworks[index], viewModel)
+            items(wifiInterfaces.size) { index ->
+                val iface = wifiInterfaces[index]
+                WiFiCard(iface, viewModel)
             }
         }
     }
 
-    if (isLoading && wifiNetworks.isEmpty()) {
+    if (isLoading && wifiInterfaces.isEmpty()) {
         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
             CircularProgressIndicator(color = KeeneticColors.Primary)
         }
@@ -54,7 +51,8 @@ fun WiFiScreen(viewModel: RouterViewModel) {
 }
 
 @Composable
-fun WiFiCard(network: WifiNetwork, viewModel: RouterViewModel) {
+fun WiFiCard(iface: com.keenetic.local.api.InterfaceInfo, viewModel: RouterViewModel) {
+    val isUp = iface.up == true
     var confirmToggle by remember { mutableStateOf(false) }
 
     Card(
@@ -72,23 +70,27 @@ fun WiFiCard(network: WifiNetwork, viewModel: RouterViewModel) {
                     Icon(
                         imageVector = Icons.Default.Wifi,
                         contentDescription = null,
-                        tint = if (network.enabled) KeeneticColors.Accent else KeeneticColors.TextSecondary
+                        tint = if (isUp) KeeneticColors.Accent else KeeneticColors.TextSecondary
                     )
                     Spacer(modifier = Modifier.width(12.dp))
                     Column {
                         Text(
-                            text = if (network.guest) "${network.ssid} (гостевая)" else network.ssid,
+                            text = when {
+                                iface.id?.contains("Guest", ignoreCase = true) == true -> "Гостевая сеть"
+                                iface.id?.contains("Master", ignoreCase = true) == true -> "Основная сеть"
+                                else -> iface.id ?: "Wi-Fi"
+                            },
                             fontWeight = FontWeight.Medium
                         )
                         Text(
-                            text = "${network.band} · ${if (network.enabled) "Активна" else "Выключена"}",
+                            text = if (isUp) "Активна" else "Выключена",
                             style = MaterialTheme.typography.bodySmall,
-                            color = if (network.enabled) KeeneticColors.Accent else KeeneticColors.TextSecondary
+                            color = if (isUp) KeeneticColors.Accent else KeeneticColors.TextSecondary
                         )
                     }
                 }
                 Switch(
-                    checked = network.enabled,
+                    checked = isUp,
                     onCheckedChange = { confirmToggle = true },
                     colors = SwitchDefaults.colors(
                         checkedThumbColor = KeeneticColors.Accent,
@@ -97,12 +99,14 @@ fun WiFiCard(network: WifiNetwork, viewModel: RouterViewModel) {
                 )
             }
 
-            Spacer(modifier = Modifier.height(8.dp))
-            Text(
-                text = "Защита: ${network.security}",
-                style = MaterialTheme.typography.bodySmall,
-                color = KeeneticColors.TextSecondary
-            )
+            if (isUp && iface.connected != null) {
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    text = "Подключено: ${iface.connected}",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = KeeneticColors.TextSecondary
+                )
+            }
         }
     }
 
@@ -110,10 +114,10 @@ fun WiFiCard(network: WifiNetwork, viewModel: RouterViewModel) {
         AlertDialog(
             onDismissRequest = { confirmToggle = false },
             title = { Text("Подтвердите действие") },
-            text = { Text("${if (network.enabled) "Выключить" else "Включить"} сеть «${network.ssid}»?") },
+            text = { Text("${if (isUp) "Выключить" else "Включить"} ${iface.id}?") },
             confirmButton = {
                 TextButton(onClick = {
-                    viewModel.toggleInterface(network.id, !network.enabled)
+                    viewModel.toggleInterface(iface.id ?: "", !isUp)
                     confirmToggle = false
                 }) {
                     Text("Да", color = KeeneticColors.Primary)

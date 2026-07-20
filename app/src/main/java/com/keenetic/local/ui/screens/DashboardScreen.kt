@@ -159,7 +159,7 @@ fun InterfaceCard(iface: com.keenetic.local.api.InterfaceInfo) {
             )
             Spacer(modifier = Modifier.width(12.dp))
             Column(modifier = Modifier.weight(1f)) {
-                Text(text = iface.displayName.ifBlank { iface.id }, fontWeight = FontWeight.Medium)
+                Text(text = iface.id ?: "Unknown", fontWeight = FontWeight.Medium)
                 Text(
                     text = "${iface.state ?: ""} ${iface.link ?: ""}",
                     style = MaterialTheme.typography.bodySmall,
