@@ -20,7 +20,10 @@ import com.keenetic.local.ui.theme.KeeneticColors
 
 @Composable
 fun LoginScreen(viewModel: RouterViewModel, onLoginSuccess: () -> Unit) {
-    var ip by remember { mutableStateOf("192.168.1.1") }
+    var ip1 by remember { mutableStateOf("192") }
+    var ip2 by remember { mutableStateOf("168") }
+    var ip3 by remember { mutableStateOf("1") }
+    var ip4 by remember { mutableStateOf("1") }
     var login by remember { mutableStateOf("admin") }
     var password by remember { mutableStateOf("") }
     var passwordVisible by remember { mutableStateOf(false) }
@@ -59,13 +62,61 @@ fun LoginScreen(viewModel: RouterViewModel, onLoginSuccess: () -> Unit) {
         )
         Spacer(modifier = Modifier.height(32.dp))
 
-        OutlinedTextField(
-            value = ip,
-            onValueChange = { ip = it },
-            label = { Text("IP адрес роутера") },
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = ImeAction.Next),
-            modifier = Modifier.fillMaxWidth()
+        Text(
+            text = "IP адрес роутера",
+            style = MaterialTheme.typography.bodySmall,
+            color = KeeneticColors.TextSecondary,
+            modifier = Modifier.align(Alignment.Start)
         )
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            OutlinedTextField(
+                value = ip1,
+                onValueChange = { newValue ->
+                    val sanitized = newValue.filter(Char::isDigit).take(3)
+                    ip1 = sanitized
+                },
+                placeholder = { Text("192") },
+                singleLine = true,
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = ImeAction.Next),
+                modifier = Modifier.weight(1f)
+            )
+            OutlinedTextField(
+                value = ip2,
+                onValueChange = { newValue ->
+                    val sanitized = newValue.filter(Char::isDigit).take(3)
+                    ip2 = sanitized
+                },
+                placeholder = { Text("168") },
+                singleLine = true,
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = ImeAction.Next),
+                modifier = Modifier.weight(1f)
+            )
+            OutlinedTextField(
+                value = ip3,
+                onValueChange = { newValue ->
+                    val sanitized = newValue.filter(Char::isDigit).take(3)
+                    ip3 = sanitized
+                },
+                placeholder = { Text("1") },
+                singleLine = true,
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = ImeAction.Next),
+                modifier = Modifier.weight(1f)
+            )
+            OutlinedTextField(
+                value = ip4,
+                onValueChange = { newValue ->
+                    val sanitized = newValue.filter(Char::isDigit).take(3)
+                    ip4 = sanitized
+                },
+                placeholder = { Text("1") },
+                singleLine = true,
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = ImeAction.Done),
+                modifier = Modifier.weight(1f)
+            )
+        }
         Spacer(modifier = Modifier.height(8.dp))
 
         OutlinedTextField(
@@ -116,9 +167,9 @@ fun LoginScreen(viewModel: RouterViewModel, onLoginSuccess: () -> Unit) {
         }
 
         Button(
-            onClick = { viewModel.login(password, ip, login) },
+            onClick = { viewModel.login(password, "$ip1.$ip2.$ip3.$ip4", login) },
             modifier = Modifier.fillMaxWidth(),
-            enabled = !isLoading && password.isNotBlank()
+            enabled = !isLoading && (password.isNotBlank() || hasSavedPassword) && login.isNotBlank()
         ) {
             if (isLoading) {
                 CircularProgressIndicator(modifier = Modifier.size(20.dp), color = MaterialTheme.colorScheme.onPrimary)

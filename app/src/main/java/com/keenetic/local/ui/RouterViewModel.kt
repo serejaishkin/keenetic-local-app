@@ -7,6 +7,9 @@ import com.keenetic.local.api.*
 import com.keenetic.local.data.DataStoreManager
 import com.keenetic.local.discovery.AutoDiscovery
 import com.keenetic.local.util.AppLogger
+import com.google.gson.Gson
+import com.google.gson.JsonParser
+import com.google.gson.reflect.TypeToken
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 
@@ -144,9 +147,31 @@ class RouterViewModel(application: Application) : AndroidViewModel(application) 
                 AppLogger.logAction("Refresh clients")
                 val response = repository.getRestApi().getClients()
                 if (response.isSuccessful) {
-                    _clients.value = response.body() ?: emptyList()
+                    val body = response.body()
+                    if (body != null) {
+                        _clients.value = body
+                    } else {
+                        val raw = response.errorBody()?.string()
+                        if (!raw.isNullOrBlank()) {
+                            val json = JsonParser.parseString(raw)
+                            if (json.isJsonArray) {
+                                val type = object : TypeToken<List<Client>>() {}.type
+                                _clients.value = Gson().fromJson(json, type)
+                            } else {
+                                AppLogger.w("Clients payload is not an array: $raw")
+                                _clients.value = emptyList()
+                            }
+                        } else {
+                            _clients.value = emptyList()
+                        }
+                    }
+                } else {
+                    _clients.value = emptyList()
+                    _error.value = "Ошибка загрузки устройств: ${response.code()}"
                 }
             } catch (e: Exception) {
+                AppLogger.w("Failed to parse clients response", throwable = e)
+                _clients.value = emptyList()
                 _error.value = "Ошибка загрузки устройств: ${e.message}"
             }
         }
@@ -210,12 +235,12 @@ class RouterViewModel(application: Application) : AndroidViewModel(application) 
         }
     }
 
-    fun executeSsh(command: String) {
+    fun executeSsh(command: String, port: Int = 22, login: String? = null, password: String? = null) {
         viewModelScope.launch {
             _isLoading.value = true
             try {
-                AppLogger.logAction("SSH command", command)
-                val result = repository.getSshClient().execute(command)
+                AppLogger.logAction("SSH command", "$command (port=$port login=${login ?: "<default>"})")
+                val result = repository.getSshClient(port, login, password).execute(command)
                 result.onSuccess { _sshOutput.value = it }
                     .onFailure { _sshOutput.value = "Ошибка: ${it.message}" }
             } catch (e: Exception) {

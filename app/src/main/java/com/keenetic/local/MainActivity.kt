@@ -82,6 +82,9 @@ fun KeeneticAppTheme() {
                         IconButton(onClick = { viewModel.refreshAll() }) {
                             Icon(Icons.Default.Refresh, "Обновить")
                         }
+                        IconButton(onClick = { viewModel.reboot() }) {
+                            Icon(Icons.Default.RestartAlt, "Перезагрузить роутер")
+                        }
                         IconButton(onClick = { viewModel.logout() }) {
                             Icon(Icons.Default.Logout, "Выйти")
                         }

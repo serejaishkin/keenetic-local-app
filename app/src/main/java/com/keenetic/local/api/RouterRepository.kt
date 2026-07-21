@@ -117,12 +117,13 @@ class RouterRepository(private val context: Context) {
 
     fun getRestApi(): KeeneticRestApi = restApi ?: throw IllegalStateException("Not logged in")
 
-    suspend fun getSshClient(): KeeneticSshClient {
+    suspend fun getSshClient(port: Int = 22, login: String? = null, password: String? = null): KeeneticSshClient {
         sshClient?.let { return it }
         val ip = dataStore.routerIp.first()
-        val login = dataStore.routerLogin.first()
-        val password = readSavedPassword() ?: throw IllegalStateException("No saved password for SSH")
-        return KeeneticSshClient(host = ip, login = login, password = password).also { sshClient = it }
+        val sshLogin = login?.takeIf { it.isNotBlank() } ?: dataStore.routerLogin.first()
+        val sshPassword = password?.takeIf { it.isNotBlank() } ?: readSavedPassword()
+            ?: throw IllegalStateException("No password for SSH")
+        return KeeneticSshClient(host = ip, port = port, login = sshLogin, password = sshPassword).also { sshClient = it }
     }
 
     /** Шифрует и сохраняет пароль в DataStore через AndroidKeyStore. */

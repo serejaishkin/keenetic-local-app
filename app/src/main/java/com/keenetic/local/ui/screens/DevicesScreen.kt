@@ -36,9 +36,46 @@ fun DevicesScreen(viewModel: RouterViewModel) {
         )
         Spacer(modifier = Modifier.height(16.dp))
 
-        LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            items(clients.size) { index ->
-                ClientCard(client = clients[index], viewModel = viewModel)
+        if (clients.isEmpty()) {
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(containerColor = KeeneticColors.Surface),
+                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+            ) {
+                Column(
+                    modifier = Modifier.padding(16.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.DevicesOther,
+                        contentDescription = null,
+                        tint = KeeneticColors.TextSecondary,
+                        modifier = Modifier.size(40.dp)
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = "Список устройств пуст",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = KeeneticColors.TextPrimary,
+                        fontWeight = FontWeight.Medium
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text = "Роутер не вернул активных клиентов или данные пока недоступны",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = KeeneticColors.TextSecondary
+                    )
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Button(onClick = { viewModel.loadClients() }) {
+                        Text("Обновить")
+                    }
+                }
+            }
+        } else {
+            LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                items(clients.size) { index ->
+                    ClientCard(client = clients[index], viewModel = viewModel)
+                }
             }
         }
     }

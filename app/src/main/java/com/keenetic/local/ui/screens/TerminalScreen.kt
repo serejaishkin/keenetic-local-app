@@ -9,6 +9,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.RestartAlt
 import androidx.compose.material.icons.filled.Terminal
+import androidx.compose.material.icons.filled.Visibility
+import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -16,6 +18,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.keenetic.local.ui.RouterViewModel
@@ -24,14 +29,34 @@ import com.keenetic.local.ui.theme.KeeneticColors
 @Composable
 fun TerminalScreen(viewModel: RouterViewModel) {
     var command by remember { mutableStateOf("") }
+    var sshPort by remember { mutableStateOf("22") }
+    var sshLogin by remember { mutableStateOf("") }
+    var sshPassword by remember { mutableStateOf("") }
+    var sshPasswordVisible by remember { mutableStateOf(false) }
     val output by viewModel.sshOutput.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
+    val routerLogin by viewModel.routerLogin.collectAsState()
     val listState = rememberLazyListState()
+
+    LaunchedEffect(routerLogin) {
+        if (sshLogin.isBlank()) {
+            sshLogin = routerLogin
+        }
+    }
 
     LaunchedEffect(output) {
         if (output.isNotEmpty()) {
             listState.animateScrollToItem(0)
         }
+    }
+
+    val runCommand: (String) -> Unit = { cmd ->
+        viewModel.executeSsh(
+            command = cmd,
+            port = sshPort.toIntOrNull() ?: 22,
+            login = sshLogin.ifBlank { null },
+            password = sshPassword.ifBlank { null }
+        )
     }
 
     Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
@@ -50,22 +75,22 @@ fun TerminalScreen(viewModel: RouterViewModel) {
         // Быстрые команды
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             AssistChip(
-                onClick = { viewModel.executeSsh("show system") },
+                onClick = { runCommand("show system") },
                 label = { Text("System") },
                 leadingIcon = { Icon(Icons.Default.Terminal, null, Modifier.size(18.dp)) }
             )
             AssistChip(
-                onClick = { viewModel.executeSsh("show ip hotspot") },
+                onClick = { runCommand("show ip hotspot") },
                 label = { Text("Clients") },
                 leadingIcon = { Icon(Icons.Default.Terminal, null, Modifier.size(18.dp)) }
             )
             AssistChip(
-                onClick = { viewModel.executeSsh("show log tail 20") },
+                onClick = { runCommand("show log tail 20") },
                 label = { Text("Logs") },
                 leadingIcon = { Icon(Icons.Default.Terminal, null, Modifier.size(18.dp)) }
             )
             AssistChip(
-                onClick = { viewModel.executeSsh("ping 8.8.8.8 -c 4") },
+                onClick = { runCommand("ping 8.8.8.8 -c 4") },
                 label = { Text("Ping") },
                 leadingIcon = { Icon(Icons.Default.PlayArrow, null, Modifier.size(18.dp)) }
             )
@@ -101,6 +126,47 @@ fun TerminalScreen(viewModel: RouterViewModel) {
 
         Spacer(modifier = Modifier.height(8.dp))
 
+        OutlinedTextField(
+            value = sshLogin,
+            onValueChange = { sshLogin = it },
+            label = { Text("SSH логин") },
+            placeholder = { Text(routerLogin.ifBlank { "admin" }) },
+            singleLine = true,
+            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
+            modifier = Modifier.fillMaxWidth()
+        )
+        Spacer(modifier = Modifier.height(8.dp))
+
+        OutlinedTextField(
+            value = sshPassword,
+            onValueChange = { sshPassword = it },
+            label = { Text("SSH пароль") },
+            placeholder = { Text("Если пусто, будет использован сохранённый пароль") },
+            singleLine = true,
+            visualTransformation = if (sshPasswordVisible) VisualTransformation.None else PasswordVisualTransformation(),
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password, imeAction = ImeAction.Next),
+            trailingIcon = {
+                IconButton(onClick = { sshPasswordVisible = !sshPasswordVisible }) {
+                    Icon(
+                        imageVector = if (sshPasswordVisible) Icons.Default.Visibility else Icons.Default.VisibilityOff,
+                        contentDescription = null
+                    )
+                }
+            },
+            modifier = Modifier.fillMaxWidth()
+        )
+        Spacer(modifier = Modifier.height(8.dp))
+
+        OutlinedTextField(
+            value = sshPort,
+            onValueChange = { sshPort = it.filter(Char::isDigit).take(5) },
+            label = { Text("SSH порт") },
+            singleLine = true,
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = ImeAction.Next),
+            modifier = Modifier.fillMaxWidth()
+        )
+        Spacer(modifier = Modifier.height(8.dp))
+
         // Ввод команды
         OutlinedTextField(
             value = command,
@@ -109,7 +175,7 @@ fun TerminalScreen(viewModel: RouterViewModel) {
             keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send),
             keyboardActions = KeyboardActions(onSend = {
                 if (command.isNotBlank()) {
-                    viewModel.executeSsh(command)
+                    runCommand(command)
                     command = ""
                 }
             }),
@@ -117,13 +183,13 @@ fun TerminalScreen(viewModel: RouterViewModel) {
                 Row {
                     IconButton(onClick = {
                         if (command.isNotBlank()) {
-                            viewModel.executeSsh(command)
+                            runCommand(command)
                             command = ""
                         }
                     }) {
                         Icon(Icons.Default.PlayArrow, "Выполнить")
                     }
-                    IconButton(onClick = { viewModel.executeSsh("system reboot") }) {
+                    IconButton(onClick = { runCommand("system reboot") }) {
                         Icon(Icons.Default.RestartAlt, "Reboot", tint = KeeneticColors.Error)
                     }
                 }
