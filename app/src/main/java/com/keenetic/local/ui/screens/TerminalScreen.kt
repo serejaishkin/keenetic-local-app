@@ -91,9 +91,9 @@ fun TerminalScreen(viewModel: RouterViewModel) {
                     Text(
                         text = output.ifEmpty { "Введите команду или выберите быструю..." },
                         fontFamily = FontFamily.Monospace,
-                        fontSize = 12.sp,
+                        fontSize = androidx.compose.ui.unit.sp(12),
                         color = Color(0xFF00FF00),
-                        lineHeight = 16.sp
+                        lineHeight = androidx.compose.ui.unit.sp(16)
                     )
                 }
             }
