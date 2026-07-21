@@ -27,13 +27,10 @@ fun LoginScreen(viewModel: RouterViewModel, onLoginSuccess: () -> Unit) {
     val isLoading by viewModel.isLoading.collectAsState()
     val error by viewModel.error.collectAsState()
     val isLoggedIn by viewModel.isLoggedIn.collectAsState()
+    val hasSavedPassword by viewModel.hasSavedPassword.collectAsState()
 
     LaunchedEffect(isLoggedIn) {
         if (isLoggedIn) onLoginSuccess()
-    }
-
-    LaunchedEffect(error) {
-        if (error != null) viewModel.clearError()
     }
 
     Column(
@@ -84,6 +81,7 @@ fun LoginScreen(viewModel: RouterViewModel, onLoginSuccess: () -> Unit) {
             value = password,
             onValueChange = { password = it },
             label = { Text("Пароль") },
+            placeholder = { Text(if (hasSavedPassword) "Пароль сохранён, поле можно оставить пустым" else "Введите пароль") },
             visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password, imeAction = ImeAction.Done),
             trailingIcon = {
@@ -96,6 +94,16 @@ fun LoginScreen(viewModel: RouterViewModel, onLoginSuccess: () -> Unit) {
             },
             modifier = Modifier.fillMaxWidth()
         )
+        Spacer(modifier = Modifier.height(8.dp))
+
+        if (hasSavedPassword) {
+            Text(
+                text = "Сохранённый пароль доступен — можно просто нажать «Подключиться»",
+                style = MaterialTheme.typography.bodySmall,
+                color = KeeneticColors.TextSecondary
+            )
+        }
+
         Spacer(modifier = Modifier.height(16.dp))
 
         if (error != null) {

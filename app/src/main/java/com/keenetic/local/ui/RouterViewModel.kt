@@ -44,6 +44,9 @@ class RouterViewModel(application: Application) : AndroidViewModel(application) 
     private val _error = MutableStateFlow<String?>(null)
     val error: StateFlow<String?> = _error.asStateFlow()
 
+    private val _hasSavedPassword = MutableStateFlow(false)
+    val hasSavedPassword: StateFlow<Boolean> = _hasSavedPassword.asStateFlow()
+
     private val _discoveredRouters = MutableStateFlow<List<AutoDiscovery.DiscoveredRouter>>(emptyList())
     val discoveredRouters: StateFlow<List<AutoDiscovery.DiscoveredRouter>> = _discoveredRouters.asStateFlow()
 
@@ -53,6 +56,7 @@ class RouterViewModel(application: Application) : AndroidViewModel(application) 
 
     init {
         viewModelScope.launch {
+            _hasSavedPassword.value = repository.hasSavedCredentials()
             val autoLogin = dataStore.autoLogin.first()
             val hasSaved = repository.hasSavedCredentials()
             if (autoLogin && hasSaved) {
@@ -74,8 +78,22 @@ class RouterViewModel(application: Application) : AndroidViewModel(application) 
                 AppLogger.logAction("Manual login requested", "ip=$ip login=$login")
                 dataStore.saveRouterIp(ip)
                 dataStore.saveRouterLogin(login)
-                val result = repository.login(password)
+
+                val effectivePassword = if (password.isBlank()) {
+                    repository.readSavedPassword()
+                } else {
+                    password
+                }
+
+                if (effectivePassword.isNullOrBlank()) {
+                    _error.value = "Введите пароль или сначала выполните вход с паролем"
+                    _isLoggedIn.value = false
+                    return@launch
+                }
+
+                val result = repository.login(effectivePassword)
                 if (result == "OK" || result.startsWith("OK")) {
+                    _hasSavedPassword.value = true
                     AppLogger.logAction("Login success", "rememberMe=$rememberMe")
                     dataStore.setAutoLogin(rememberMe)
                     _isLoggedIn.value = true
@@ -244,6 +262,7 @@ class RouterViewModel(application: Application) : AndroidViewModel(application) 
             AppLogger.logAction("Logout requested")
             dataStore.clear()
             repository.clearSession()
+            _hasSavedPassword.value = false
             _isLoggedIn.value = false
             _systemInfo.value = null
             _clients.value = emptyList()
