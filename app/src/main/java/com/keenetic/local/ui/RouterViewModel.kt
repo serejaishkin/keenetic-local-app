@@ -149,7 +149,7 @@ class RouterViewModel(application: Application) : AndroidViewModel(application) 
                 if (response.isSuccessful) {
                     val body = response.body()
                     if (body != null) {
-                        _clients.value = body
+                        _clients.value = body.host
                     } else {
                         val raw = response.errorBody()?.string()
                         if (!raw.isNullOrBlank()) {
@@ -213,7 +213,11 @@ class RouterViewModel(application: Application) : AndroidViewModel(application) 
         viewModelScope.launch {
             try {
                 AppLogger.logAction("Reboot requested")
-                repository.getRestApi().reboot()
+                val response = repository.getRestApi().reboot()
+                if (!response.isSuccessful) {
+                    val raw = response.errorBody()?.string()
+                    _error.value = "Ошибка перезагрузки: HTTP ${response.code()} $raw"
+                }
             } catch (e: Exception) {
                 _error.value = "Ошибка перезагрузки: ${e.message}"
             }

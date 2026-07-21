@@ -1,0 +1,55 @@
+--- repo_now_orig/app/src/main/java/com/keenetic/local/api/KeeneticRestApi.kt	2026-07-21 10:38:15.000000000 +0000
++++ repo_now/app/src/main/java/com/keenetic/local/api/KeeneticRestApi.kt	2026-07-21 18:43:49.249793913 +0000
+@@ -24,6 +24,10 @@
+     val active: String? = null
+ )
+ 
++// /rci/show/ip/hotspot возвращает объект {"host": [...]}, а не голый массив -
++// подтверждено реальным дампом с роутера.
++data class HotspotResponse(val host: List<Client> = emptyList())
++
+ /**
+  * Отображаемая модель интерфейса (после маппинга из сырого JSON-объекта,
+  * см. [InterfaceMapper]).
+@@ -77,7 +81,7 @@
+     suspend fun getSystem(): Response<SystemInfo>
+ 
+     @GET("rci/show/ip/hotspot")
+-    suspend fun getClients(): Response<List<Client>>
++    suspend fun getClients(): Response<HotspotResponse>
+ 
+     // ВАЖНО: /rci/show/interface возвращает JSON-объект { "<id>": {...}, ... },
+     // а не массив, поэтому Map<String, JsonObject>, а не List.
+@@ -94,7 +98,7 @@
+     suspend fun setClientAccess(@Body body: Map<String, String>): Response<Void>
+ 
+     @POST("rci/system/reboot")
+-    suspend fun reboot(): Response<Void>
++    suspend fun reboot(@Body body: Map<String, String> = emptyMap()): Response<Void>
+ 
+     @GET("rci/show/interface/{name}/assoc")
+     suspend fun getWifiAssoc(@Path("name") name: String): Response<List<WifiAssoc>>
+--- repo_now_orig/app/src/main/java/com/keenetic/local/ui/RouterViewModel.kt	2026-07-21 10:38:15.000000000 +0000
++++ repo_now/app/src/main/java/com/keenetic/local/ui/RouterViewModel.kt	2026-07-21 18:43:54.177852599 +0000
+@@ -149,7 +149,7 @@
+                 if (response.isSuccessful) {
+                     val body = response.body()
+                     if (body != null) {
+-                        _clients.value = body
++                        _clients.value = body.host
+                     } else {
+                         val raw = response.errorBody()?.string()
+                         if (!raw.isNullOrBlank()) {
+@@ -213,7 +213,11 @@
+         viewModelScope.launch {
+             try {
+                 AppLogger.logAction("Reboot requested")
+-                repository.getRestApi().reboot()
++                val response = repository.getRestApi().reboot()
++                if (!response.isSuccessful) {
++                    val raw = response.errorBody()?.string()
++                    _error.value = "Ошибка перезагрузки: HTTP ${response.code()} $raw"
++                }
+             } catch (e: Exception) {
+                 _error.value = "Ошибка перезагрузки: ${e.message}"
+             }

@@ -24,6 +24,10 @@ data class Client(
     val active: String? = null
 )
 
+// /rci/show/ip/hotspot возвращает объект {"host": [...]}, а не голый массив -
+// подтверждено реальным дампом с роутера.
+data class HotspotResponse(val host: List<Client> = emptyList())
+
 /**
  * Отображаемая модель интерфейса (после маппинга из сырого JSON-объекта,
  * см. [InterfaceMapper]).
@@ -77,7 +81,7 @@ interface KeeneticRestApi {
     suspend fun getSystem(): Response<SystemInfo>
 
     @GET("rci/show/ip/hotspot")
-    suspend fun getClients(): Response<List<Client>>
+    suspend fun getClients(): Response<HotspotResponse>
 
     // ВАЖНО: /rci/show/interface возвращает JSON-объект { "<id>": {...}, ... },
     // а не массив, поэтому Map<String, JsonObject>, а не List.
@@ -94,7 +98,7 @@ interface KeeneticRestApi {
     suspend fun setClientAccess(@Body body: Map<String, String>): Response<Void>
 
     @POST("rci/system/reboot")
-    suspend fun reboot(): Response<Void>
+    suspend fun reboot(@Body body: Map<String, String> = emptyMap()): Response<Void>
 
     @GET("rci/show/interface/{name}/assoc")
     suspend fun getWifiAssoc(@Path("name") name: String): Response<List<WifiAssoc>>
