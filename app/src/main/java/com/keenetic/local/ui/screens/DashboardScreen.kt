@@ -47,6 +47,17 @@ fun DashboardScreen(viewModel: RouterViewModel) {
         }
 
         item {
+            val wan = interfaces.firstOrNull {
+                it.id.contains("GigabitEthernet1", ignoreCase = true) ||
+                    it.displayName.equals("ISP", ignoreCase = true) ||
+                    it.description?.contains("ISP", ignoreCase = true) == true
+            }
+            if (wan != null) {
+                WanStatusCard(wan)
+            }
+        }
+
+        item {
             Text(
                 text = "Интерфейсы",
                 style = MaterialTheme.typography.titleMedium,
@@ -87,6 +98,34 @@ fun StatusCard(info: com.keenetic.local.api.SystemInfo?) {
             InfoRow("RAM", info?.memory ?: "—")
             InfoRow("Uptime", info?.uptime ?: "—")
             InfoRow("Имя", info?.hostname ?: "—")
+        }
+    }
+}
+
+@Composable
+fun WanStatusCard(wan: com.keenetic.local.api.InterfaceInfo) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = KeeneticColors.Surface),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(
+                    Icons.Default.Cloud,
+                    contentDescription = null,
+                    tint = if (wan.up) KeeneticColors.Accent else KeeneticColors.Error
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    "Интернет (${wan.displayName})",
+                    fontWeight = FontWeight.Medium,
+                    color = if (wan.up) KeeneticColors.Accent else KeeneticColors.Error
+                )
+            }
+            Spacer(modifier = Modifier.height(12.dp))
+            InfoRow("Статус", if (wan.up) "Подключено" else "Нет соединения")
+            InfoRow("IP-адрес", wan.address ?: "—")
         }
     }
 }
