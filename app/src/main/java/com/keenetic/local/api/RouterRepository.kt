@@ -86,7 +86,6 @@ class RouterRepository(private val context: Context) {
         buildPermanentClient(baseUrl, cookie)
         AppLogger.i("Login completed successfully")
 
-        // Успешный вход - сохраняем пароль зашифрованным для автовхода.
         savePassword(password)
 
         return "OK"
@@ -138,7 +137,7 @@ class RouterRepository(private val context: Context) {
         return try {
             keystore.decrypt(encrypted)
         } catch (e: Exception) {
-            Log.w("KeeneticAuth", "Не удалось расшифровать сохранённый пароль: ${e.message}")
+            AppLogger.e("Failed to decrypt saved password", throwable = e)
             null
         }
     }
