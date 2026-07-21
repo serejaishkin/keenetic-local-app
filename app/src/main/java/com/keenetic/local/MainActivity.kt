@@ -18,10 +18,12 @@ import com.keenetic.local.ui.KeeneticNavHost
 import com.keenetic.local.ui.RouterViewModel
 import com.keenetic.local.ui.Screen
 import com.keenetic.local.ui.theme.KeeneticColors
+import com.keenetic.local.util.AppLogger
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        AppLogger.logAction("App started")
         setContent {
             KeeneticAppTheme()
         }
@@ -99,6 +101,7 @@ fun KeeneticAppTheme() {
                             label = { Text(screen.title) },
                             selected = currentRoute == screen.route,
                             onClick = {
+                                AppLogger.logAction("Navigate", screen.route)
                                 navController.navigate(screen.route) {
                                     popUpTo(navController.graph.startDestinationId) { saveState = true }
                                     launchSingleTop = true

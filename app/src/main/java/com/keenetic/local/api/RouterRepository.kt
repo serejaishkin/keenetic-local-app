@@ -4,6 +4,7 @@ import android.content.Context
 import android.util.Log
 import com.keenetic.local.data.DataStoreManager
 import com.keenetic.local.security.KeystoreManager
+import com.keenetic.local.util.AppLogger
 import kotlinx.coroutines.flow.first
 import okhttp3.OkHttpClient
 import retrofit2.Retrofit
@@ -33,6 +34,8 @@ class RouterRepository(private val context: Context) {
         val login = dataStore.routerLogin.first()
         val baseUrl = "http://$ip/"
 
+        AppLogger.logAction("Login start", "ip=$ip login=$login")
+
         val tempClient = OkHttpClient.Builder()
             .connectTimeout(15, TimeUnit.SECONDS)
             .readTimeout(15, TimeUnit.SECONDS)
@@ -48,10 +51,12 @@ class RouterRepository(private val context: Context) {
         val authResp = try {
             tempApi.auth()
         } catch (e: Exception) {
+            AppLogger.e("Login auth request failed", throwable = e)
             return "FAIL: GET /auth ${e.message}"
         }
 
         if (authResp.code() == 200) {
+            AppLogger.i("Login succeeded without password")
             // Роутер без пароля - пропускаем challenge, но клиент всё равно нужен.
             buildPermanentClient(baseUrl, cookie = null)
             return "OK (no password)"
@@ -66,17 +71,20 @@ class RouterRepository(private val context: Context) {
         val cookie = setCookie.split(";")[0].trim()
 
         Log.d("KeeneticAuth", "Realm='$realm' Challenge='$challenge' Cookie='$cookie'")
+        AppLogger.d("Auth challenge received: realm=$realm challenge=$challenge")
 
         val md5 = md5("$login:$realm:$password")
         val response = sha256("$challenge$md5")
 
         val loginResp = tempApi.login(AuthRequest(login, response), cookie)
         if (!loginResp.isSuccessful) {
+            AppLogger.w("Login request failed with HTTP ${loginResp.code()}")
             return "FAIL: POST /auth ${loginResp.code()}"
         }
 
         currentCookie = cookie
         buildPermanentClient(baseUrl, cookie)
+        AppLogger.i("Login completed successfully")
 
         // Успешный вход - сохраняем пароль зашифрованным для автовхода.
         savePassword(password)
@@ -122,6 +130,7 @@ class RouterRepository(private val context: Context) {
     suspend fun savePassword(password: String) {
         val encrypted = keystore.encrypt(password)
         dataStore.saveEncryptedPassword(encrypted)
+        AppLogger.d("Saved encrypted password for future auto-login")
     }
 
     suspend fun readSavedPassword(): String? {
@@ -146,6 +155,7 @@ class RouterRepository(private val context: Context) {
         restApi = null
         sshClient = null
         currentCookie = null
+        AppLogger.logAction("Session cleared")
     }
 
     private fun md5(str: String): String = digest("MD5", str)

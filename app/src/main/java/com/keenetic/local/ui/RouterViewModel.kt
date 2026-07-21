@@ -6,6 +6,7 @@ import androidx.lifecycle.viewModelScope
 import com.keenetic.local.api.*
 import com.keenetic.local.data.DataStoreManager
 import com.keenetic.local.discovery.AutoDiscovery
+import com.keenetic.local.util.AppLogger
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 
@@ -70,18 +71,22 @@ class RouterViewModel(application: Application) : AndroidViewModel(application) 
             _isLoading.value = true
             _error.value = null
             try {
+                AppLogger.logAction("Manual login requested", "ip=$ip login=$login")
                 dataStore.saveRouterIp(ip)
                 dataStore.saveRouterLogin(login)
                 val result = repository.login(password)
                 if (result == "OK" || result.startsWith("OK")) {
+                    AppLogger.logAction("Login success", "rememberMe=$rememberMe")
                     dataStore.setAutoLogin(rememberMe)
                     _isLoggedIn.value = true
                     refreshAll()
                 } else {
+                    AppLogger.w("Login failed: $result")
                     _error.value = result
                     _isLoggedIn.value = false
                 }
             } catch (e: Exception) {
+                AppLogger.e("Login exception", throwable = e)
                 _error.value = "Ошибка авторизации: ${e.message}"
                 _isLoggedIn.value = false
             } finally {
@@ -100,6 +105,7 @@ class RouterViewModel(application: Application) : AndroidViewModel(application) 
         viewModelScope.launch {
             _isLoading.value = true
             try {
+                AppLogger.logAction("Refresh system info")
                 val response = repository.getRestApi().getSystem()
                 if (response.isSuccessful) {
                     _systemInfo.value = response.body()
@@ -117,6 +123,7 @@ class RouterViewModel(application: Application) : AndroidViewModel(application) 
     fun loadClients() {
         viewModelScope.launch {
             try {
+                AppLogger.logAction("Refresh clients")
                 val response = repository.getRestApi().getClients()
                 if (response.isSuccessful) {
                     _clients.value = response.body() ?: emptyList()
@@ -130,6 +137,7 @@ class RouterViewModel(application: Application) : AndroidViewModel(application) 
     fun loadInterfaces() {
         viewModelScope.launch {
             try {
+                AppLogger.logAction("Refresh interfaces")
                 val response = repository.getRestApi().getInterfacesRaw()
                 if (response.isSuccessful) {
                     val raw = response.body() ?: emptyMap()
@@ -147,6 +155,7 @@ class RouterViewModel(application: Application) : AndroidViewModel(application) 
     fun toggleClient(mac: String, allow: Boolean) {
         viewModelScope.launch {
             try {
+                AppLogger.logAction("Toggle client access", "mac=$mac allow=$allow")
                 repository.getRestApi().setClientAccess(
                     mapOf("mac" to mac, "access" to if (allow) "permit" else "deny")
                 )
@@ -160,6 +169,7 @@ class RouterViewModel(application: Application) : AndroidViewModel(application) 
     fun reboot() {
         viewModelScope.launch {
             try {
+                AppLogger.logAction("Reboot requested")
                 repository.getRestApi().reboot()
             } catch (e: Exception) {
                 _error.value = "Ошибка перезагрузки: ${e.message}"
@@ -170,6 +180,7 @@ class RouterViewModel(application: Application) : AndroidViewModel(application) 
     fun toggleInterface(name: String, up: Boolean) {
         viewModelScope.launch {
             try {
+                AppLogger.logAction("Toggle interface", "name=$name up=$up")
                 repository.getRestApi().setInterface(
                     name,
                     if (up) mapOf("up" to "true") else mapOf("down" to "true")
@@ -185,6 +196,7 @@ class RouterViewModel(application: Application) : AndroidViewModel(application) 
         viewModelScope.launch {
             _isLoading.value = true
             try {
+                AppLogger.logAction("SSH command", command)
                 val result = repository.getSshClient().execute(command)
                 result.onSuccess { _sshOutput.value = it }
                     .onFailure { _sshOutput.value = "Ошибка: ${it.message}" }
@@ -201,6 +213,7 @@ class RouterViewModel(application: Application) : AndroidViewModel(application) 
             _isLoading.value = true
             try {
                 val ip = routerIp.value.substringBeforeLast(".")
+                AppLogger.logAction("Discover routers", "network=$ip")
                 _discoveredRouters.value = AutoDiscovery.discover(ip)
             } catch (e: Exception) {
                 _error.value = "Ошибка поиска: ${e.message}"
@@ -228,6 +241,7 @@ class RouterViewModel(application: Application) : AndroidViewModel(application) 
 
     fun logout() {
         viewModelScope.launch {
+            AppLogger.logAction("Logout requested")
             dataStore.clear()
             repository.clearSession()
             _isLoggedIn.value = false
