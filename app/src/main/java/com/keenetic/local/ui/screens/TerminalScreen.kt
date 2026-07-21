@@ -18,7 +18,6 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.unit.sp
 import com.keenetic.local.ui.RouterViewModel
 import com.keenetic.local.ui.theme.KeeneticColors
 
@@ -92,9 +91,9 @@ fun TerminalScreen(viewModel: RouterViewModel) {
                     Text(
                         text = output.ifEmpty { "Введите команду или выберите быструю..." },
                         fontFamily = FontFamily.Monospace,
-                        fontSize = androidx.compose.ui.unit.sp(12),
+                        fontSize = 12.sp,
                         color = Color(0xFF00FF00),
-                        lineHeight = androidx.compose.ui.unit.sp(16)
+                        lineHeight = 16.sp
                     )
                 }
             }
