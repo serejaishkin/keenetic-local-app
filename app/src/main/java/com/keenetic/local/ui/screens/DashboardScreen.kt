@@ -58,6 +58,13 @@ fun DashboardScreen(viewModel: RouterViewModel) {
         }
 
         item {
+            val tunnels = interfaces.filter { it.type in setOf("Proxy", "Wireguard") }
+            if (tunnels.isNotEmpty()) {
+                VpnStatusCard(tunnels)
+            }
+        }
+
+        item {
             Text(
                 text = "Интерфейсы",
                 style = MaterialTheme.typography.titleMedium,
@@ -126,6 +133,38 @@ fun WanStatusCard(wan: com.keenetic.local.api.InterfaceInfo) {
             Spacer(modifier = Modifier.height(12.dp))
             InfoRow("Статус", if (wan.up) "Подключено" else "Нет соединения")
             InfoRow("IP-адрес", wan.address ?: "—")
+        }
+    }
+}
+
+@Composable
+fun VpnStatusCard(tunnels: List<com.keenetic.local.api.InterfaceInfo>) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = KeeneticColors.Surface),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(Icons.Default.VpnLock, contentDescription = null, tint = KeeneticColors.Primary)
+                Spacer(modifier = Modifier.width(8.dp))
+                Text("VPN / Прокси", fontWeight = FontWeight.Medium, color = KeeneticColors.TextPrimary)
+            }
+            Spacer(modifier = Modifier.height(12.dp))
+            tunnels.forEach { t ->
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(t.displayName, style = MaterialTheme.typography.bodyMedium)
+                    Text(
+                        if (t.up) "Активен" else "Выключен",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = if (t.up) KeeneticColors.Accent else KeeneticColors.TextSecondary
+                    )
+                }
+            }
         }
     }
 }
