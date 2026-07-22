@@ -92,6 +92,7 @@ fun ClientCard(client: Client, viewModel: RouterViewModel) {
     val isBlocked = client.access == "deny"
     var showMenu by remember { mutableStateOf(false) }
     var showRenameDialog by remember { mutableStateOf(false) }
+    var showPolicyDialog by remember { mutableStateOf(false) }
 
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -146,6 +147,16 @@ fun ClientCard(client: Client, viewModel: RouterViewModel) {
                         }
                     )
                     DropdownMenuItem(
+                        text = { Text("Политика маршрутизации") },
+                        onClick = {
+                            showMenu = false
+                            showPolicyDialog = true
+                        },
+                        leadingIcon = {
+                            Icon(Icons.Default.Route, contentDescription = null, tint = KeeneticColors.Primary)
+                        }
+                    )
+                    DropdownMenuItem(
                         text = { Text(if (isBlocked) "Разблокировать" else "Заблокировать") },
                         onClick = {
                             viewModel.toggleClient(client.mac ?: "", !isBlocked)
@@ -162,6 +173,47 @@ fun ClientCard(client: Client, viewModel: RouterViewModel) {
                 }
             }
         }
+    }
+
+    if (showPolicyDialog) {
+        var policyName by remember { mutableStateOf("") }
+        AlertDialog(
+            onDismissRequest = { showPolicyDialog = false },
+            title = { Text("Политика маршрутизации") },
+            text = {
+                Column {
+                    OutlinedTextField(
+                        value = policyName,
+                        onValueChange = { policyName = it },
+                        label = { Text("Имя политики") },
+                        placeholder = { Text("например Policy0") },
+                        singleLine = true
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        "Должно совпадать с именем существующей политики на роутере (ip policy ...).",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = KeeneticColors.TextSecondary
+                    )
+                }
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        client.mac?.let { viewModel.setClientPolicy(it, policyName) }
+                        showPolicyDialog = false
+                    },
+                    enabled = policyName.isNotBlank() && client.mac != null
+                ) {
+                    Text("Применить", color = KeeneticColors.Primary)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showPolicyDialog = false }) {
+                    Text("Отмена")
+                }
+            }
+        )
     }
 
     if (showRenameDialog) {

@@ -195,6 +195,43 @@ class RouterViewModel(application: Application) : AndroidViewModel(application) 
         }
     }
 
+    /**
+     * Назначает политику маршрутизации устройству. Основано на реальном
+     * startup-config с роутера, где видна ветка:
+     *   ip hotspot
+     *       host <mac> permit
+     *       host <mac> policy Policy0
+     * "policy" - соседнее поле в том же узле "host <mac>", что и "access",
+     * который уже подтверждённо работает через toggleClient() - используем
+     * тот же командный путь ip.hotspot.host, просто с другим полем.
+     * policyName должно совпадать с одним из имён `ip policy ...` на роутере
+     * (в конфиге видны: HydraRoute, Policy0, Proxy4, Policy1) - вводится
+     * вручную, автосписка политик пока нет.
+     */
+    fun setClientPolicy(mac: String, policyName: String) {
+        viewModelScope.launch {
+            _isLoading.value = true
+            try {
+                AppLogger.logAction("Set client policy", "mac=$mac policy=$policyName")
+                val response = repository.getRestApi().executeRci(
+                    listOf(
+                        mapOf("ip" to mapOf("hotspot" to mapOf("host" to mapOf("mac" to mac, "policy" to policyName)))),
+                        mapOf("system" to mapOf("configuration" to mapOf("save" to emptyMap<String, Any>())))
+                    )
+                )
+                if (response.isSuccessful) {
+                    loadClients()
+                } else {
+                    _error.value = "Ошибка назначения политики: HTTP ${response.code()}"
+                }
+            } catch (e: Exception) {
+                _error.value = "Ошибка назначения политики: ${e.message}"
+            } finally {
+                _isLoading.value = false
+            }
+        }
+    }
+
     fun toggleClient(mac: String, allow: Boolean) {
         viewModelScope.launch {
             try {
