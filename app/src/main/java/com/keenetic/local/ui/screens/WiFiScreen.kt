@@ -56,6 +56,7 @@ fun WiFiScreen(viewModel: RouterViewModel) {
 @Composable
 fun WiFiCard(network: WifiNetwork, viewModel: RouterViewModel) {
     var confirmToggle by remember { mutableStateOf(false) }
+    var showPasswordDialog by remember { mutableStateOf(false) }
 
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -98,12 +99,62 @@ fun WiFiCard(network: WifiNetwork, viewModel: RouterViewModel) {
             }
 
             Spacer(modifier = Modifier.height(8.dp))
-            Text(
-                text = "Защита: ${network.security}",
-                style = MaterialTheme.typography.bodySmall,
-                color = KeeneticColors.TextSecondary
-            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Text(
+                    text = "Защита: ${network.security}",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = KeeneticColors.TextSecondary
+                )
+                TextButton(onClick = { showPasswordDialog = true }) {
+                    Text("Сменить пароль")
+                }
+            }
         }
+    }
+
+    if (showPasswordDialog) {
+        var newPassword by remember { mutableStateOf("") }
+        AlertDialog(
+            onDismissRequest = { showPasswordDialog = false },
+            title = { Text("Новый пароль для «${network.ssid}»") },
+            text = {
+                Column {
+                    OutlinedTextField(
+                        value = newPassword,
+                        onValueChange = { newPassword = it },
+                        label = { Text("Пароль (минимум 8 символов)") },
+                        singleLine = true
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        "Сеть: ${if (network.guest) "Guest" else "Home"}",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = KeeneticColors.TextSecondary
+                    )
+                }
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        val networkId = if (network.guest) "Guest" else "Home"
+                        viewModel.setWifiPassword(networkId, newPassword)
+                        showPasswordDialog = false
+                    },
+                    enabled = newPassword.length >= 8
+                ) {
+                    Text("Сохранить", color = KeeneticColors.Primary)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showPasswordDialog = false }) {
+                    Text("Отмена")
+                }
+            }
+        )
     }
 
     if (confirmToggle) {

@@ -91,6 +91,7 @@ fun DevicesScreen(viewModel: RouterViewModel) {
 fun ClientCard(client: Client, viewModel: RouterViewModel) {
     val isBlocked = client.access == "deny"
     var showMenu by remember { mutableStateOf(false) }
+    var showRenameDialog by remember { mutableStateOf(false) }
 
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -135,6 +136,16 @@ fun ClientCard(client: Client, viewModel: RouterViewModel) {
                 }
                 DropdownMenu(expanded = showMenu, onDismissRequest = { showMenu = false }) {
                     DropdownMenuItem(
+                        text = { Text("Переименовать") },
+                        onClick = {
+                            showMenu = false
+                            showRenameDialog = true
+                        },
+                        leadingIcon = {
+                            Icon(Icons.Default.Edit, contentDescription = null, tint = KeeneticColors.Primary)
+                        }
+                    )
+                    DropdownMenuItem(
                         text = { Text(if (isBlocked) "Разблокировать" else "Заблокировать") },
                         onClick = {
                             viewModel.toggleClient(client.mac ?: "", !isBlocked)
@@ -151,5 +162,37 @@ fun ClientCard(client: Client, viewModel: RouterViewModel) {
                 }
             }
         }
+    }
+
+    if (showRenameDialog) {
+        var newName by remember { mutableStateOf(client.name ?: "") }
+        AlertDialog(
+            onDismissRequest = { showRenameDialog = false },
+            title = { Text("Переименовать устройство") },
+            text = {
+                OutlinedTextField(
+                    value = newName,
+                    onValueChange = { newName = it },
+                    label = { Text("Имя устройства") },
+                    singleLine = true
+                )
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        client.mac?.let { viewModel.renameDevice(it, newName) }
+                        showRenameDialog = false
+                    },
+                    enabled = newName.isNotBlank() && client.mac != null
+                ) {
+                    Text("Сохранить", color = KeeneticColors.Primary)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showRenameDialog = false }) {
+                    Text("Отмена")
+                }
+            }
+        )
     }
 }

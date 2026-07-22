@@ -209,6 +209,67 @@ class RouterViewModel(application: Application) : AndroidViewModel(application) 
         }
     }
 
+    /**
+     * Переименовывает устройство в списке клиентов. Использует минимальную
+     * реальную команду ("known.host.name") без побочных сбросов других
+     * настроек устройства (в оригинальном веб-UI тот же диалог заодно
+     * сбрасывает лимиты трафика/DNS-профиль - мы этого сознательно не делаем).
+     */
+    fun renameDevice(mac: String, newName: String) {
+        viewModelScope.launch {
+            _isLoading.value = true
+            try {
+                AppLogger.logAction("Rename device", "mac=$mac name=$newName")
+                val response = repository.getRestApi().executeRci(
+                    listOf(
+                        mapOf("known" to mapOf("host" to mapOf("name" to newName, "mac" to mac))),
+                        mapOf("system" to mapOf("configuration" to mapOf("save" to emptyMap<String, Any>())))
+                    )
+                )
+                if (response.isSuccessful) {
+                    loadClients()
+                } else {
+                    _error.value = "Ошибка переименования: HTTP ${response.code()}"
+                }
+            } catch (e: Exception) {
+                _error.value = "Ошибка переименования: ${e.message}"
+            } finally {
+                _isLoading.value = false
+            }
+        }
+    }
+
+    /**
+     * Меняет пароль Wi-Fi сети. networkId - "Home" для основной сети или
+     * "Guest" для гостевой (подтверждено реальным дампом /rci/show/mws/wlan
+     * с этого роутера; на других моделях имена id теоретически могут
+     * отличаться). Отправляется только поле пароля - остальные настройки
+     * сети (SSID, band-steering и т.д.) не трогаются.
+     */
+    fun setWifiPassword(networkId: String, newPassword: String) {
+        viewModelScope.launch {
+            _isLoading.value = true
+            try {
+                AppLogger.logAction("Set WiFi password", "network=$networkId")
+                val response = repository.getRestApi().executeRci(
+                    listOf(
+                        mapOf("mws" to mapOf("wlan" to mapOf("id" to networkId, "wpa" to mapOf("psk" to newPassword)))),
+                        mapOf("system" to mapOf("configuration" to mapOf("save" to emptyMap<String, Any>())))
+                    )
+                )
+                if (response.isSuccessful) {
+                    loadInterfaces()
+                } else {
+                    _error.value = "Ошибка смены пароля: HTTP ${response.code()}"
+                }
+            } catch (e: Exception) {
+                _error.value = "Ошибка смены пароля: ${e.message}"
+            } finally {
+                _isLoading.value = false
+            }
+        }
+    }
+
     fun reboot() {
         viewModelScope.launch {
             try {

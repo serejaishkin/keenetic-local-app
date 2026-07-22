@@ -1,5 +1,6 @@
 package com.keenetic.local.api
 
+import com.google.gson.JsonElement
 import com.google.gson.JsonObject
 import retrofit2.Response
 import retrofit2.http.*
@@ -102,4 +103,17 @@ interface KeeneticRestApi {
 
     @GET("rci/show/interface/{name}/assoc")
     suspend fun getWifiAssoc(@Path("name") name: String): Response<List<WifiAssoc>>
+
+    // Реальный внутренний протокол Keenetic RCI: изменения настроек (в отличие
+    // от чтения /rci/show/...) отправляются пакетом команд на корневой /rci/.
+    // Формат подтверждён снятым HAR-дампом с настоящего роутера:
+    //   - переименование клиента: {"known":{"host":{"name":..,"mac":..}}}
+    //   - пароль/SSID Wi-Fi:      {"mws":{"wlan":{"id":"Home"|"Guest",...}}}
+    // Обязательно завершать батч командой {"system":{"configuration":{"save":{}}}},
+    // иначе изменения не переживут перезагрузку роутера.
+    @POST("rci/")
+    suspend fun executeRci(@Body commands: List<Map<String, Any>>): Response<JsonElement>
+
+    @GET("rci/show/mws/wlan")
+    suspend fun getMwsWlan(): Response<Map<String, JsonObject>>
 }
