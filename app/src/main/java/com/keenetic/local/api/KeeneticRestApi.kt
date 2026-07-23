@@ -63,7 +63,15 @@ data class WifiAssoc(
     val ip: String? = null,
     val rssi: String? = null,
     val txrate: String? = null,
-    val rxrate: String? = null
+    val rxrate: String? = null,
+    val txbytes: Long? = null,
+    val rxbytes: Long? = null,
+    val ap: String? = null
+)
+
+data class IpPolicy(
+    val name: String? = null,
+    val description: String? = null
 )
 
 // ===== API интерфейс =====
@@ -101,8 +109,17 @@ interface KeeneticRestApi {
     @POST("rci/system/reboot")
     suspend fun reboot(@Body body: Map<String, String> = emptyMap()): Response<Void>
 
-    @GET("rci/show/interface/{name}/assoc")
-    suspend fun getWifiAssoc(@Path("name") name: String): Response<List<WifiAssoc>>
+    // Подтверждено официальной документацией Keenetic (RCI reference):
+    // корневой эндпоинт, а не /rci/show/interface/{name}/assoc, как было раньше.
+    @GET("rci/show/associations")
+    suspend fun getAssociations(): Response<JsonElement>
+
+    // ПРЕДПОЛОЖИТЕЛЬНЫЙ эндпоинт по аналогии с show/ip/hotspot,
+    // show/ip/dhcp/bindings - не подтверждён HAR-дампом или документацией.
+    // Обращение безопасно (GET, только чтение), но формат ответа не проверен -
+    // код ниже обязан аккуратно обрабатывать неожиданную форму/ошибку.
+    @GET("rci/show/ip/policy")
+    suspend fun getIpPoliciesRaw(): Response<JsonElement>
 
     // Реальный внутренний протокол Keenetic RCI: изменения настроек (в отличие
     // от чтения /rci/show/...) отправляются пакетом команд на корневой /rci/.

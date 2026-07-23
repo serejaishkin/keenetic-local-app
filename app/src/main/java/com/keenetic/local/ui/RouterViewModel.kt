@@ -38,6 +38,12 @@ class RouterViewModel(application: Application) : AndroidViewModel(application) 
     private val _wifiNetworks = MutableStateFlow<List<WifiNetwork>>(emptyList())
     val wifiNetworks: StateFlow<List<WifiNetwork>> = _wifiNetworks.asStateFlow()
 
+    private val _associations = MutableStateFlow<List<WifiAssoc>>(emptyList())
+    val associations: StateFlow<List<WifiAssoc>> = _associations.asStateFlow()
+
+    private val _ipPolicies = MutableStateFlow<List<String>>(emptyList())
+    val ipPolicies: StateFlow<List<String>> = _ipPolicies.asStateFlow()
+
     private val _sshOutput = MutableStateFlow("")
     val sshOutput: StateFlow<String> = _sshOutput.asStateFlow()
 
@@ -120,6 +126,8 @@ class RouterViewModel(application: Application) : AndroidViewModel(application) 
         loadSystemInfo()
         loadClients()
         loadInterfaces()
+        loadAssociations()
+        loadIpPolicies()
     }
 
     fun loadSystemInfo() {
@@ -173,6 +181,47 @@ class RouterViewModel(application: Application) : AndroidViewModel(application) 
                 AppLogger.w("Failed to parse clients response", throwable = e)
                 _clients.value = emptyList()
                 _error.value = "Ошибка загрузки устройств: ${e.message}"
+            }
+        }
+    }
+
+    /**
+     * Активные Wi-Fi подключения с трафиком (для графика на Dashboard).
+     * Формат ответа подтверждён официальной документацией Keenetic (RCI
+     * reference, "show associations"), но не HAR-дампом с конкретного
+     * роутера - парсинг защитный, на случай если реальная форма ответа
+     * (массив vs объект по ключу интерфейса) отличается.
+     */
+    fun loadAssociations() {
+        viewModelScope.launch {
+            try {
+                val response = repository.getRestApi().getAssociations()
+                if (response.isSuccessful) {
+                    _associations.value = com.keenetic.local.api.AssociationsParser.parse(response.body())
+                }
+                // Намеренно не показываем _error здесь: это дополнительная,
+                // не критичная для работы приложения информация.
+            } catch (e: Exception) {
+                AppLogger.logAction("Associations load failed", e.message ?: "")
+            }
+        }
+    }
+
+    /**
+     * Список имён политик маршрутизации (ip policy ...) для выпадающего
+     * списка при назначении политики устройству. Эндпоинт НЕ подтверждён
+     * HAR-дампом - если роутер ответит не 200 или неожиданным форматом,
+     * список останется пустым и экран покажет ручной ввод как фолбэк.
+     */
+    fun loadIpPolicies() {
+        viewModelScope.launch {
+            try {
+                val response = repository.getRestApi().getIpPoliciesRaw()
+                if (response.isSuccessful) {
+                    _ipPolicies.value = com.keenetic.local.api.AssociationsParser.parsePolicyNames(response.body())
+                }
+            } catch (e: Exception) {
+                AppLogger.logAction("IP policies load failed", e.message ?: "")
             }
         }
     }
@@ -283,6 +332,54 @@ class RouterViewModel(application: Application) : AndroidViewModel(application) 
      * отличаться). Отправляется только поле пароля - остальные настройки
      * сети (SSID, band-steering и т.д.) не трогаются.
      */
+    /**
+     * Обновляет несколько настроек Wi-Fi сети одним запросом. Отправляет
+     * ТОЛЬКО те поля, что переданы не-null - остальные настройки на роутере
+     * не трогаются (подтверждённое поведение частичного патча для mws.wlan,
+     * см. ROADMAP.md). wpsEnabled/peerIsolation оставляй null, если не хочешь
+     * их менять - мы не знаем их текущее состояние на роутере.
+     */
+    fun updateWifiNetwork(
+        networkId: String,
+        ssidName: String? = null,
+        password: String? = null,
+        wpsEnabled: Boolean? = null,
+        peerIsolation: Boolean? = null
+    ) {
+        viewModelScope.launch {
+            _isLoading.value = true
+            try {
+                val wlanFields = mutableMapOf<String, Any>("id" to networkId)
+                ssidName?.let { wlanFields["ssid"] = mapOf("name" to it) }
+                password?.let { wlanFields["wpa"] = mapOf("psk" to it) }
+                wpsEnabled?.let { wlanFields["wps"] = mapOf("enable" to it) }
+                peerIsolation?.let { wlanFields["peer-isolation"] = it }
+
+                if (wlanFields.size <= 1) {
+                    _isLoading.value = false
+                    return@launch
+                }
+
+                AppLogger.logAction("Update wifi network", "network=$networkId fields=${wlanFields.keys}")
+                val response = repository.getRestApi().executeRci(
+                    listOf(
+                        mapOf("mws" to mapOf("wlan" to wlanFields)),
+                        mapOf("system" to mapOf("configuration" to mapOf("save" to emptyMap<String, Any>())))
+                    )
+                )
+                if (response.isSuccessful) {
+                    loadInterfaces()
+                } else {
+                    _error.value = "Ошибка обновления сети: HTTP ${response.code()}"
+                }
+            } catch (e: Exception) {
+                _error.value = "Ошибка обновления сети: ${e.message}"
+            } finally {
+                _isLoading.value = false
+            }
+        }
+    }
+
     fun setWifiPassword(networkId: String, newPassword: String) {
         viewModelScope.launch {
             _isLoading.value = true

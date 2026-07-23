@@ -18,6 +18,7 @@ import com.keenetic.local.ui.theme.KeeneticColors
 fun DevicesScreen(viewModel: RouterViewModel) {
     val clients by viewModel.clients.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
+    val ipPolicies by viewModel.ipPolicies.collectAsState()
 
     LaunchedEffect(Unit) {
         viewModel.loadClients()
@@ -74,7 +75,7 @@ fun DevicesScreen(viewModel: RouterViewModel) {
         } else {
             LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 items(clients.size) { index ->
-                    ClientCard(client = clients[index], viewModel = viewModel)
+                    ClientCard(client = clients[index], viewModel = viewModel, ipPolicies = ipPolicies)
                 }
             }
         }
@@ -88,7 +89,7 @@ fun DevicesScreen(viewModel: RouterViewModel) {
 }
 
 @Composable
-fun ClientCard(client: Client, viewModel: RouterViewModel) {
+fun ClientCard(client: Client, viewModel: RouterViewModel, ipPolicies: List<String> = emptyList()) {
     val isBlocked = client.access == "deny"
     var showMenu by remember { mutableStateOf(false) }
     var showRenameDialog by remember { mutableStateOf(false) }
@@ -177,24 +178,53 @@ fun ClientCard(client: Client, viewModel: RouterViewModel) {
 
     if (showPolicyDialog) {
         var policyName by remember { mutableStateOf("") }
+        var expanded by remember { mutableStateOf(false) }
         AlertDialog(
             onDismissRequest = { showPolicyDialog = false },
             title = { Text("Политика маршрутизации") },
             text = {
                 Column {
-                    OutlinedTextField(
-                        value = policyName,
-                        onValueChange = { policyName = it },
-                        label = { Text("Имя политики") },
-                        placeholder = { Text("например Policy0") },
-                        singleLine = true
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Text(
-                        "Должно совпадать с именем существующей политики на роутере (ip policy ...).",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = KeeneticColors.TextSecondary
-                    )
+                    if (ipPolicies.isNotEmpty()) {
+                        Box {
+                            OutlinedTextField(
+                                value = policyName,
+                                onValueChange = {},
+                                readOnly = true,
+                                label = { Text("Политика") },
+                                trailingIcon = {
+                                    IconButton(onClick = { expanded = true }) {
+                                        Icon(Icons.Default.ArrowDropDown, contentDescription = null)
+                                    }
+                                },
+                                modifier = Modifier.fillMaxWidth()
+                            )
+                            DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+                                ipPolicies.forEach { name ->
+                                    DropdownMenuItem(
+                                        text = { Text(name) },
+                                        onClick = {
+                                            policyName = name
+                                            expanded = false
+                                        }
+                                    )
+                                }
+                            }
+                        }
+                    } else {
+                        OutlinedTextField(
+                            value = policyName,
+                            onValueChange = { policyName = it },
+                            label = { Text("Имя политики") },
+                            placeholder = { Text("например Policy0") },
+                            singleLine = true
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            "Список политик с роутера не загрузился - введи имя вручную, оно должно совпадать с существующей политикой (ip policy ...).",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = KeeneticColors.TextSecondary
+                        )
+                    }
                 }
             },
             confirmButton = {
