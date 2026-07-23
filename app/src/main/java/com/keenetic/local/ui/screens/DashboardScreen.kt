@@ -24,6 +24,7 @@ fun DashboardScreen(viewModel: RouterViewModel) {
     val systemInfo by viewModel.systemInfo.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
     val interfaces by viewModel.interfaces.collectAsState()
+    val interfaceStats by viewModel.interfaceStats.collectAsState()
     val associations by viewModel.associations.collectAsState()
 
     LaunchedEffect(Unit) {
@@ -66,14 +67,14 @@ fun DashboardScreen(viewModel: RouterViewModel) {
                     it.type !in setOf("AccessPoint", "Bridge", "Port", "WifiStation", "Loopback")
             }
             wanCandidates.forEach { wan ->
-                WanStatusCard(wan, viewModel)
+                WanStatusCard(wan, viewModel, interfaceStats[wan.id])
             }
         }
 
         item {
             val tunnels = interfaces.filter { it.type in setOf("Proxy", "Wireguard") }
             if (tunnels.isNotEmpty()) {
-                VpnStatusCard(tunnels)
+                VpnStatusCard(tunnels, interfaceStats)
             }
         }
 
@@ -129,7 +130,7 @@ fun StatusCard(info: com.keenetic.local.api.SystemInfo?) {
 }
 
 @Composable
-fun WanStatusCard(wan: com.keenetic.local.api.InterfaceInfo, viewModel: RouterViewModel) {
+fun WanStatusCard(wan: com.keenetic.local.api.InterfaceInfo, viewModel: RouterViewModel, stat: com.keenetic.local.api.InterfaceStat? = null) {
     var confirmToggle by remember { mutableStateOf(false) }
 
     Card(
@@ -166,6 +167,9 @@ fun WanStatusCard(wan: com.keenetic.local.api.InterfaceInfo, viewModel: RouterVi
             val ipObtained = !wan.address.isNullOrBlank()
             InfoRow("Статус", if (wan.up) "Подключено" else "Нет соединения")
             InfoRow("IP-адрес", wan.address ?: "—")
+            if (stat != null) {
+                InfoRow("Скорость", "${formatSpeed(stat.rxspeed)} ↓ · ${formatSpeed(stat.txspeed)} ↑")
+            }
             Spacer(modifier = Modifier.height(4.dp))
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Icon(
@@ -308,8 +312,17 @@ private fun formatBytes(bytes: Long): String = when {
     else -> "$bytes Б"
 }
 
+private fun formatSpeed(bytesPerSec: Long?): String {
+    val v = bytesPerSec ?: return "—"
+    return when {
+        v >= 1024 * 1024 -> "%.1f МБ/с".format(v / (1024.0 * 1024))
+        v >= 1024 -> "%.1f КБ/с".format(v / 1024.0)
+        else -> "$v Б/с"
+    }
+}
+
 @Composable
-fun VpnStatusCard(tunnels: List<com.keenetic.local.api.InterfaceInfo>) {
+fun VpnStatusCard(tunnels: List<com.keenetic.local.api.InterfaceInfo>, stats: Map<String, com.keenetic.local.api.InterfaceStat> = emptyMap()) {
     Card(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(containerColor = KeeneticColors.Surface),
@@ -323,17 +336,27 @@ fun VpnStatusCard(tunnels: List<com.keenetic.local.api.InterfaceInfo>) {
             }
             Spacer(modifier = Modifier.height(12.dp))
             tunnels.forEach { t ->
-                Row(
-                    modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(t.displayName, style = MaterialTheme.typography.bodyMedium)
-                    Text(
-                        if (t.up) "Активен" else "Выключен",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = if (t.up) KeeneticColors.Accent else KeeneticColors.TextSecondary
-                    )
+                val stat = stats[t.id]
+                Column(modifier = Modifier.padding(vertical = 4.dp)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(t.displayName, style = MaterialTheme.typography.bodyMedium)
+                        Text(
+                            if (t.up) "Активен" else "Выключен",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = if (t.up) KeeneticColors.Accent else KeeneticColors.TextSecondary
+                        )
+                    }
+                    if (stat != null && t.up) {
+                        Text(
+                            "${formatSpeed(stat.rxspeed)} ↓ · ${formatSpeed(stat.txspeed)} ↑",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = KeeneticColors.TextSecondary
+                        )
+                    }
                 }
             }
         }

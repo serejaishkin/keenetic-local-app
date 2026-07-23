@@ -33,6 +33,7 @@ class RouterViewModel(application: Application) : AndroidViewModel(application) 
     val clients: StateFlow<List<Client>> = _clients.asStateFlow()
 
     private val _interfaces = MutableStateFlow<List<InterfaceInfo>>(emptyList())
+    val interfaceStats = MutableStateFlow<Map<String, InterfaceStat>>(emptyMap())
     val interfaces: StateFlow<List<InterfaceInfo>> = _interfaces.asStateFlow()
 
     private val _wifiNetworks = MutableStateFlow<List<WifiNetwork>>(emptyList())
@@ -235,12 +236,48 @@ class RouterViewModel(application: Application) : AndroidViewModel(application) 
                     val raw = response.body() ?: emptyMap()
                     _interfaces.value = InterfaceMapper.toInterfaceList(raw)
                     _wifiNetworks.value = InterfaceMapper.toWifiNetworks(raw)
+                    loadInterfaceStats()
                 } else {
                     _error.value = "HTTP ${response.code()}"
                 }
             } catch (e: Exception) {
                 _error.value = "Ошибка загрузки интерфейсов: ${e.message}"
             }
+        }
+    }
+
+    /**
+     * Живая скорость (байт/сек) для WAN и VPN/Proxy интерфейсов через
+     * `show interface <id> stat` по SSH. Подтверждено реальным выводом
+     * с роутера (rxspeed/txspeed - актуальная скорость на момент запроса).
+     * REST-эндпоинта с этими данными нет, поэтому используем уже
+     * подключённый SSH-клиент, как в "Терминале".
+     */
+    fun loadInterfaceStats() {
+        viewModelScope.launch {
+            val candidates = _interfaces.value.filter {
+                it.type in setOf("Proxy", "Wireguard") || !it.address.isNullOrBlank()
+            }
+            if (candidates.isEmpty()) return@launch
+
+            val ssh = try {
+                repository.getSshClient()
+            } catch (e: Exception) {
+                AppLogger.logAction("Interface stats: no SSH client", e.message ?: "")
+                return@launch
+            }
+
+            val results = mutableMapOf<String, InterfaceStat>()
+            candidates.forEach { iface ->
+                try {
+                    ssh.execute("show interface ${iface.id} stat").onSuccess { raw ->
+                        InterfaceStatParser.parse(raw)?.let { results[iface.id] = it }
+                    }
+                } catch (e: Exception) {
+                    AppLogger.logAction("Interface stat failed", "${iface.id}: ${e.message}")
+                }
+            }
+            interfaceStats.value = results
         }
     }
 
