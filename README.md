@@ -12,7 +12,6 @@
 
 <p>
   <a href="#-функции">Функции</a> •
-  <a href="#-скриншоты">Скриншоты</a> •
   <a href="#-сборка">Сборка</a> •
   <a href="#-архитектура">Архитектура</a>
 </p>
@@ -48,26 +47,6 @@
 
 ---
 
-## 📸 Скриншоты
-
-<div align="center">
-  <table>
-    <tr>
-      <td align="center"><b>Статус роутера</b></td>
-      <td align="center"><b>Wi-Fi сети</b></td>
-      <td align="center"><b>Устройства</b></td>
-    </tr>
-    <tr>
-      <td><img src="docs/screenshots/status.png" width="240" alt="Dashboard"/></td>
-      <td><img src="docs/screenshots/wifi.png" width="240" alt="Wi-Fi"/></td>
-      <td><img src="docs/screenshots/devices.png" width="240" alt="Devices"/></td>
-    </tr>
-  </table>
-</div>
-
-> 💡 *Скриншоты актуальны для текущей ветки `feature/auth-debug`.*
-
----
 
 ## 🛠️ Технологии
 
