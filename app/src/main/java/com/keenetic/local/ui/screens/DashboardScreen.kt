@@ -163,8 +163,24 @@ fun WanStatusCard(wan: com.keenetic.local.api.InterfaceInfo, viewModel: RouterVi
                 )
             }
             Spacer(modifier = Modifier.height(12.dp))
+            val ipObtained = !wan.address.isNullOrBlank()
             InfoRow("Статус", if (wan.up) "Подключено" else "Нет соединения")
             InfoRow("IP-адрес", wan.address ?: "—")
+            Spacer(modifier = Modifier.height(4.dp))
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(
+                    imageVector = if (ipObtained) Icons.Default.CheckCircle else Icons.Default.ErrorOutline,
+                    contentDescription = null,
+                    tint = if (ipObtained) KeeneticColors.Accent else KeeneticColors.Error,
+                    modifier = Modifier.size(16.dp)
+                )
+                Spacer(modifier = Modifier.width(6.dp))
+                Text(
+                    if (ipObtained) "IP получен, всё в порядке" else "IP не получен - проверь подключение",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = if (ipObtained) KeeneticColors.Accent else KeeneticColors.Error
+                )
+            }
         }
     }
 
