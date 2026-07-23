@@ -89,7 +89,7 @@ fun DevicesScreen(viewModel: RouterViewModel) {
 }
 
 @Composable
-fun ClientCard(client: Client, viewModel: RouterViewModel, ipPolicies: List<String> = emptyList()) {
+fun ClientCard(client: Client, viewModel: RouterViewModel, ipPolicies: List<IpPolicy> = emptyList()) {
     val isBlocked = client.access == "deny"
     var showMenu by remember { mutableStateOf(false) }
     var showRenameDialog by remember { mutableStateOf(false) }
@@ -115,7 +115,9 @@ fun ClientCard(client: Client, viewModel: RouterViewModel, ipPolicies: List<Stri
             Spacer(modifier = Modifier.width(16.dp))
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = client.name ?: "Unknown",
+                    text = client.name?.takeIf { it.isNotBlank() }
+                        ?: com.keenetic.local.util.OuiLookup.guessName(client.mac)
+                        ?: "Неизвестное устройство",
                     fontWeight = FontWeight.Medium,
                     color = if (isBlocked) KeeneticColors.Error else KeeneticColors.TextPrimary
                 )
@@ -178,6 +180,7 @@ fun ClientCard(client: Client, viewModel: RouterViewModel, ipPolicies: List<Stri
 
     if (showPolicyDialog) {
         var policyName by remember { mutableStateOf("") }
+        var policyLabel by remember { mutableStateOf("") }
         var expanded by remember { mutableStateOf(false) }
         AlertDialog(
             onDismissRequest = { showPolicyDialog = false },
@@ -187,7 +190,7 @@ fun ClientCard(client: Client, viewModel: RouterViewModel, ipPolicies: List<Stri
                     if (ipPolicies.isNotEmpty()) {
                         Box {
                             OutlinedTextField(
-                                value = policyName,
+                                value = policyLabel,
                                 onValueChange = {},
                                 readOnly = true,
                                 label = { Text("Политика") },
@@ -199,11 +202,13 @@ fun ClientCard(client: Client, viewModel: RouterViewModel, ipPolicies: List<Stri
                                 modifier = Modifier.fillMaxWidth()
                             )
                             DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
-                                ipPolicies.forEach { name ->
+                                ipPolicies.forEach { policy ->
+                                    val label = policy.description ?: policy.name ?: "—"
                                     DropdownMenuItem(
-                                        text = { Text(name) },
+                                        text = { Text(label) },
                                         onClick = {
-                                            policyName = name
+                                            policyName = policy.name ?: ""
+                                            policyLabel = label
                                             expanded = false
                                         }
                                     )

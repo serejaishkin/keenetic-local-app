@@ -54,13 +54,19 @@ fun DashboardScreen(viewModel: RouterViewModel) {
         }
 
         item {
-            val wan = interfaces.firstOrNull {
-                it.id.contains("GigabitEthernet1", ignoreCase = true) ||
-                    it.displayName.equals("ISP", ignoreCase = true) ||
-                    it.description?.contains("ISP", ignoreCase = true) == true
+            // Раньше матчили по id "GigabitEthernet1" / "ISP" - но у тебя
+            // именно этот порт без IP (просто физический разъём), а реальный
+            // аплинк с адресом - GigabitEthernet0/Vlan4 ("pakt"). Вместо
+            // хардкода конкретных id теперь общее правило: WAN-кандидат - это
+            // не LAN/AP/служебный интерфейс, у которого реально есть IP.
+            // У тебя, судя по конфигу, потенциально несколько аплинков
+            // (multi-WAN/failover) - показываем все, а не только первый.
+            val wanCandidates = interfaces.filter {
+                !it.address.isNullOrBlank() &&
+                    it.type !in setOf("AccessPoint", "Bridge", "Port", "WifiStation", "Loopback")
             }
-            if (wan != null) {
-                WanStatusCard(wan)
+            wanCandidates.forEach { wan ->
+                WanStatusCard(wan, viewModel)
             }
         }
 
@@ -123,30 +129,69 @@ fun StatusCard(info: com.keenetic.local.api.SystemInfo?) {
 }
 
 @Composable
-fun WanStatusCard(wan: com.keenetic.local.api.InterfaceInfo) {
+fun WanStatusCard(wan: com.keenetic.local.api.InterfaceInfo, viewModel: RouterViewModel) {
+    var confirmToggle by remember { mutableStateOf(false) }
+
     Card(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(containerColor = KeeneticColors.Surface),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(
-                    Icons.Default.Cloud,
-                    contentDescription = null,
-                    tint = if (wan.up) KeeneticColors.Accent else KeeneticColors.Error
-                )
-                Spacer(modifier = Modifier.width(8.dp))
-                Text(
-                    "Интернет (${wan.displayName})",
-                    fontWeight = FontWeight.Medium,
-                    color = if (wan.up) KeeneticColors.Accent else KeeneticColors.Error
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        Icons.Default.Cloud,
+                        contentDescription = null,
+                        tint = if (wan.up) KeeneticColors.Accent else KeeneticColors.Error
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        "Интернет (${wan.displayName})",
+                        fontWeight = FontWeight.Medium,
+                        color = if (wan.up) KeeneticColors.Accent else KeeneticColors.Error
+                    )
+                }
+                Switch(
+                    checked = wan.up,
+                    onCheckedChange = { confirmToggle = true },
+                    colors = SwitchDefaults.colors(checkedThumbColor = KeeneticColors.Accent)
                 )
             }
             Spacer(modifier = Modifier.height(12.dp))
             InfoRow("Статус", if (wan.up) "Подключено" else "Нет соединения")
             InfoRow("IP-адрес", wan.address ?: "—")
         }
+    }
+
+    if (confirmToggle) {
+        AlertDialog(
+            onDismissRequest = { confirmToggle = false },
+            title = { Text("Подтвердите действие") },
+            text = {
+                Text(
+                    "${if (wan.up) "Выключить" else "Включить"} подключение «${wan.displayName}»?" +
+                        if (wan.up) " Если это единственный аплинк, интернет пропадёт до повторного включения." else ""
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    viewModel.toggleInterface(wan.id, !wan.up)
+                    confirmToggle = false
+                }) {
+                    Text("Да", color = KeeneticColors.Error)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { confirmToggle = false }) {
+                    Text("Отмена")
+                }
+            }
+        )
     }
 }
 

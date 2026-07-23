@@ -41,8 +41,8 @@ class RouterViewModel(application: Application) : AndroidViewModel(application) 
     private val _associations = MutableStateFlow<List<WifiAssoc>>(emptyList())
     val associations: StateFlow<List<WifiAssoc>> = _associations.asStateFlow()
 
-    private val _ipPolicies = MutableStateFlow<List<String>>(emptyList())
-    val ipPolicies: StateFlow<List<String>> = _ipPolicies.asStateFlow()
+    private val _ipPolicies = MutableStateFlow<List<IpPolicy>>(emptyList())
+    val ipPolicies: StateFlow<List<IpPolicy>> = _ipPolicies.asStateFlow()
 
     private val _sshOutput = MutableStateFlow("")
     val sshOutput: StateFlow<String> = _sshOutput.asStateFlow()

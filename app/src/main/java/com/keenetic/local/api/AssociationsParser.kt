@@ -63,24 +63,29 @@ object AssociationsParser {
         ap = str(o, "ap") ?: str(o, "interface")
     )
 
-    fun parsePolicyNames(root: JsonElement?): List<String> {
+    fun parsePolicyNames(root: JsonElement?): List<IpPolicy> {
         if (root == null || root.isJsonNull) return emptyList()
-        val names = mutableListOf<String>()
+        val result = mutableListOf<IpPolicy>()
 
         when {
             root.isJsonObject -> {
-                // Вероятный вариант: объект вида {"<policyName>": {...}}
-                root.asJsonObject.entrySet().forEach { (key, _) -> names += key }
+                // Вероятный вариант: объект вида {"<policyName>": {"description": "..."}}
+                root.asJsonObject.entrySet().forEach { (key, value) ->
+                    val desc = if (value.isJsonObject) str(value.asJsonObject, "description") else null
+                    result += IpPolicy(name = key, description = desc?.takeIf { it.isNotBlank() })
+                }
             }
             root.isJsonArray -> root.asJsonArray.forEach { el ->
                 if (el.isJsonObject) {
-                    str(el.asJsonObject, "name")?.let { names += it }
+                    val name = str(el.asJsonObject, "name")
+                    val desc = str(el.asJsonObject, "description")
+                    if (name != null) result += IpPolicy(name = name, description = desc?.takeIf { it.isNotBlank() })
                 } else if (el.isJsonPrimitive) {
-                    names += el.asString
+                    result += IpPolicy(name = el.asString)
                 }
             }
         }
-        return names
+        return result
     }
 
     private fun str(o: JsonObject, field: String): String? =
