@@ -74,6 +74,13 @@ data class IpPolicy(
     val description: String? = null
 )
 
+data class DhcpBinding(
+    val mac: String? = null,
+    val ip: String? = null,
+    val hostname: String? = null,
+    val active: Boolean = false
+)
+
 // ===== API интерфейс =====
 interface KeeneticRestApi {
 
@@ -120,6 +127,12 @@ interface KeeneticRestApi {
     // код ниже обязан аккуратно обрабатывать неожиданную форму/ошибку.
     @GET("rci/show/ip/policy")
     suspend fun getIpPoliciesRaw(): Response<JsonElement>
+
+    // Подтверждён сторонним open-source проектом мониторинга Keenetic
+    // (keenetic-monitor на GitHub), не HAR-дампом с твоего роутера -
+    // степень доверия ниже, чем у HAR-подтверждённых эндпоинтов.
+    @GET("rci/show/ip/dhcp/bindings")
+    suspend fun getDhcpBindings(): Response<JsonElement>
 
     // Реальный внутренний протокол Keenetic RCI: изменения настроек (в отличие
     // от чтения /rci/show/...) отправляются пакетом команд на корневой /rci/.

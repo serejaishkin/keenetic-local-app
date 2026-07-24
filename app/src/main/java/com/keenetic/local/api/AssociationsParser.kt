@@ -88,6 +88,45 @@ object AssociationsParser {
         return result
     }
 
+    fun parseDhcpBindings(root: JsonElement?): List<DhcpBinding> {
+        if (root == null || root.isJsonNull) return emptyList()
+        val result = mutableListOf<DhcpBinding>()
+
+        fun fromObj(o: JsonObject) {
+            result += DhcpBinding(
+                mac = str(o, "mac"),
+                ip = str(o, "ip") ?: str(o, "address"),
+                hostname = str(o, "hostname") ?: str(o, "name"),
+                active = str(o, "active")?.equals("true", ignoreCase = true) == true ||
+                    o.get("active")?.takeIf { it.isJsonPrimitive }?.asBoolean == true
+            )
+        }
+
+        when {
+            root.isJsonArray -> root.asJsonArray.forEach { el -> if (el.isJsonObject) fromObj(el.asJsonObject) }
+            root.isJsonObject -> {
+                val obj = root.asJsonObject
+                obj.get("binding")?.takeIf { it.isJsonArray }?.asJsonArray?.forEach { el ->
+                    if (el.isJsonObject) fromObj(el.asJsonObject)
+                }
+                if (result.isEmpty()) {
+                    obj.entrySet().forEach { (key, value) ->
+                        if (value.isJsonObject) {
+                            val o = value.asJsonObject
+                            result += DhcpBinding(
+                                mac = str(o, "mac") ?: key,
+                                ip = str(o, "ip") ?: str(o, "address"),
+                                hostname = str(o, "hostname") ?: str(o, "name"),
+                                active = false
+                            )
+                        }
+                    }
+                }
+            }
+        }
+        return result
+    }
+
     private fun str(o: JsonObject, field: String): String? =
         o.get(field)?.takeIf { it.isJsonPrimitive }?.asString
 

@@ -45,6 +45,9 @@ class RouterViewModel(application: Application) : AndroidViewModel(application) 
     private val _ipPolicies = MutableStateFlow<List<IpPolicy>>(emptyList())
     val ipPolicies: StateFlow<List<IpPolicy>> = _ipPolicies.asStateFlow()
 
+    private val _dhcpBindings = MutableStateFlow<List<DhcpBinding>>(emptyList())
+    val dhcpBindings: StateFlow<List<DhcpBinding>> = _dhcpBindings.asStateFlow()
+
     private val _sshOutput = MutableStateFlow("")
     val sshOutput: StateFlow<String> = _sshOutput.asStateFlow()
 
@@ -129,6 +132,7 @@ class RouterViewModel(application: Application) : AndroidViewModel(application) 
         loadInterfaces()
         loadAssociations()
         loadIpPolicies()
+        loadDhcpBindings()
     }
 
     fun loadSystemInfo() {
@@ -223,6 +227,25 @@ class RouterViewModel(application: Application) : AndroidViewModel(application) 
                 }
             } catch (e: Exception) {
                 AppLogger.logAction("IP policies load failed", e.message ?: "")
+            }
+        }
+    }
+
+    /**
+     * Статические DHCP-резервации, включая офлайн-устройства (которых нет
+     * в списке текущих подключений). Эндпоинт подтверждён сторонним
+     * open-source проектом (keenetic-monitor), не первичным HAR - если
+     * формат не совпадёт, список останется пустым без падения приложения.
+     */
+    fun loadDhcpBindings() {
+        viewModelScope.launch {
+            try {
+                val response = repository.getRestApi().getDhcpBindings()
+                if (response.isSuccessful) {
+                    _dhcpBindings.value = com.keenetic.local.api.AssociationsParser.parseDhcpBindings(response.body())
+                }
+            } catch (e: Exception) {
+                AppLogger.logAction("DHCP bindings load failed", e.message ?: "")
             }
         }
     }
