@@ -20,9 +20,11 @@ fun DevicesScreen(viewModel: RouterViewModel) {
     val clients by viewModel.clients.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
     val ipPolicies by viewModel.ipPolicies.collectAsState()
+    val dhcpBindings by viewModel.dhcpBindings.collectAsState()
 
     LaunchedEffect(Unit) {
         viewModel.loadClients()
+        viewModel.loadDhcpBindings()
     }
 
     Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
@@ -74,9 +76,26 @@ fun DevicesScreen(viewModel: RouterViewModel) {
                 }
             }
         } else {
+            val onlineMacs = clients.mapNotNull { it.mac?.lowercase() }.toSet()
+            val offline = dhcpBindings.filter { it.mac?.lowercase() !in onlineMacs }
+
             LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 items(clients.size) { index ->
                     ClientCard(client = clients[index], viewModel = viewModel, ipPolicies = ipPolicies)
+                }
+                if (offline.isNotEmpty()) {
+                    item {
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            "Офлайн (статический IP) · ${offline.size}",
+                            style = MaterialTheme.typography.labelMedium,
+                            color = KeeneticColors.TextSecondary
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                    }
+                    items(offline.size) { index ->
+                        OfflineDeviceCard(offline[index])
+                    }
                 }
             }
         }
@@ -85,6 +104,40 @@ fun DevicesScreen(viewModel: RouterViewModel) {
     if (isLoading && clients.isEmpty()) {
         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
             CircularProgressIndicator(color = KeeneticColors.Primary)
+        }
+    }
+}
+
+@Composable
+fun OfflineDeviceCard(binding: com.keenetic.local.api.DhcpBinding) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = KeeneticColors.Surface.copy(alpha = 0.6f)),
+        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(
+                Icons.Default.DevicesOther,
+                contentDescription = null,
+                tint = KeeneticColors.TextSecondary
+            )
+            Spacer(modifier = Modifier.width(12.dp))
+            Column {
+                Text(
+                    binding.hostname?.takeIf { it.isNotBlank() }
+                        ?: com.keenetic.local.util.OuiLookup.guessName(binding.mac)
+                        ?: "Неизвестное устройство",
+                    style = MaterialTheme.typography.bodyMedium
+                )
+                Text(
+                    "${binding.ip ?: "—"} (закреплённый IP) · ${binding.mac ?: "—"}",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = KeeneticColors.TextSecondary
+                )
+            }
         }
     }
 }

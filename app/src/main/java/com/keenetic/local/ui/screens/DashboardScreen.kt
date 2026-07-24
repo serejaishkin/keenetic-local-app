@@ -31,6 +31,16 @@ fun DashboardScreen(viewModel: RouterViewModel) {
         viewModel.refreshAll()
     }
 
+    // Периодический опрос раз в 5 сек, чтобы статус (в т.ч. VPN/Proxy,
+    // переключённые через веб-морду или другое устройство) обновлялся сам,
+    // без ручного нажатия кнопки обновления.
+    LaunchedEffect(Unit) {
+        while (true) {
+            kotlinx.coroutines.delay(5000)
+            viewModel.loadInterfaces()
+        }
+    }
+
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(16.dp),
@@ -72,9 +82,16 @@ fun DashboardScreen(viewModel: RouterViewModel) {
         }
 
         item {
-            val tunnels = interfaces.filter { it.type in setOf("Proxy", "Wireguard") }
+            // Раньше матчили только по полю "type" - но после выключения
+            // интерфейса через веб-морду это поле иногда пропадает из
+            // ответа роутера, и карточка целиком исчезала. Добавили запасное
+            // сравнение по префиксу id ("Proxy0", "Wireguard4" и т.п.).
+            val tunnels = interfaces.filter {
+                it.type in setOf("Proxy", "Wireguard") ||
+                    it.id.startsWith("Proxy") || it.id.startsWith("Wireguard")
+            }
             if (tunnels.isNotEmpty()) {
-                VpnStatusCard(tunnels, interfaceStats)
+                VpnStatusCard(tunnels, interfaceStats, viewModel)
             }
         }
 
@@ -322,7 +339,9 @@ private fun formatSpeed(bytesPerSec: Long?): String {
 }
 
 @Composable
-fun VpnStatusCard(tunnels: List<com.keenetic.local.api.InterfaceInfo>, stats: Map<String, com.keenetic.local.api.InterfaceStat> = emptyMap()) {
+fun VpnStatusCard(tunnels: List<com.keenetic.local.api.InterfaceInfo>, stats: Map<String, com.keenetic.local.api.InterfaceStat> = emptyMap(), viewModel: RouterViewModel) {
+    var toggleTarget by remember { mutableStateOf<com.keenetic.local.api.InterfaceInfo?>(null) }
+
     Card(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(containerColor = KeeneticColors.Surface),
@@ -344,11 +363,20 @@ fun VpnStatusCard(tunnels: List<com.keenetic.local.api.InterfaceInfo>, stats: Ma
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(t.displayName, style = MaterialTheme.typography.bodyMedium)
-                        Text(
-                            if (t.up) "Активен" else "Выключен",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = if (t.up) KeeneticColors.Accent else KeeneticColors.TextSecondary
-                        )
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(
+                                if (t.up) "Активен" else "Выключен",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = if (t.up) KeeneticColors.Accent else KeeneticColors.TextSecondary
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Switch(
+                                checked = t.up,
+                                onCheckedChange = { toggleTarget = t },
+                                colors = SwitchDefaults.colors(checkedThumbColor = KeeneticColors.Accent),
+                                modifier = Modifier.size(width = 40.dp, height = 24.dp)
+                            )
+                        }
                     }
                     if (stat != null && t.up) {
                         Text(
@@ -360,6 +388,27 @@ fun VpnStatusCard(tunnels: List<com.keenetic.local.api.InterfaceInfo>, stats: Ma
                 }
             }
         }
+    }
+
+    toggleTarget?.let { t ->
+        AlertDialog(
+            onDismissRequest = { toggleTarget = null },
+            title = { Text("Подтвердите действие") },
+            text = { Text("${if (t.up) "Выключить" else "Включить"} «${t.displayName}»?") },
+            confirmButton = {
+                TextButton(onClick = {
+                    viewModel.toggleInterface(t.id, !t.up)
+                    toggleTarget = null
+                }) {
+                    Text("Да", color = KeeneticColors.Primary)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { toggleTarget = null }) {
+                    Text("Отмена")
+                }
+            }
+        )
     }
 }
 
@@ -378,6 +427,8 @@ fun InfoRow(label: String, value: String) {
 
 @Composable
 fun QuickActionsCard(viewModel: RouterViewModel) {
+    var confirmReboot by remember { mutableStateOf(false) }
+
     Card(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(containerColor = KeeneticColors.Surface),
@@ -390,12 +441,37 @@ fun QuickActionsCard(viewModel: RouterViewModel) {
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceEvenly
             ) {
-                ActionButton(Icons.Default.Refresh, "Перезагрузить") { viewModel.reboot() }
+                // Раньше тут была иконка Refresh - визуально неотличима от
+                // кнопки обновления данных, легко перепутать и случайно
+                // перезагрузить роутер. Теперь отдельная иконка + подтверждение.
+                ActionButton(Icons.Default.PowerSettingsNew, "Перезагрузить") { confirmReboot = true }
                 ActionButton(Icons.Default.Wifi, "Wi-Fi") { /* navigate */ }
                 ActionButton(Icons.Default.Devices, "Устройства") { /* navigate */ }
                 ActionButton(Icons.Default.Terminal, "Терминал") { /* navigate */ }
             }
         }
+    }
+
+    if (confirmReboot) {
+        AlertDialog(
+            onDismissRequest = { confirmReboot = false },
+            icon = { Icon(Icons.Default.PowerSettingsNew, contentDescription = null, tint = KeeneticColors.Error) },
+            title = { Text("Перезагрузить роутер?") },
+            text = { Text("Интернет и Wi-Fi пропадут на 1-2 минуты, пока роутер перезагружается.") },
+            confirmButton = {
+                TextButton(onClick = {
+                    viewModel.reboot()
+                    confirmReboot = false
+                }) {
+                    Text("Перезагрузить", color = KeeneticColors.Error)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { confirmReboot = false }) {
+                    Text("Отмена")
+                }
+            }
+        )
     }
 }
 
