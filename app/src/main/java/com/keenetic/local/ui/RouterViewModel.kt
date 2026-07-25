@@ -42,6 +42,12 @@ class RouterViewModel(application: Application) : AndroidViewModel(application) 
     private val _associations = MutableStateFlow<List<WifiAssoc>>(emptyList())
     val associations: StateFlow<List<WifiAssoc>> = _associations.asStateFlow()
 
+    private val _deviceList = MutableStateFlow<List<DeviceListEntry>>(emptyList())
+    val deviceList: StateFlow<List<DeviceListEntry>> = _deviceList.asStateFlow()
+
+    private val _wans = MutableStateFlow<WansResponse?>(null)
+    val wans: StateFlow<WansResponse?> = _wans.asStateFlow()
+
     private val _ipPolicies = MutableStateFlow<List<IpPolicy>>(emptyList())
     val ipPolicies: StateFlow<List<IpPolicy>> = _ipPolicies.asStateFlow()
 
@@ -133,6 +139,8 @@ class RouterViewModel(application: Application) : AndroidViewModel(application) 
         loadAssociations()
         loadIpPolicies()
         loadDhcpBindings()
+        loadDeviceList()
+        loadWans()
     }
 
     fun loadSystemInfo() {
@@ -301,6 +309,46 @@ class RouterViewModel(application: Application) : AndroidViewModel(application) 
                 }
             }
             interfaceStats.value = results
+        }
+    }
+
+    /**
+     * Полный список устройств (включая оффлайн) с реальным трафиком rx/tx
+     * на устройство. Подтверждено реальным выводом `show device-list` по
+     * SSH (не JSON, а текст с отступами - парсится DeviceListParser).
+     * Гораздо полнее, чем /rci/show/ip/hotspot (которым пользуемся в
+     * getClients/loadClients): даёт офлайн-устройства без отдельного
+     * запроса DHCP-резерваций, реальный трафик, политику и приоритет прямо
+     * на хосте.
+     */
+    fun loadDeviceList() {
+        viewModelScope.launch {
+            try {
+                val ssh = repository.getSshClient()
+                ssh.execute("show device-list").onSuccess { raw ->
+                    _deviceList.value = DeviceListParser.parse(raw)
+                }
+            } catch (e: Exception) {
+                AppLogger.logAction("Device list load failed", e.message ?: "")
+            }
+        }
+    }
+
+    /**
+     * Официальный список WAN-подключений (основной + резервные) через
+     * `show wans` по SSH - подтверждено реальным выводом. Точнее, чем наша
+     * прежняя эвристика поиска WAN по наличию address у интерфейса.
+     */
+    fun loadWans() {
+        viewModelScope.launch {
+            try {
+                val ssh = repository.getSshClient()
+                ssh.execute("show wans").onSuccess { raw ->
+                    _wans.value = WansParser.parse(raw)
+                }
+            } catch (e: Exception) {
+                AppLogger.logAction("WANs load failed", e.message ?: "")
+            }
         }
     }
 

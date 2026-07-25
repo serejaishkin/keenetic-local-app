@@ -26,6 +26,7 @@ fun DashboardScreen(viewModel: RouterViewModel) {
     val interfaces by viewModel.interfaces.collectAsState()
     val interfaceStats by viewModel.interfaceStats.collectAsState()
     val associations by viewModel.associations.collectAsState()
+    val wans by viewModel.wans.collectAsState()
 
     LaunchedEffect(Unit) {
         viewModel.refreshAll()
@@ -38,6 +39,7 @@ fun DashboardScreen(viewModel: RouterViewModel) {
         while (true) {
             kotlinx.coroutines.delay(5000)
             viewModel.loadInterfaces()
+            viewModel.loadWans()
         }
     }
 
@@ -65,16 +67,22 @@ fun DashboardScreen(viewModel: RouterViewModel) {
         }
 
         item {
-            // Раньше матчили по id "GigabitEthernet1" / "ISP" - но у тебя
-            // именно этот порт без IP (просто физический разъём), а реальный
-            // аплинк с адресом - GigabitEthernet0/Vlan4 ("pakt"). Вместо
-            // хардкода конкретных id теперь общее правило: WAN-кандидат - это
-            // не LAN/AP/служебный интерфейс, у которого реально есть IP.
-            // У тебя, судя по конфигу, потенциально несколько аплинков
-            // (multi-WAN/failover) - показываем все, а не только первый.
-            val wanCandidates = interfaces.filter {
-                !it.address.isNullOrBlank() &&
-                    it.type !in setOf("AccessPoint", "Bridge", "Port", "WifiStation", "Loopback")
+            // Официальный источник - `show wans` (SSH), подтверждено реальным
+            // выводом с роутера: {"wan":{"id":"GigabitEthernet0/Vlan4",...}}.
+            // Раньше искали WAN эвристикой (любой интерфейс с непустым
+            // address) - оставлена как запасной вариант, если show wans
+            // недоступен (SSH не подключён и т.п.).
+            val wanIds = buildSet {
+                wans?.wan?.id?.let { add(it) }
+                wans?.wbk?.forEach { it.id?.let { id -> add(id) } }
+            }
+            val wanCandidates = if (wanIds.isNotEmpty()) {
+                interfaces.filter { it.id in wanIds }
+            } else {
+                interfaces.filter {
+                    !it.address.isNullOrBlank() &&
+                        it.type !in setOf("AccessPoint", "Bridge", "Port", "WifiStation", "Loopback")
+                }
             }
             wanCandidates.forEach { wan ->
                 WanStatusCard(wan, viewModel, interfaceStats[wan.id])
