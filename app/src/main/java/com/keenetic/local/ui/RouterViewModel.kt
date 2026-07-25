@@ -488,6 +488,96 @@ class RouterViewModel(application: Application) : AndroidViewModel(application) 
         }
     }
 
+    /**
+     * IntelliQoS (приоритезация трафика по категориям). Подтверждено
+     * реальным HAR: включение/выключение отдельно от service.ntce, плюс
+     * приоритеты категорий (1 - высший, 7 - низший). Стандартный набор
+     * категорий и приоритетов Keenetic по умолчанию: calling(1),
+     * streaming(2), gaming(3), work(4), surfing(5), other(6),
+     * filetransfering(7) - меняем только сам enable, приоритеты не трогаем,
+     * если не передали свои.
+     */
+    fun setIntelliQos(enabled: Boolean, priorities: Map<String, Int>? = null) {
+        viewModelScope.launch {
+            _isLoading.value = true
+            try {
+                val defaultPriorities = priorities ?: mapOf(
+                    "calling" to 1, "streaming" to 2, "gaming" to 3,
+                    "work" to 4, "surfing" to 5, "other" to 6, "filetransfering" to 7
+                )
+                val response = repository.getRestApi().executeRci(
+                    listOf(
+                        mapOf("ntce" to mapOf("qos" to mapOf(
+                            "category" to defaultPriorities.map { (cat, pr) -> mapOf("category" to cat, "priority" to pr) }
+                        ))),
+                        mapOf("ntce" to mapOf("qos" to mapOf("enable" to enabled))),
+                        mapOf("service" to mapOf("ntce" to enabled)),
+                        mapOf("system" to mapOf("configuration" to mapOf("save" to emptyMap<String, Any>())))
+                    )
+                )
+                if (!response.isSuccessful) {
+                    _error.value = "Ошибка IntelliQoS: HTTP ${response.code()}"
+                }
+            } catch (e: Exception) {
+                _error.value = "Ошибка IntelliQoS: ${e.message}"
+            } finally {
+                _isLoading.value = false
+            }
+        }
+    }
+
+    /**
+     * Менеджер пакетов (opkg) - хранилище для установки пакетов (obly
+     * появляется при подключённом USB-накопителе или встроенной памяти
+     * OPKG:). Подтверждено реальным HAR.
+     */
+    fun setOpkgManager(enabled: Boolean, disk: String = "OPKG:/") {
+        viewModelScope.launch {
+            _isLoading.value = true
+            try {
+                val response = repository.getRestApi().executeRci(
+                    listOf(
+                        mapOf("opkg" to mapOf(
+                            "disk" to mapOf("disk" to (if (enabled) disk else ""), "no" to !enabled),
+                            "initrc" to mapOf("path" to (if (enabled) "1" else ""), "no" to !enabled)
+                        )),
+                        mapOf("user" to listOf(mapOf("name" to "admin", "tag" to mapOf("tag" to "opt")))),
+                        mapOf("system" to mapOf("configuration" to mapOf("save" to emptyMap<String, Any>())))
+                    )
+                )
+                if (!response.isSuccessful) {
+                    _error.value = "Ошибка менеджера пакетов: HTTP ${response.code()}"
+                }
+            } catch (e: Exception) {
+                _error.value = "Ошибка менеджера пакетов: ${e.message}"
+            } finally {
+                _isLoading.value = false
+            }
+        }
+    }
+
+    /** Торрент-клиент. Подтверждено реальным HAR. */
+    fun setTorrentClient(enabled: Boolean) {
+        viewModelScope.launch {
+            _isLoading.value = true
+            try {
+                val response = repository.getRestApi().executeRci(
+                    listOf(
+                        mapOf("service" to mapOf("torrent" to enabled)),
+                        mapOf("system" to mapOf("configuration" to mapOf("save" to emptyMap<String, Any>())))
+                    )
+                )
+                if (!response.isSuccessful) {
+                    _error.value = "Ошибка торрент-клиента: HTTP ${response.code()}"
+                }
+            } catch (e: Exception) {
+                _error.value = "Ошибка торрент-клиента: ${e.message}"
+            } finally {
+                _isLoading.value = false
+            }
+        }
+    }
+
     fun setWifiPassword(networkId: String, newPassword: String) {
         viewModelScope.launch {
             _isLoading.value = true
@@ -531,11 +621,20 @@ class RouterViewModel(application: Application) : AndroidViewModel(application) 
         viewModelScope.launch {
             try {
                 AppLogger.logAction("Toggle interface", "name=$name up=$up")
-                repository.getRestApi().setInterface(
-                    name,
-                    if (up) mapOf("up" to "true") else mapOf("down" to "true")
+                // Подтверждено реальным HAR: {"interface":{"up":bool,"name":..}}
+                // через общий /rci/ (не rci/interface/{name}, как было раньше -
+                // тот путь не был подтверждён ни разу).
+                val response = repository.getRestApi().executeRci(
+                    listOf(
+                        mapOf("interface" to mapOf("up" to up, "name" to name)),
+                        mapOf("system" to mapOf("configuration" to mapOf("save" to emptyMap<String, Any>())))
+                    )
                 )
-                loadInterfaces()
+                if (response.isSuccessful) {
+                    loadInterfaces()
+                } else {
+                    _error.value = "Ошибка: HTTP ${response.code()}"
+                }
             } catch (e: Exception) {
                 _error.value = "Ошибка: ${e.message}"
             }

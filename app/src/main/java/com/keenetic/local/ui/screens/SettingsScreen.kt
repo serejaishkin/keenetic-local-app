@@ -135,6 +135,9 @@ fun SettingsScreen(viewModel: RouterViewModel, onLoggedOut: () -> Unit) {
         }
 
         Spacer(modifier = Modifier.height(16.dp))
+        ExtraServicesCard(viewModel)
+
+        Spacer(modifier = Modifier.height(16.dp))
 
         OutlinedButton(
             onClick = {
@@ -145,6 +148,94 @@ fun SettingsScreen(viewModel: RouterViewModel, onLoggedOut: () -> Unit) {
             colors = ButtonDefaults.outlinedButtonColors(contentColor = KeeneticColors.Error)
         ) {
             Text("Выйти")
+        }
+    }
+}
+
+@Composable
+fun ExtraServicesCard(viewModel: RouterViewModel) {
+    // Реальное текущее состояние этих переключателей роутер не отдаёт нам
+    // сейчас отдельным запросом (мы не парсим show/sc/ntce и show/sc/opkg),
+    // поэтому тумблеры "локальные" - отражают то, что ты сам переключил в
+    // этой сессии, а не факт с роутера. Понадёт - подключим show-запрос,
+    // чтобы подтягивать реальное состояние при открытии экрана.
+    var qosEnabled by remember { mutableStateOf(false) }
+    var opkgEnabled by remember { mutableStateOf(false) }
+    var torrentEnabled by remember { mutableStateOf(false) }
+
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = KeeneticColors.Surface),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Text("Дополнительные сервисы", fontWeight = FontWeight.SemiBold)
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(
+                "Состояние переключателей не подгружается с роутера - отражает только твои действия в этой сессии",
+                style = MaterialTheme.typography.labelSmall,
+                color = KeeneticColors.TextSecondary
+            )
+            Spacer(modifier = Modifier.height(12.dp))
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text("IntelliQoS", fontWeight = FontWeight.Medium)
+                    Text(
+                        "Приоритезация трафика (звонки/игры/стриминг)",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = KeeneticColors.TextSecondary
+                    )
+                }
+                Switch(
+                    checked = qosEnabled,
+                    onCheckedChange = { qosEnabled = it; viewModel.setIntelliQos(it) }
+                )
+            }
+            Spacer(modifier = Modifier.height(8.dp))
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text("Менеджер пакетов (opkg)", fontWeight = FontWeight.Medium)
+                    Text(
+                        "Установка дополнительного ПО на роутер",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = KeeneticColors.TextSecondary
+                    )
+                }
+                Switch(
+                    checked = opkgEnabled,
+                    onCheckedChange = { opkgEnabled = it; viewModel.setOpkgManager(it) }
+                )
+            }
+            Spacer(modifier = Modifier.height(8.dp))
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text("Торрент-клиент", fontWeight = FontWeight.Medium)
+                    Text(
+                        "Встроенный торрент-клиент роутера",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = KeeneticColors.TextSecondary
+                    )
+                }
+                Switch(
+                    checked = torrentEnabled,
+                    onCheckedChange = { torrentEnabled = it; viewModel.setTorrentClient(it) }
+                )
+            }
         }
     }
 }
