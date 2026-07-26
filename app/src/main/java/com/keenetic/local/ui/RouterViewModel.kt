@@ -363,6 +363,72 @@ class RouterViewModel(application: Application) : AndroidViewModel(application) 
     }
 
     /**
+     * Создаёт именованное расписание (родительский контроль/ограничение
+     * доступа по времени). Формат подтверждён реальным HAR:
+     *   {"schedule":{"description":..,"action":[{"action":"start"|"stop","hour":..,"min":..,"dow":..}],"name":..}}
+     * dow (день недели) - число 0-6, где 0 = воскресенье (стандарт cron-like
+     * для Keenetic - не проверено на 100%, но обычная конвенция).
+     * Одна пара start/stop на каждый выбранный день недели - расписание
+     * "действует" в промежутке [start, stop) в указанные дни.
+     */
+    fun createSchedule(name: String, description: String, daysOfWeek: List<Int>, startHour: Int, startMin: Int, stopHour: Int, stopMin: Int) {
+        viewModelScope.launch {
+            _isLoading.value = true
+            try {
+                val actions = mutableListOf<Map<String, Any>>()
+                daysOfWeek.forEach { dow ->
+                    actions += mapOf("action" to "start", "hour" to startHour.toString(), "min" to startMin.toString(), "dow" to dow.toString())
+                    actions += mapOf("action" to "stop", "hour" to stopHour.toString(), "min" to stopMin.toString(), "dow" to dow.toString())
+                }
+                val response = repository.getRestApi().executeRci(
+                    listOf(
+                        mapOf("schedule" to mapOf("name" to name, "description" to description, "action" to actions)),
+                        mapOf("system" to mapOf("configuration" to mapOf("save" to emptyMap<String, Any>())))
+                    )
+                )
+                if (!response.isSuccessful) {
+                    _error.value = "Ошибка создания расписания: HTTP ${response.code()}"
+                }
+            } catch (e: Exception) {
+                _error.value = "Ошибка создания расписания: ${e.message}"
+            } finally {
+                _isLoading.value = false
+            }
+        }
+    }
+
+    /**
+     * Привязывает расписание к устройству - по аналогии с уже проверенным
+     * setClientPolicy() (тот же узел ip.hotspot.host, поле "schedule"
+     * вместо "policy"). НЕ подтверждено отдельным HAR именно для привязки
+     * расписания к хосту - только структурная аналогия с полем "policy" в
+     * том же узле. Проверить перед активным использованием.
+     */
+    fun setClientSchedule(mac: String, scheduleName: String) {
+        viewModelScope.launch {
+            _isLoading.value = true
+            try {
+                val response = repository.getRestApi().executeRci(
+                    listOf(
+                        mapOf("ip" to mapOf("hotspot" to mapOf("host" to mapOf("mac" to mac, "schedule" to scheduleName)))),
+                        mapOf("system" to mapOf("configuration" to mapOf("save" to emptyMap<String, Any>())))
+                    )
+                )
+                if (response.isSuccessful) {
+                    loadDeviceList()
+                    loadClients()
+                } else {
+                    _error.value = "Ошибка привязки расписания: HTTP ${response.code()}"
+                }
+            } catch (e: Exception) {
+                _error.value = "Ошибка привязки расписания: ${e.message}"
+            } finally {
+                _isLoading.value = false
+            }
+        }
+    }
+
+    /**
      * Назначает политику маршрутизации устройству. Основано на реальном
      * startup-config с роутера, где видна ветка:
      *   ip hotspot

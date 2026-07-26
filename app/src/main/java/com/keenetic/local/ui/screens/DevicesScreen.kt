@@ -116,6 +116,7 @@ fun DeviceCard(entry: DeviceListEntry, viewModel: RouterViewModel, ipPolicies: L
     var showMenu by remember { mutableStateOf(false) }
     var showRenameDialog by remember { mutableStateOf(false) }
     var showPolicyDialog by remember { mutableStateOf(false) }
+    var showScheduleDialog by remember { mutableStateOf(false) }
 
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -194,6 +195,11 @@ fun DeviceCard(entry: DeviceListEntry, viewModel: RouterViewModel, ipPolicies: L
                         leadingIcon = { Icon(Icons.Default.Route, contentDescription = null, tint = KeeneticColors.Primary) }
                     )
                     DropdownMenuItem(
+                        text = { Text("Расписание доступа") },
+                        onClick = { showMenu = false; showScheduleDialog = true },
+                        leadingIcon = { Icon(Icons.Default.Schedule, contentDescription = null, tint = KeeneticColors.Primary) }
+                    )
+                    DropdownMenuItem(
                         text = { Text(if (isBlocked) "Разблокировать" else "Заблокировать") },
                         onClick = { viewModel.toggleClient(entry.mac, !isBlocked); showMenu = false },
                         leadingIcon = {
@@ -270,6 +276,42 @@ fun DeviceCard(entry: DeviceListEntry, viewModel: RouterViewModel, ipPolicies: L
             },
             dismissButton = {
                 TextButton(onClick = { showPolicyDialog = false }) { Text("Отмена") }
+            }
+        )
+    }
+
+    if (showScheduleDialog) {
+        var scheduleName by remember { mutableStateOf("") }
+        AlertDialog(
+            onDismissRequest = { showScheduleDialog = false },
+            title = { Text("Расписание доступа") },
+            text = {
+                Column {
+                    OutlinedTextField(
+                        value = scheduleName,
+                        onValueChange = { scheduleName = it },
+                        label = { Text("Имя расписания") },
+                        placeholder = { Text("например schedule0") },
+                        singleLine = true
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        "Расписание должно быть создано заранее в Настройках. Привязка к устройству не проверена реальным действием на роутере - тестируй сначала на некритичном устройстве.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = KeeneticColors.TextSecondary
+                    )
+                }
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = { viewModel.setClientSchedule(entry.mac, scheduleName); showScheduleDialog = false },
+                    enabled = scheduleName.isNotBlank()
+                ) {
+                    Text("Применить", color = KeeneticColors.Primary)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showScheduleDialog = false }) { Text("Отмена") }
             }
         )
     }

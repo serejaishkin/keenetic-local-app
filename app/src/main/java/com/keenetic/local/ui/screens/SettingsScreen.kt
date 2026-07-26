@@ -138,6 +138,9 @@ fun SettingsScreen(viewModel: RouterViewModel, onLoggedOut: () -> Unit) {
         ExtraServicesCard(viewModel)
 
         Spacer(modifier = Modifier.height(16.dp))
+        ScheduleCard(viewModel)
+
+        Spacer(modifier = Modifier.height(16.dp))
 
         OutlinedButton(
             onClick = {
@@ -235,6 +238,108 @@ fun ExtraServicesCard(viewModel: RouterViewModel) {
                     checked = torrentEnabled,
                     onCheckedChange = { torrentEnabled = it; viewModel.setTorrentClient(it) }
                 )
+            }
+        }
+    }
+}
+
+@Composable
+fun ScheduleCard(viewModel: RouterViewModel) {
+    val dayNames = listOf("Вс", "Пн", "Вт", "Ср", "Чт", "Пт", "Сб")
+    var name by remember { mutableStateOf("") }
+    var description by remember { mutableStateOf("") }
+    val selectedDays = remember { mutableStateListOf<Int>() }
+    var startHour by remember { mutableStateOf("22") }
+    var startMin by remember { mutableStateOf("0") }
+    var stopHour by remember { mutableStateOf("7") }
+    var stopMin by remember { mutableStateOf("0") }
+
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = KeeneticColors.Surface),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Text("Расписание доступа", fontWeight = FontWeight.SemiBold)
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(
+                "Создаёт именованное расписание. Привязка к конкретному устройству - в разделе Устройства (структурная аналогия с назначением политики, отдельно не проверена реальным действием на роутере)",
+                style = MaterialTheme.typography.labelSmall,
+                color = KeeneticColors.TextSecondary
+            )
+            Spacer(modifier = Modifier.height(12.dp))
+
+            OutlinedTextField(
+                value = name,
+                onValueChange = { name = it },
+                label = { Text("Имя расписания") },
+                placeholder = { Text("например schedule0") },
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth()
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+            OutlinedTextField(
+                value = description,
+                onValueChange = { description = it },
+                label = { Text("Описание") },
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth()
+            )
+            Spacer(modifier = Modifier.height(12.dp))
+
+            Text("Дни недели", style = MaterialTheme.typography.bodySmall, color = KeeneticColors.TextSecondary)
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                dayNames.forEachIndexed { index, label ->
+                    FilterChip(
+                        selected = index in selectedDays,
+                        onClick = {
+                            if (index in selectedDays) selectedDays.remove(index) else selectedDays.add(index)
+                        },
+                        label = { Text(label) }
+                    )
+                }
+            }
+            Spacer(modifier = Modifier.height(12.dp))
+
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                OutlinedTextField(
+                    value = startHour, onValueChange = { startHour = it },
+                    label = { Text("Начало, час") }, singleLine = true, modifier = Modifier.weight(1f)
+                )
+                OutlinedTextField(
+                    value = startMin, onValueChange = { startMin = it },
+                    label = { Text("мин") }, singleLine = true, modifier = Modifier.weight(1f)
+                )
+            }
+            Spacer(modifier = Modifier.height(8.dp))
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                OutlinedTextField(
+                    value = stopHour, onValueChange = { stopHour = it },
+                    label = { Text("Окончание, час") }, singleLine = true, modifier = Modifier.weight(1f)
+                )
+                OutlinedTextField(
+                    value = stopMin, onValueChange = { stopMin = it },
+                    label = { Text("мин") }, singleLine = true, modifier = Modifier.weight(1f)
+                )
+            }
+            Spacer(modifier = Modifier.height(12.dp))
+
+            Button(
+                onClick = {
+                    viewModel.createSchedule(
+                        name = name,
+                        description = description,
+                        daysOfWeek = selectedDays.toList(),
+                        startHour = startHour.toIntOrNull() ?: 0,
+                        startMin = startMin.toIntOrNull() ?: 0,
+                        stopHour = stopHour.toIntOrNull() ?: 0,
+                        stopMin = stopMin.toIntOrNull() ?: 0
+                    )
+                },
+                enabled = name.isNotBlank() && selectedDays.isNotEmpty(),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text("Создать расписание")
             }
         }
     }
