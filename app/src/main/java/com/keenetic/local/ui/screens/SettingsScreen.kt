@@ -138,6 +138,12 @@ fun SettingsScreen(viewModel: RouterViewModel, onLoggedOut: () -> Unit) {
         ExtraServicesCard(viewModel)
 
         Spacer(modifier = Modifier.height(16.dp))
+        VpnServerStatusCard(viewModel)
+
+        Spacer(modifier = Modifier.height(16.dp))
+        DohDnsCard(viewModel)
+
+        Spacer(modifier = Modifier.height(16.dp))
         ScheduleCard(viewModel)
 
         Spacer(modifier = Modifier.height(16.dp))
@@ -151,6 +157,93 @@ fun SettingsScreen(viewModel: RouterViewModel, onLoggedOut: () -> Unit) {
             colors = ButtonDefaults.outlinedButtonColors(contentColor = KeeneticColors.Error)
         ) {
             Text("Выйти")
+        }
+    }
+}
+
+@Composable
+fun VpnServerStatusCard(viewModel: RouterViewModel) {
+    val vpnServer by viewModel.vpnServer.collectAsState()
+
+    LaunchedEffect(Unit) { viewModel.loadVpnServerConfig() }
+
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = KeeneticColors.Surface),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Text("VPN-сервер (L2TP/IKEv2)", fontWeight = FontWeight.SemiBold)
+            Spacer(modifier = Modifier.height(8.dp))
+            if (vpnServer == null) {
+                Text("Загрузка...", style = MaterialTheme.typography.bodySmall, color = KeeneticColors.TextSecondary)
+            } else {
+                val cfg = vpnServer!!
+                Text(
+                    if (cfg.enabled) "Включён" else "Выключен",
+                    color = if (cfg.enabled) KeeneticColors.Accent else KeeneticColors.TextSecondary,
+                    fontWeight = FontWeight.Medium
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    "Сегмент: ${cfg.interfaceName ?: "—"} · Пул: ${cfg.poolStart ?: "—"} (+${cfg.poolSize ?: "?"})",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = KeeneticColors.TextSecondary
+                )
+                Text(
+                    "Команда включения/выключения пока не подтверждена - только просмотр",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = KeeneticColors.TextSecondary
+                )
+            }
+        }
+    }
+}
+
+@Composable
+fun DohDnsCard(viewModel: RouterViewModel) {
+    var dohUrl by remember { mutableStateOf("") }
+    var targetInterface by remember { mutableStateOf("") }
+
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = KeeneticColors.Surface),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Text("DNS-over-HTTPS (DoH)", fontWeight = FontWeight.SemiBold)
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(
+                "Задаёт один сервер DoH, заменяя текущий список. Если у тебя настроено несколько DoH-серверов сразу - эта настройка их перезапишет.",
+                style = MaterialTheme.typography.labelSmall,
+                color = KeeneticColors.TextSecondary
+            )
+            Spacer(modifier = Modifier.height(12.dp))
+            OutlinedTextField(
+                value = dohUrl,
+                onValueChange = { dohUrl = it },
+                label = { Text("DoH URL") },
+                placeholder = { Text("https://common.dot.dns.yandex.net/dns-query") },
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth()
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+            OutlinedTextField(
+                value = targetInterface,
+                onValueChange = { targetInterface = it },
+                label = { Text("Интерфейс (необязательно)") },
+                placeholder = { Text("например GigabitEthernet0/Vlan4") },
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth()
+            )
+            Spacer(modifier = Modifier.height(12.dp))
+            Button(
+                onClick = { viewModel.setCustomDoh(dohUrl, targetInterface.takeIf { it.isNotBlank() }) },
+                enabled = dohUrl.startsWith("https://"),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text("Применить")
+            }
         }
     }
 }

@@ -656,6 +656,125 @@ class RouterViewModel(application: Application) : AndroidViewModel(application) 
         }
     }
 
+    private val _vpnServer = MutableStateFlow<VpnServerConfig?>(null)
+    val vpnServer: StateFlow<VpnServerConfig?> = _vpnServer.asStateFlow()
+
+    fun loadVpnServerConfig() {
+        viewModelScope.launch {
+            try {
+                val response = repository.getRestApi().executeRci(
+                    listOf(mapOf("show" to mapOf("sc" to mapOf("vpn-server" to emptyMap<String, Any>()))))
+                )
+                if (response.isSuccessful) {
+                    val body = response.body()
+                    val first = if (body?.isJsonArray == true && body.asJsonArray.size() > 0) body.asJsonArray[0] else body
+                    _vpnServer.value = VpnServerParser.parse(first)
+                }
+            } catch (e: Exception) {
+                AppLogger.logAction("VPN server config load failed", e.message ?: "")
+            }
+        }
+    }
+
+    fun setCustomDoh(url: String, targetInterface: String? = null) {
+        viewModelScope.launch {
+            _isLoading.value = true
+            try {
+                val entry = mutableMapOf<String, Any>("url" to url, "hash" to "", "domain" to "")
+                targetInterface?.let { entry["interface"] = it }
+                val response = repository.getRestApi().executeRci(
+                    listOf(
+                        mapOf("dns-proxy" to mapOf("https" to mapOf("upstream" to listOf(mapOf("no" to true), entry)))),
+                        mapOf("system" to mapOf("configuration" to mapOf("save" to emptyMap<String, Any>())))
+                    )
+                )
+                if (!response.isSuccessful) {
+                    _error.value = "Ошибка смены DNS: HTTP ${response.code()}"
+                }
+            } catch (e: Exception) {
+                _error.value = "Ошибка смены DNS: ${e.message}"
+            } finally {
+                _isLoading.value = false
+            }
+        }
+    }
+
+    /**
+     * Подключает роутер к внешней Wi-Fi сети как клиент (режим WifiStation,
+     * используется например для повторителя/моста). Формат подтверждён
+     * реальным HAR - полная последовательность полей для интерфейса
+     * WifiMaster{0|1}/WifiStation0.
+     */
+    fun connectWifiClient(masterRadio: String, ssid: String, password: String) {
+        viewModelScope.launch {
+            _isLoading.value = true
+            try {
+                val stationId = "$masterRadio/WifiStation0"
+                val response = repository.getRestApi().executeRci(
+                    listOf(
+                        mapOf("interface" to mapOf("ip" to mapOf("address" to mapOf("no" to true, "dhcp" to true)), "name" to stationId)),
+                        mapOf("interface" to mapOf("description" to ssid, "name" to stationId)),
+                        mapOf("interface" to mapOf("ssid" to ssid, "name" to stationId)),
+                        mapOf("interface" to mapOf(
+                            "encryption" to mapOf(
+                                "enable" to mapOf("no" to false),
+                                "wpa" to mapOf("no" to true),
+                                "wpa2" to mapOf("no" to false),
+                                "owe" to mapOf("no" to true),
+                                "wpa3" to mapOf("no" to true)
+                            ),
+                            "authentication" to mapOf("wpa-psk" to mapOf("psk" to password)),
+                            "name" to stationId
+                        )),
+                        mapOf("interface" to mapOf("up" to true, "name" to stationId)),
+                        mapOf("system" to mapOf("configuration" to mapOf("save" to emptyMap<String, Any>())))
+                    )
+                )
+                if (response.isSuccessful) {
+                    loadInterfaces()
+                } else {
+                    _error.value = "Ошибка подключения Wi-Fi клиента: HTTP ${response.code()}"
+                }
+            } catch (e: Exception) {
+                _error.value = "Ошибка подключения Wi-Fi клиента: ${e.message}"
+            } finally {
+                _isLoading.value = false
+            }
+        }
+    }
+
+    /** Отключает режим Wi-Fi клиента. Формат подтверждён реальным HAR. */
+    fun disconnectWifiClient(masterRadio: String) {
+        viewModelScope.launch {
+            _isLoading.value = true
+            try {
+                val stationId = "$masterRadio/WifiStation0"
+                val response = repository.getRestApi().executeRci(
+                    listOf(
+                        mapOf("interface" to mapOf("ssid" to mapOf("no" to true), "name" to stationId)),
+                        mapOf("interface" to mapOf("up" to false, "name" to stationId)),
+                        mapOf("interface" to mapOf("description" to mapOf("no" to true), "name" to stationId)),
+                        mapOf("interface" to mapOf("authentication" to mapOf("wpa-psk" to mapOf("no" to true)), "name" to stationId)),
+                        mapOf("interface" to mapOf(
+                            "encryption" to mapOf("enable" to mapOf("no" to true), "wpa" to mapOf("no" to true), "wpa2" to mapOf("no" to true)),
+                            "name" to stationId
+                        )),
+                        mapOf("system" to mapOf("configuration" to mapOf("save" to emptyMap<String, Any>())))
+                    )
+                )
+                if (response.isSuccessful) {
+                    loadInterfaces()
+                } else {
+                    _error.value = "Ошибка отключения Wi-Fi клиента: HTTP ${response.code()}"
+                }
+            } catch (e: Exception) {
+                _error.value = "Ошибка отключения Wi-Fi клиента: ${e.message}"
+            } finally {
+                _isLoading.value = false
+            }
+        }
+    }
+
     fun setWifiPassword(networkId: String, newPassword: String) {
         viewModelScope.launch {
             _isLoading.value = true

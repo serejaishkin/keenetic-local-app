@@ -1,5 +1,6 @@
 package com.keenetic.local.ui.screens
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.Icons
@@ -42,6 +43,9 @@ fun WiFiScreen(viewModel: RouterViewModel) {
         LazyColumn(verticalArrangement = Arrangement.spacedBy(12.dp)) {
             items(wifiNetworks.size) { index ->
                 WiFiCard(wifiNetworks[index], viewModel)
+            }
+            item {
+                WifiClientModeCard(viewModel)
             }
         }
     }
@@ -177,5 +181,94 @@ fun WiFiCard(network: WifiNetwork, viewModel: RouterViewModel) {
                 }
             }
         )
+    }
+}
+
+@Composable
+fun WifiClientModeCard(viewModel: RouterViewModel) {
+    var expanded by remember { mutableStateOf(false) }
+    var radioBand by remember { mutableStateOf("WifiMaster0") } // 2.4 ГГц по умолчанию
+    var ssid by remember { mutableStateOf("") }
+    var password by remember { mutableStateOf("") }
+
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = KeeneticColors.Surface),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth().clickable { expanded = !expanded },
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Default.WifiTethering, contentDescription = null, tint = KeeneticColors.Primary)
+                    Spacer(modifier = Modifier.width(12.dp))
+                    Text("Wi-Fi как клиент (мост/повторитель)", fontWeight = FontWeight.Medium)
+                }
+                Icon(
+                    if (expanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
+                    contentDescription = null
+                )
+            }
+
+            if (expanded) {
+                Spacer(modifier = Modifier.height(12.dp))
+                Text(
+                    "Роутер подключится к чужой Wi-Fi сети как обычное устройство (режим WifiStation). Полезно как мост/повторитель.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = KeeneticColors.TextSecondary
+                )
+                Spacer(modifier = Modifier.height(12.dp))
+
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    FilterChip(
+                        selected = radioBand == "WifiMaster0",
+                        onClick = { radioBand = "WifiMaster0" },
+                        label = { Text("2.4 ГГц") }
+                    )
+                    FilterChip(
+                        selected = radioBand == "WifiMaster1",
+                        onClick = { radioBand = "WifiMaster1" },
+                        label = { Text("5 ГГц") }
+                    )
+                }
+                Spacer(modifier = Modifier.height(8.dp))
+
+                OutlinedTextField(
+                    value = ssid,
+                    onValueChange = { ssid = it },
+                    label = { Text("Имя сети (SSID)") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                OutlinedTextField(
+                    value = password,
+                    onValueChange = { password = it },
+                    label = { Text("Пароль") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
+                )
+                Spacer(modifier = Modifier.height(12.dp))
+
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Button(
+                        onClick = { viewModel.connectWifiClient(radioBand, ssid, password) },
+                        enabled = ssid.isNotBlank() && password.length >= 8,
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Text("Подключить")
+                    }
+                    OutlinedButton(
+                        onClick = { viewModel.disconnectWifiClient(radioBand) },
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Text("Отключить")
+                    }
+                }
+            }
+        }
     }
 }
