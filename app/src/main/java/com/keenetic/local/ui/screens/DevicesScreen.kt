@@ -178,7 +178,11 @@ fun DeviceCard(entry: DeviceListEntry, viewModel: RouterViewModel, ipPolicies: L
                 IconButton(onClick = { showMenu = true }) {
                     Icon(Icons.Default.MoreVert, contentDescription = "Меню")
                 }
-                DropdownMenu(expanded = showMenu, onDismissRequest = { showMenu = false }) {
+                DropdownMenu(
+                    expanded = showMenu,
+                    onDismissRequest = { showMenu = false },
+                    modifier = Modifier.widthIn(min = 240.dp)
+                ) {
                     DropdownMenuItem(
                         text = { Text("Переименовать") },
                         onClick = { showMenu = false; showRenameDialog = true },
@@ -348,7 +352,11 @@ fun ClientCard(client: Client, viewModel: RouterViewModel, ipPolicies: List<IpPo
                 IconButton(onClick = { showMenu = true }) {
                     Icon(Icons.Default.MoreVert, contentDescription = "Меню")
                 }
-                DropdownMenu(expanded = showMenu, onDismissRequest = { showMenu = false }) {
+                DropdownMenu(
+                    expanded = showMenu,
+                    onDismissRequest = { showMenu = false },
+                    modifier = Modifier.widthIn(min = 240.dp)
+                ) {
                     DropdownMenuItem(
                         text = { Text("Переименовать") },
                         onClick = {

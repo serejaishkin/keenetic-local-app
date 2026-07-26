@@ -325,11 +325,21 @@ class RouterViewModel(application: Application) : AndroidViewModel(application) 
         viewModelScope.launch {
             try {
                 val ssh = repository.getSshClient()
-                ssh.execute("show device-list").onSuccess { raw ->
-                    _deviceList.value = DeviceListParser.parse(raw)
-                }
+                ssh.execute("show device-list")
+                    .onSuccess { raw ->
+                        val parsed = DeviceListParser.parse(raw)
+                        _deviceList.value = parsed
+                        if (parsed.isEmpty() && raw.isNotBlank()) {
+                            AppLogger.logAction("Device list parsed empty", raw.take(300))
+                        }
+                    }
+                    .onFailure { e ->
+                        AppLogger.logAction("Device list SSH command failed", e.message ?: "")
+                        _error.value = "Не удалось получить список устройств по SSH: ${e.message}"
+                    }
             } catch (e: Exception) {
                 AppLogger.logAction("Device list load failed", e.message ?: "")
+                _error.value = "Не удалось получить список устройств по SSH: ${e.message}"
             }
         }
     }
@@ -452,7 +462,8 @@ class RouterViewModel(application: Application) : AndroidViewModel(application) 
         ssidName: String? = null,
         password: String? = null,
         wpsEnabled: Boolean? = null,
-        peerIsolation: Boolean? = null
+        peerIsolation: Boolean? = null,
+        enable: Boolean? = null
     ) {
         viewModelScope.launch {
             _isLoading.value = true
@@ -462,6 +473,7 @@ class RouterViewModel(application: Application) : AndroidViewModel(application) 
                 password?.let { wlanFields["wpa"] = mapOf("psk" to it) }
                 wpsEnabled?.let { wlanFields["wps"] = mapOf("enable" to it) }
                 peerIsolation?.let { wlanFields["peer-isolation"] = it }
+                enable?.let { wlanFields["enable"] = it }
 
                 if (wlanFields.size <= 1) {
                     _isLoading.value = false

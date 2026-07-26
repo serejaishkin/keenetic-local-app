@@ -164,7 +164,8 @@ fun WiFiCard(network: WifiNetwork, viewModel: RouterViewModel) {
             text = { Text("${if (network.enabled) "Выключить" else "Включить"} сеть «${network.ssid}»?") },
             confirmButton = {
                 TextButton(onClick = {
-                    viewModel.toggleInterface(network.id, !network.enabled)
+                    val networkId = if (network.guest) "Guest" else "Home"
+                    viewModel.updateWifiNetwork(networkId = networkId, enable = !network.enabled)
                     confirmToggle = false
                 }) {
                     Text("Да", color = KeeneticColors.Primary)
