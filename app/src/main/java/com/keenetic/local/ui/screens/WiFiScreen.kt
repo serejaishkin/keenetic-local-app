@@ -236,6 +236,56 @@ fun WifiClientModeCard(viewModel: RouterViewModel) {
                 }
                 Spacer(modifier = Modifier.height(8.dp))
 
+                val scanResults by viewModel.scanResults.collectAsState()
+                val isScanning by viewModel.isScanning.collectAsState()
+
+                OutlinedButton(
+                    onClick = { viewModel.scanWifiNetworks(radioBand) },
+                    enabled = !isScanning,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    if (isScanning) {
+                        CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("Сканирование...")
+                    } else {
+                        Icon(Icons.Default.Search, contentDescription = null, modifier = Modifier.size(18.dp))
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("Сканировать сети")
+                    }
+                }
+
+                if (scanResults.isNotEmpty()) {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Column(modifier = Modifier.heightIn(max = 220.dp)) {
+                        scanResults.forEach { net ->
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable { ssid = net.essid ?: "" }
+                                    .padding(vertical = 8.dp),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Column {
+                                    Text(net.essid ?: "—", style = MaterialTheme.typography.bodyMedium)
+                                    Text(
+                                        "${net.encryption ?: "?"} · канал ${net.channel ?: "?"}",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = KeeneticColors.TextSecondary
+                                    )
+                                }
+                                Text(
+                                    "${net.rssi ?: "—"} дБм",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = KeeneticColors.TextSecondary
+                                )
+                            }
+                        }
+                    }
+                }
+                Spacer(modifier = Modifier.height(8.dp))
+
                 OutlinedTextField(
                     value = ssid,
                     onValueChange = { ssid = it },

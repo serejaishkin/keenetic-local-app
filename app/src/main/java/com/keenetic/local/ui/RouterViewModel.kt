@@ -705,6 +705,39 @@ class RouterViewModel(application: Application) : AndroidViewModel(application) 
      * реальным HAR - полная последовательность полей для интерфейса
      * WifiMaster{0|1}/WifiStation0.
      */
+    private val _scanResults = MutableStateFlow<List<SiteSurveyResult>>(emptyList())
+    val scanResults: StateFlow<List<SiteSurveyResult>> = _scanResults.asStateFlow()
+
+    private val _isScanning = MutableStateFlow(false)
+    val isScanning: StateFlow<Boolean> = _isScanning.asStateFlow()
+
+    /**
+     * Сканирует соседние Wi-Fi сети. Подтверждено реальным HAR:
+     * {"show":{"site-survey":{"name":"WifiMasterX"}}} через REST /rci/.
+     */
+    fun scanWifiNetworks(masterRadio: String) {
+        viewModelScope.launch {
+            _isScanning.value = true
+            _scanResults.value = emptyList()
+            try {
+                val response = repository.getRestApi().executeRci(
+                    listOf(mapOf("show" to mapOf("site-survey" to mapOf("name" to masterRadio))))
+                )
+                if (response.isSuccessful) {
+                    val body = response.body()
+                    val first = if (body?.isJsonArray == true && body.asJsonArray.size() > 0) body.asJsonArray[0] else body
+                    _scanResults.value = SiteSurveyParser.parse(first)
+                } else {
+                    _error.value = "Ошибка сканирования: HTTP ${response.code()}"
+                }
+            } catch (e: Exception) {
+                _error.value = "Ошибка сканирования: ${e.message}"
+            } finally {
+                _isScanning.value = false
+            }
+        }
+    }
+
     fun connectWifiClient(masterRadio: String, ssid: String, password: String) {
         viewModelScope.launch {
             _isLoading.value = true
