@@ -13,6 +13,7 @@ sealed class Screen(val route: String, val title: String) {
     object WiFi : Screen("wifi", "Wi-Fi")
     object Terminal : Screen("terminal", "Терминал")
     object Settings : Screen("settings", "Настройки")
+    object AllSections : Screen("all_sections", "Все разделы")
 }
 
 @Composable
@@ -43,6 +44,9 @@ fun KeeneticNavHost(navController: NavHostController, viewModel: RouterViewModel
                     popUpTo(0) { inclusive = true }
                 }
             })
+        }
+        composable(Screen.AllSections.route) {
+            AllSectionsScreen(navController = navController)
         }
     }
 }

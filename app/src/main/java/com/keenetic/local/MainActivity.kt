@@ -35,6 +35,7 @@ class MainActivity : ComponentActivity() {
 fun KeeneticAppTheme() {
     val navController = rememberNavController()
     val viewModel: RouterViewModel = viewModel()
+    var showRebootConfirm by remember { mutableStateOf(false) }
     val isLoggedIn by viewModel.isLoggedIn.collectAsState()
     val isCheckingAutoLogin by viewModel.isCheckingAutoLogin.collectAsState()
     val navBackStackEntry by navController.currentBackStackEntryAsState()
@@ -79,10 +80,13 @@ fun KeeneticAppTheme() {
                         containerColor = KeeneticColors.Surface
                     ),
                     actions = {
+                        IconButton(onClick = { navController.navigate(Screen.AllSections.route) }) {
+                            Icon(Icons.Default.Apps, "Все разделы")
+                        }
                         IconButton(onClick = { viewModel.refreshAll() }) {
                             Icon(Icons.Default.Refresh, "Обновить")
                         }
-                        IconButton(onClick = { viewModel.reboot() }) {
+                        IconButton(onClick = { showRebootConfirm = true }) {
                             Icon(Icons.Default.RestartAlt, "Перезагрузить роутер")
                         }
                         IconButton(onClick = { viewModel.logout() }) {
@@ -125,5 +129,27 @@ fun KeeneticAppTheme() {
         Box(modifier = Modifier.padding(padding)) {
             KeeneticNavHost(navController = navController, viewModel = viewModel)
         }
+    }
+
+    if (showRebootConfirm) {
+        AlertDialog(
+            onDismissRequest = { showRebootConfirm = false },
+            icon = { Icon(Icons.Default.RestartAlt, contentDescription = null, tint = KeeneticColors.Error) },
+            title = { Text("Перезагрузить роутер?") },
+            text = { Text("Интернет и Wi-Fi пропадут на 1-2 минуты, пока роутер перезагружается.") },
+            confirmButton = {
+                TextButton(onClick = {
+                    viewModel.reboot()
+                    showRebootConfirm = false
+                }) {
+                    Text("Перезагрузить", color = KeeneticColors.Error)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showRebootConfirm = false }) {
+                    Text("Отмена")
+                }
+            }
+        )
     }
 }
