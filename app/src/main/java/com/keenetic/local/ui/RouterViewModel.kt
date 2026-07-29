@@ -784,6 +784,46 @@ class RouterViewModel(application: Application) : AndroidViewModel(application) 
         }
     }
 
+    /**
+     * Назначает физические LAN-порты под отдельные службы провайдера
+     * (интернет / IPTV / VoIP). Формат подтверждён реальным HAR - команда
+     * IPoE-конфигурации на WAN-интерфейсе (тот, что реально даёт IP -
+     * см. show wans). Пустая строка в поле = "не назначено".
+     *
+     * ⚠️ РИСК: ошибка здесь может отключить интернет через физический порт,
+     * если назначить один и тот же порт не туда. Проверяй значения дважды
+     * перед применением, и лучше сначала на некритичном порту.
+     */
+    fun setPortRoles(wanInterfaceId: String, inetPort: String, iptvPort: String, voipPort: String) {
+        viewModelScope.launch {
+            _isLoading.value = true
+            try {
+                val response = repository.getRestApi().executeRci(
+                    listOf(
+                        mapOf("interface" to mapOf(
+                            "ipoe" to mapOf(
+                                "inet-port" to inetPort, "inet-pcp" to "", "inet-vlan" to "",
+                                "iptv-port" to iptvPort, "iptv-pcp" to "", "iptv-vlan" to "",
+                                "voip-port" to voipPort, "voip-pcp" to "", "voip-vlan" to ""
+                            ),
+                            "name" to wanInterfaceId
+                        )),
+                        mapOf("system" to mapOf("configuration" to mapOf("save" to emptyMap<String, Any>())))
+                    )
+                )
+                if (response.isSuccessful) {
+                    loadInterfaces()
+                } else {
+                    _error.value = "Ошибка назначения портов: HTTP ${response.code()}"
+                }
+            } catch (e: Exception) {
+                _error.value = "Ошибка назначения портов: ${e.message}"
+            } finally {
+                _isLoading.value = false
+            }
+        }
+    }
+
     fun connectWifiClient(masterRadio: String, ssid: String, password: String) {
         viewModelScope.launch {
             _isLoading.value = true

@@ -33,7 +33,7 @@ private fun sections(): List<SectionGroup> = listOf(
         SectionItem("Монитор Wi-Fi", null)
     )),
     SectionGroup("Интернет", listOf(
-        SectionItem("Кабель Ethernet", null),
+        SectionItem("Кабель Ethernet", Screen.Internet.route),
         SectionItem("Mobile", null),
         SectionItem("Wireless ISP", Screen.WiFi.route),
         SectionItem("Другие подключения", Screen.Dashboard.route),
