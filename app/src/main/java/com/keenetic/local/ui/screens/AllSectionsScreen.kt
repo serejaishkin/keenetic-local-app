@@ -28,7 +28,7 @@ private data class SectionGroup(val title: String, val items: List<SectionItem>)
 private fun sections(): List<SectionGroup> = listOf(
     SectionGroup("Статус", listOf(
         SectionItem("Системный монитор", Screen.Dashboard.route),
-        SectionItem("Монитор трафика", Screen.Dashboard.route),
+        SectionItem("Монитор трафика", null),
         SectionItem("Анализатор трафика приложений", null),
         SectionItem("Монитор Wi-Fi", null)
     )),
@@ -44,7 +44,7 @@ private fun sections(): List<SectionGroup> = listOf(
         SectionItem("Точки доступа", Screen.WiFi.route),
         SectionItem("Сегменты", null),
         SectionItem("Wi-Fi-система", Screen.WiFi.route),
-        SectionItem("IntelliQoS", Screen.Settings.route)
+        SectionItem("IntelliQoS", Screen.Apps.route)
     )),
     SectionGroup("Сетевые правила", listOf(
         SectionItem("Интернет-фильтры (DNS)", Screen.Settings.route),
@@ -57,10 +57,10 @@ private fun sections(): List<SectionGroup> = listOf(
     SectionGroup("Управление", listOf(
         SectionItem("Настройки системы", Screen.Settings.route),
         SectionItem("Накопители и устройства", null),
-        SectionItem("Приложения", Screen.Settings.route),
+        SectionItem("Приложения", Screen.Apps.route),
         SectionItem("Пользователи и доступ", null),
         SectionItem("Диагностика", Screen.Terminal.route),
-        SectionItem("OPKG", Screen.Settings.route)
+        SectionItem("OPKG", Screen.Apps.route)
     ))
 )
 

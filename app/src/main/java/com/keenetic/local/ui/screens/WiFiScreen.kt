@@ -238,9 +238,11 @@ fun WifiClientModeCard(viewModel: RouterViewModel) {
 
                 val scanResults by viewModel.scanResults.collectAsState()
                 val isScanning by viewModel.isScanning.collectAsState()
+                val error by viewModel.error.collectAsState()
+                var hasScanned by remember { mutableStateOf(false) }
 
                 OutlinedButton(
-                    onClick = { viewModel.scanWifiNetworks(radioBand) },
+                    onClick = { hasScanned = true; viewModel.clearError(); viewModel.scanWifiNetworks(radioBand) },
                     enabled = !isScanning,
                     modifier = Modifier.fillMaxWidth()
                 ) {
@@ -252,6 +254,24 @@ fun WifiClientModeCard(viewModel: RouterViewModel) {
                         Icon(Icons.Default.Search, contentDescription = null, modifier = Modifier.size(18.dp))
                         Spacer(modifier = Modifier.width(8.dp))
                         Text("Сканировать сети")
+                    }
+                }
+
+                if (hasScanned && !isScanning) {
+                    if (error != null) {
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            "Ошибка: $error",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = KeeneticColors.Error
+                        )
+                    } else if (scanResults.isEmpty()) {
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            "Сети не найдены. Попробуй другой диапазон (2.4/5 ГГц) или подожди - модуль мог быть занят.",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = KeeneticColors.TextSecondary
+                        )
                     }
                 }
 

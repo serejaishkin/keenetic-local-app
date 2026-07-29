@@ -64,6 +64,17 @@ fun KeeneticAppTheme() {
                 popUpTo(Screen.Login.route) { inclusive = true }
             }
         }
+        // Раньше выход через кнопку в шапке (в отличие от кнопки в Настройках)
+        // только сбрасывал isLoggedIn, но не уводил с текущего экрана -
+        // верхняя/нижняя панели пропадали (они завязаны на isLoggedIn), а
+        // содержимое экрана (например, Настройки со всеми карточками)
+        // оставалось видно без навигации - выглядело как "баг на экране
+        // авторизации". Теперь любой выход надёжно уводит на Login.
+        if (!isLoggedIn && currentRoute != Screen.Login.route) {
+            navController.navigate(Screen.Login.route) {
+                popUpTo(0) { inclusive = true }
+            }
+        }
     }
 
     Scaffold(
