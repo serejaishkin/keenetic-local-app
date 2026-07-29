@@ -371,6 +371,52 @@ class RouterViewModel(application: Application) : AndroidViewModel(application) 
      * Одна пара start/stop на каждый выбранный день недели - расписание
      * "действует" в промежутке [start, stop) в указанные дни.
      */
+    private val _schedules = MutableStateFlow<List<ScheduleInfo>>(emptyList())
+    val schedules: StateFlow<List<ScheduleInfo>> = _schedules.asStateFlow()
+
+    private val _nameServers = MutableStateFlow<List<DnsServerInfo>>(emptyList())
+    val nameServers: StateFlow<List<DnsServerInfo>> = _nameServers.asStateFlow()
+
+    /** Список уже созданных расписаний - подтверждено HAR (show sc schedule). */
+    fun loadSchedules() {
+        viewModelScope.launch {
+            try {
+                val response = repository.getRestApi().executeRci(
+                    listOf(mapOf("show" to mapOf("sc" to mapOf("schedule" to emptyMap<String, Any>()))))
+                )
+                if (response.isSuccessful) {
+                    val body = response.body()
+                    val first = if (body?.isJsonArray == true && body.asJsonArray.size() > 0) body.asJsonArray[0] else body
+                    _schedules.value = DnsAndScheduleParser.parseSchedules(first)
+                }
+            } catch (e: Exception) {
+                AppLogger.logAction("Schedules load failed", e.message ?: "")
+            }
+        }
+    }
+
+    /**
+     * Текущие DNS-серверы - подтверждено HAR (show sc ip name-server).
+     * Показываем ПЕРЕД тем, как дать менять DoH, чтобы не перезаписывать
+     * настройки вслепую.
+     */
+    fun loadNameServers() {
+        viewModelScope.launch {
+            try {
+                val response = repository.getRestApi().executeRci(
+                    listOf(mapOf("show" to mapOf("sc" to mapOf("ip" to mapOf("name-server" to emptyMap<String, Any>())))))
+                )
+                if (response.isSuccessful) {
+                    val body = response.body()
+                    val first = if (body?.isJsonArray == true && body.asJsonArray.size() > 0) body.asJsonArray[0] else body
+                    _nameServers.value = DnsAndScheduleParser.parseNameServers(first)
+                }
+            } catch (e: Exception) {
+                AppLogger.logAction("Name servers load failed", e.message ?: "")
+            }
+        }
+    }
+
     fun createSchedule(name: String, description: String, daysOfWeek: List<Int>, startHour: Int, startMin: Int, stopHour: Int, stopMin: Int) {
         viewModelScope.launch {
             _isLoading.value = true

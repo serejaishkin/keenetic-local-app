@@ -204,6 +204,9 @@ fun VpnServerStatusCard(viewModel: RouterViewModel) {
 fun DohDnsCard(viewModel: RouterViewModel) {
     var dohUrl by remember { mutableStateOf("") }
     var targetInterface by remember { mutableStateOf("") }
+    val nameServers by viewModel.nameServers.collectAsState()
+
+    LaunchedEffect(Unit) { viewModel.loadNameServers() }
 
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -212,7 +215,26 @@ fun DohDnsCard(viewModel: RouterViewModel) {
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
             Text("DNS-over-HTTPS (DoH)", fontWeight = FontWeight.SemiBold)
-            Spacer(modifier = Modifier.height(4.dp))
+            Spacer(modifier = Modifier.height(8.dp))
+
+            if (nameServers.isNotEmpty()) {
+                Text("Сейчас настроено:", style = MaterialTheme.typography.labelSmall, color = KeeneticColors.TextSecondary)
+                nameServers.forEach {
+                    Text(
+                        "${it.address ?: "?"} (${it.interfaceName ?: "?"})",
+                        style = MaterialTheme.typography.bodySmall
+                    )
+                }
+                Spacer(modifier = Modifier.height(8.dp))
+            } else {
+                Text(
+                    "Сейчас DNS-серверы не заданы явно (используются от провайдера)",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = KeeneticColors.TextSecondary
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+            }
+
             Text(
                 "Задаёт один сервер DoH, заменяя текущий список. Если у тебя настроено несколько DoH-серверов сразу - эта настройка их перезапишет.",
                 style = MaterialTheme.typography.labelSmall,
@@ -346,6 +368,9 @@ fun ScheduleCard(viewModel: RouterViewModel) {
     var startMin by remember { mutableStateOf("0") }
     var stopHour by remember { mutableStateOf("7") }
     var stopMin by remember { mutableStateOf("0") }
+    val schedules by viewModel.schedules.collectAsState()
+
+    LaunchedEffect(Unit) { viewModel.loadSchedules() }
 
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -355,6 +380,18 @@ fun ScheduleCard(viewModel: RouterViewModel) {
         Column(modifier = Modifier.padding(16.dp)) {
             Text("Расписание доступа", fontWeight = FontWeight.SemiBold)
             Spacer(modifier = Modifier.height(4.dp))
+
+            if (schedules.isNotEmpty()) {
+                Text("Уже созданы:", style = MaterialTheme.typography.labelSmall, color = KeeneticColors.TextSecondary)
+                schedules.forEach { s ->
+                    Text(
+                        "${s.name}${s.description?.let { " ($it)" } ?: ""} - ${s.actionsCount} правил",
+                        style = MaterialTheme.typography.bodySmall
+                    )
+                }
+                Spacer(modifier = Modifier.height(8.dp))
+            }
+
             Text(
                 "Создаёт именованное расписание. Привязка к конкретному устройству - в разделе Устройства (структурная аналогия с назначением политики, отдельно не проверена реальным действием на роутере)",
                 style = MaterialTheme.typography.labelSmall,
