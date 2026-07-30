@@ -9,6 +9,7 @@ import com.keenetic.local.ui.screens.*
 sealed class Screen(val route: String, val title: String) {
     object Login : Screen("login", "Вход")
     object Dashboard : Screen("dashboard", "Статус")
+    object Internet : Screen("internet", "Интернет")
     object Devices : Screen("devices", "Устройства")
     object WiFi : Screen("wifi", "Wi-Fi")
     object Terminal : Screen("terminal", "Терминал")
@@ -29,6 +30,9 @@ fun KeeneticNavHost(navController: NavHostController, viewModel: RouterViewModel
         }
         composable(Screen.Dashboard.route) {
             DashboardScreen(viewModel = viewModel)
+        }
+        composable(Screen.Internet.route) {
+            InternetScreen(viewModel = viewModel)
         }
         composable(Screen.Devices.route) {
             DevicesScreen(viewModel = viewModel)
