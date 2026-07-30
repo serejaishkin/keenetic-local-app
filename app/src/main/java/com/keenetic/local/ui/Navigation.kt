@@ -15,7 +15,6 @@ sealed class Screen(val route: String, val title: String) {
     object Settings : Screen("settings", "Настройки")
     object AllSections : Screen("all_sections", "Все разделы")
     object Apps : Screen("apps", "Приложения")
-    object Internet : Screen("internet", "Интернет")
 }
 
 @Composable
@@ -41,20 +40,21 @@ fun KeeneticNavHost(navController: NavHostController, viewModel: RouterViewModel
             TerminalScreen(viewModel = viewModel)
         }
         composable(Screen.Settings.route) {
-            SettingsScreen(viewModel = viewModel, onLoggedOut = {
-                navController.navigate(Screen.Login.route) {
-                    popUpTo(0) { inclusive = true }
-                }
-            })
+            SettingsScreen(
+                viewModel = viewModel,
+                onLoggedOut = {
+                    navController.navigate(Screen.Login.route) {
+                        popUpTo(0) { inclusive = true }
+                    }
+                },
+                onOpenApps = { navController.navigate(Screen.Apps.route) }
+            )
         }
         composable(Screen.AllSections.route) {
             AllSectionsScreen(navController = navController)
         }
         composable(Screen.Apps.route) {
             AppsScreen(viewModel = viewModel)
-        }
-        composable(Screen.Internet.route) {
-            InternetScreen(viewModel = viewModel)
         }
     }
 }

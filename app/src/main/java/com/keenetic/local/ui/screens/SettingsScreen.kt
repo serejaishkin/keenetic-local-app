@@ -1,7 +1,10 @@
 package com.keenetic.local.ui.screens
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
@@ -19,7 +22,7 @@ import com.keenetic.local.ui.RouterViewModel
 import com.keenetic.local.ui.theme.KeeneticColors
 
 @Composable
-fun SettingsScreen(viewModel: RouterViewModel, onLoggedOut: () -> Unit) {
+fun SettingsScreen(viewModel: RouterViewModel, onLoggedOut: () -> Unit, onOpenApps: () -> Unit = {}) {
     val savedIp by viewModel.routerIp.collectAsState()
     val savedLogin by viewModel.routerLogin.collectAsState()
     val savedAutoLogin by viewModel.autoLoginEnabled.collectAsState()
@@ -35,6 +38,7 @@ fun SettingsScreen(viewModel: RouterViewModel, onLoggedOut: () -> Unit) {
     Column(
         modifier = Modifier
             .fillMaxSize()
+            .verticalScroll(rememberScrollState())
             .padding(16.dp)
     ) {
         Text(
@@ -42,6 +46,38 @@ fun SettingsScreen(viewModel: RouterViewModel, onLoggedOut: () -> Unit) {
             style = MaterialTheme.typography.headlineSmall,
             fontWeight = FontWeight.Bold
         )
+        Text(
+            text = "Здесь - только подключение к роутеру и системные сервисы",
+            style = MaterialTheme.typography.bodySmall,
+            color = KeeneticColors.TextSecondary
+        )
+        Spacer(modifier = Modifier.height(12.dp))
+
+        Card(
+            modifier = Modifier.fillMaxWidth().clickable { onOpenApps() },
+            colors = CardDefaults.cardColors(containerColor = KeeneticColors.Primary.copy(alpha = 0.08f)),
+            elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(16.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Default.Apps, contentDescription = null, tint = KeeneticColors.Primary)
+                    Spacer(modifier = Modifier.width(12.dp))
+                    Column {
+                        Text("Приложения", fontWeight = FontWeight.Medium, color = KeeneticColors.Primary)
+                        Text(
+                            "IntelliQoS, opkg, торрент - отдельный раздел",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = KeeneticColors.TextSecondary
+                        )
+                    }
+                }
+                Icon(Icons.Default.ChevronRight, contentDescription = null, tint = KeeneticColors.Primary)
+            }
+        }
         Spacer(modifier = Modifier.height(16.dp))
 
         Card(
@@ -199,8 +235,12 @@ fun VpnServerStatusCard(viewModel: RouterViewModel) {
 
 @Composable
 fun DohDnsCard(viewModel: RouterViewModel) {
+    var expanded by remember { mutableStateOf(false) }
     var dohUrl by remember { mutableStateOf("") }
     var targetInterface by remember { mutableStateOf("") }
+    val nameServers by viewModel.nameServers.collectAsState()
+
+    LaunchedEffect(Unit) { viewModel.loadNameServers() }
 
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -208,38 +248,68 @@ fun DohDnsCard(viewModel: RouterViewModel) {
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
-            Text("DNS-over-HTTPS (DoH)", fontWeight = FontWeight.SemiBold)
-            Spacer(modifier = Modifier.height(4.dp))
-            Text(
-                "Задаёт один сервер DoH, заменяя текущий список. Если у тебя настроено несколько DoH-серверов сразу - эта настройка их перезапишет.",
-                style = MaterialTheme.typography.labelSmall,
-                color = KeeneticColors.TextSecondary
-            )
-            Spacer(modifier = Modifier.height(12.dp))
-            OutlinedTextField(
-                value = dohUrl,
-                onValueChange = { dohUrl = it },
-                label = { Text("DoH URL") },
-                placeholder = { Text("https://common.dot.dns.yandex.net/dns-query") },
-                singleLine = true,
-                modifier = Modifier.fillMaxWidth()
-            )
-            Spacer(modifier = Modifier.height(8.dp))
-            OutlinedTextField(
-                value = targetInterface,
-                onValueChange = { targetInterface = it },
-                label = { Text("Интерфейс (необязательно)") },
-                placeholder = { Text("например GigabitEthernet0/Vlan4") },
-                singleLine = true,
-                modifier = Modifier.fillMaxWidth()
-            )
-            Spacer(modifier = Modifier.height(12.dp))
-            Button(
-                onClick = { viewModel.setCustomDoh(dohUrl, targetInterface.takeIf { it.isNotBlank() }) },
-                enabled = dohUrl.startsWith("https://"),
-                modifier = Modifier.fillMaxWidth()
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Text("Применить")
+                Text("DNS-over-HTTPS (DoH)", fontWeight = FontWeight.SemiBold)
+                TextButton(onClick = { expanded = !expanded }) {
+                    Text(if (expanded) "Скрыть" else "Настроить")
+                }
+            }
+
+            if (nameServers.isNotEmpty()) {
+                Spacer(modifier = Modifier.height(4.dp))
+                Text("Сейчас настроено:", style = MaterialTheme.typography.labelSmall, color = KeeneticColors.TextSecondary)
+                nameServers.forEach {
+                    Text(
+                        "${it.address ?: "?"} (${it.interfaceName ?: "?"})",
+                        style = MaterialTheme.typography.bodySmall
+                    )
+                }
+            } else {
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    "Сейчас DNS-серверы не заданы явно (используются от провайдера)",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = KeeneticColors.TextSecondary
+                )
+            }
+
+            if (expanded) {
+                Spacer(modifier = Modifier.height(12.dp))
+                Text(
+                    "Задаёт один сервер DoH, заменяя текущий список. Если у тебя настроено несколько DoH-серверов сразу - эта настройка их перезапишет.",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = KeeneticColors.TextSecondary
+                )
+                Spacer(modifier = Modifier.height(12.dp))
+                OutlinedTextField(
+                    value = dohUrl,
+                    onValueChange = { dohUrl = it },
+                    label = { Text("DoH URL") },
+                    placeholder = { Text("https://common.dot.dns.yandex.net/dns-query") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                OutlinedTextField(
+                    value = targetInterface,
+                    onValueChange = { targetInterface = it },
+                    label = { Text("Интерфейс (необязательно)") },
+                    placeholder = { Text("например GigabitEthernet0/Vlan4") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
+                )
+                Spacer(modifier = Modifier.height(12.dp))
+                Button(
+                    onClick = { viewModel.setCustomDoh(dohUrl, targetInterface.takeIf { it.isNotBlank() }) },
+                    enabled = dohUrl.startsWith("https://"),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text("Применить")
+                }
             }
         }
     }
