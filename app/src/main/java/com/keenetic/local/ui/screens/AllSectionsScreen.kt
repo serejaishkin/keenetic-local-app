@@ -1,5 +1,6 @@
 package com.keenetic.local.ui.screens
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -73,8 +74,38 @@ private fun sectionCards(): List<SectionCard> = listOf(
         route = Screen.ManagementSection.route,
         items = listOf(
             SectionItem("Настройки системы", Screen.SystemSettings.route, "VPN, DoH, расписания"),
-            SectionItem("VPN", Screen.VpnSettings.route, "Сервер VPN"),
-            SectionItem("DoH", Screen.DohSettings.route, "DNS-over-HTTPS")
+            SectionItem("Приложения", Screen.Apps.route, "OPKG, пакеты и сервисы"),
+            SectionItem("Диагностика", Screen.Terminal.route, "Команды и отладка")
+        )
+    ),
+    SectionCard(
+        title = "VPN",
+        description = "Отдельный блок для VPN-сервера",
+        icon = Icons.Default.Lock,
+        route = Screen.VpnSettings.route,
+        items = listOf(
+            SectionItem("Состояние VPN", Screen.VpnSettings.route, "Проверка подключения"),
+            SectionItem("Параметры сервера", Screen.VpnSettings.route, "Сеть, сегменты, доступ")
+        )
+    ),
+    SectionCard(
+        title = "DoH",
+        description = "Отдельный блок для DNS-over-HTTPS",
+        icon = Icons.Default.Security,
+        route = Screen.DohSettings.route,
+        items = listOf(
+            SectionItem("Настройка DoH", Screen.DohSettings.route, "URL и интерфейс"),
+            SectionItem("Список DNS", Screen.DohSettings.route, "Текущие серверы")
+        )
+    ),
+    SectionCard(
+        title = "Расписание",
+        description = "Отдельный блок для расписаний доступа",
+        icon = Icons.Default.Schedule,
+        route = Screen.SchedulesSettings.route,
+        items = listOf(
+            SectionItem("Создать расписание", Screen.SchedulesSettings.route, "Дни, время, правила"),
+            SectionItem("Управление расписаниями", Screen.SchedulesSettings.route, "Редактирование и просмотр")
         )
     )
 )
@@ -100,16 +131,27 @@ fun AllSectionsScreen(navController: NavController) {
                 Card(
                     modifier = Modifier.fillMaxWidth(),
                     colors = CardDefaults.cardColors(containerColor = KeeneticColors.Surface),
-                    elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+                    elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
                 ) {
-                    Column(modifier = Modifier.padding(16.dp)) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(16.dp)
+                    ) {
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .clickable { navController.navigate(card.route) },
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Icon(card.icon, contentDescription = null, tint = KeeneticColors.Primary, modifier = Modifier.size(28.dp))
+                            Box(
+                                modifier = Modifier
+                                    .size(40.dp)
+                                    .background(KeeneticColors.Primary.copy(alpha = 0.12f), shape = MaterialTheme.shapes.medium),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(card.icon, contentDescription = null, tint = KeeneticColors.Primary, modifier = Modifier.size(22.dp))
+                            }
                             Spacer(modifier = Modifier.width(12.dp))
                             Column(modifier = Modifier.weight(1f)) {
                                 Text(card.title, fontWeight = FontWeight.SemiBold, color = KeeneticColors.TextPrimary)
@@ -127,7 +169,11 @@ fun AllSectionsScreen(navController: NavController) {
                                         if (implemented) item.route?.let { navController.navigate(it) }
                                     },
                                     enabled = implemented,
-                                    label = { Text(item.label) }
+                                    label = { Text(item.label) },
+                                    colors = AssistChipDefaults.assistChipColors(
+                                        containerColor = if (implemented) KeeneticColors.Primary.copy(alpha = 0.08f) else KeeneticColors.Surface,
+                                        labelColor = if (implemented) KeeneticColors.Primary else KeeneticColors.TextSecondary
+                                    )
                                 )
                             }
                         }
