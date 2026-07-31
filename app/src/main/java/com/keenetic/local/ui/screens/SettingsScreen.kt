@@ -63,7 +63,7 @@ fun SettingsScreen(viewModel: RouterViewModel, onLoggedOut: () -> Unit, onOpenAp
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Default.Apps, contentDescription = null, tint = KeeneticColors.Primary)
+                    Icon(Icons.Default.List, contentDescription = null, tint = KeeneticColors.Primary)
                     Spacer(modifier = Modifier.width(12.dp))
                     Column {
                         Text("Приложения", fontWeight = FontWeight.Medium, color = KeeneticColors.Primary)
@@ -74,7 +74,7 @@ fun SettingsScreen(viewModel: RouterViewModel, onLoggedOut: () -> Unit, onOpenAp
                         )
                     }
                 }
-                Icon(Icons.Default.ChevronRight, contentDescription = null, tint = KeeneticColors.Primary)
+                Icon(Icons.Default.KeyboardArrowRight, contentDescription = null, tint = KeeneticColors.Primary)
             }
         }
         Spacer(modifier = Modifier.height(16.dp))

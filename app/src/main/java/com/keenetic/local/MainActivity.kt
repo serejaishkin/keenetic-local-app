@@ -92,7 +92,7 @@ fun KeeneticAppTheme() {
                     ),
                     actions = {
                         IconButton(onClick = { navController.navigate(Screen.AllSections.route) }) {
-                            Icon(Icons.Default.Apps, "Все разделы")
+                            Icon(Icons.Default.List, "Все разделы")
                         }
                         IconButton(onClick = { viewModel.refreshAll() }) {
                             Icon(Icons.Default.Refresh, "Обновить")

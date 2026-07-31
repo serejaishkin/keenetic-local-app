@@ -113,7 +113,7 @@ fun AllSectionsScreen(navController: NavController) {
                                     )
                                     if (implemented) {
                                         Icon(
-                                            Icons.Default.ChevronRight,
+                                            Icons.Default.KeyboardArrowRight,
                                             contentDescription = null,
                                             tint = KeeneticColors.TextSecondary
                                         )
