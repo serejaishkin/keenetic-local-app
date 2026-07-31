@@ -28,16 +28,58 @@ private data class SectionCard(
     val title: String,
     val description: String,
     val icon: ImageVector,
-    val route: String
+    val route: String,
+    val items: List<SectionItem>
 )
 
-private fun sectionCards(navController: NavController): List<SectionCard> = listOf(
-    SectionCard("Интернет", "Подключения, каналы связи и приоритеты", Icons.Default.NetworkCheck, Screen.InternetSection.route),
-    SectionCard("Wi-Fi", "Точки доступа, клиенты и сегменты", Icons.Default.Wifi, Screen.WiFiSection.route),
-    SectionCard("Сеть", "Маршрутизация, правила и доступ", Icons.Default.Route, Screen.NetworkSection.route),
-    SectionCard("Управление", "Система, приложения и диагностика", Icons.Default.Settings, Screen.ManagementSection.route)
+private fun sectionCards(): List<SectionCard> = listOf(
+    SectionCard(
+        title = "Интернет",
+        description = "Подключения, каналы связи и приоритеты",
+        icon = Icons.Default.NetworkCheck,
+        route = Screen.InternetSection.route,
+        items = listOf(
+            SectionItem("Кабель Ethernet", Screen.Internet.route, "WAN/LAN и состояние интерфейсов"),
+            SectionItem("Wireless ISP", Screen.WiFi.route, "Беспроводные провайдеры"),
+            SectionItem("Mobile", soon = true, subtitle = "Модемы и мобильные соединения")
+        )
+    ),
+    SectionCard(
+        title = "Wi-Fi",
+        description = "Точки доступа, клиенты и сегменты",
+        icon = Icons.Default.Wifi,
+        route = Screen.WiFiSection.route,
+        items = listOf(
+            SectionItem("Точки доступа", Screen.WiFi.route, "SSID, безопасность, состояние"),
+            SectionItem("Списки клиентов", Screen.Devices.route, "Подключённые устройства"),
+            SectionItem("Сегменты", soon = true, subtitle = "LAN-сегменты и изоляция")
+        )
+    ),
+    SectionCard(
+        title = "Сеть",
+        description = "Маршрутизация, правила и доступ",
+        icon = Icons.Default.Route,
+        route = Screen.NetworkSection.route,
+        items = listOf(
+            SectionItem("Маршрутизация", Screen.Devices.route, "Политики и статические маршруты"),
+            SectionItem("Переадресация портов", soon = true, subtitle = "Внешние и внутренние порты"),
+            SectionItem("Межсетевой экран", soon = true, subtitle = "Правила безопасности")
+        )
+    ),
+    SectionCard(
+        title = "Управление",
+        description = "Система, приложения и диагностика",
+        icon = Icons.Default.Settings,
+        route = Screen.ManagementSection.route,
+        items = listOf(
+            SectionItem("Настройки системы", Screen.SystemSettings.route, "VPN, DoH, расписания"),
+            SectionItem("VPN", Screen.VpnSettings.route, "Сервер VPN"),
+            SectionItem("DoH", Screen.DohSettings.route, "DNS-over-HTTPS")
+        )
+    )
 )
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun AllSectionsScreen(navController: NavController) {
     Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
@@ -54,23 +96,41 @@ fun AllSectionsScreen(navController: NavController) {
         Spacer(modifier = Modifier.height(12.dp))
 
         LazyColumn(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            items(sectionCards(navController)) { card ->
+            items(sectionCards()) { card ->
                 Card(
-                    modifier = Modifier.fillMaxWidth().clickable { navController.navigate(card.route) },
+                    modifier = Modifier.fillMaxWidth(),
                     colors = CardDefaults.cardColors(containerColor = KeeneticColors.Surface),
                     elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
                 ) {
-                    Row(
-                        modifier = Modifier.padding(16.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Icon(card.icon, contentDescription = null, tint = KeeneticColors.Primary, modifier = Modifier.size(28.dp))
-                        Spacer(modifier = Modifier.width(12.dp))
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(card.title, fontWeight = FontWeight.SemiBold, color = KeeneticColors.TextPrimary)
-                            Text(card.description, style = MaterialTheme.typography.bodySmall, color = KeeneticColors.TextSecondary)
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable { navController.navigate(card.route) },
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(card.icon, contentDescription = null, tint = KeeneticColors.Primary, modifier = Modifier.size(28.dp))
+                            Spacer(modifier = Modifier.width(12.dp))
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(card.title, fontWeight = FontWeight.SemiBold, color = KeeneticColors.TextPrimary)
+                                Text(card.description, style = MaterialTheme.typography.bodySmall, color = KeeneticColors.TextSecondary)
+                            }
+                            Icon(Icons.Default.KeyboardArrowRight, contentDescription = null, tint = KeeneticColors.TextSecondary)
                         }
-                        Icon(Icons.Default.KeyboardArrowRight, contentDescription = null, tint = KeeneticColors.TextSecondary)
+
+                        Spacer(modifier = Modifier.height(10.dp))
+                        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            card.items.forEach { item ->
+                                val implemented = item.route != null && !item.soon
+                                AssistChip(
+                                    onClick = {
+                                        if (implemented) item.route?.let { navController.navigate(it) }
+                                    },
+                                    enabled = implemented,
+                                    label = { Text(item.label) }
+                                )
+                            }
+                        }
                     }
                 }
             }
