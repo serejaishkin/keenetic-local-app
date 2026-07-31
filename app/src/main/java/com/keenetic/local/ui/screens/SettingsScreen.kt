@@ -255,6 +255,63 @@ fun SystemSettingsScreen(viewModel: RouterViewModel, onOpenAppSettings: () -> Un
 }
 
 @Composable
+fun VpnSettingsScreen(viewModel: RouterViewModel, onBack: () -> Unit = {}) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState())
+            .padding(16.dp)
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            IconButton(onClick = onBack) { Icon(Icons.Default.ArrowBack, contentDescription = null) }
+            Spacer(modifier = Modifier.width(8.dp))
+            Text("VPN", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+        }
+        Text("Сервер VPN и состояние подключения", style = MaterialTheme.typography.bodySmall, color = KeeneticColors.TextSecondary)
+        Spacer(modifier = Modifier.height(16.dp))
+        VpnServerStatusCard(viewModel)
+    }
+}
+
+@Composable
+fun DohSettingsScreen(viewModel: RouterViewModel, onBack: () -> Unit = {}) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState())
+            .padding(16.dp)
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            IconButton(onClick = onBack) { Icon(Icons.Default.ArrowBack, contentDescription = null) }
+            Spacer(modifier = Modifier.width(8.dp))
+            Text("DNS-over-HTTPS", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+        }
+        Text("Настройка DoH и интерфейса назначения", style = MaterialTheme.typography.bodySmall, color = KeeneticColors.TextSecondary)
+        Spacer(modifier = Modifier.height(16.dp))
+        DohDnsCard(viewModel)
+    }
+}
+
+@Composable
+fun SchedulesSettingsScreen(viewModel: RouterViewModel, onBack: () -> Unit = {}) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState())
+            .padding(16.dp)
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            IconButton(onClick = onBack) { Icon(Icons.Default.ArrowBack, contentDescription = null) }
+            Spacer(modifier = Modifier.width(8.dp))
+            Text("Расписание", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+        }
+        Text("Создание расписаний доступа и ограничений", style = MaterialTheme.typography.bodySmall, color = KeeneticColors.TextSecondary)
+        Spacer(modifier = Modifier.height(16.dp))
+        ScheduleCard(viewModel)
+    }
+}
+
+@Composable
 fun VpnServerStatusCard(viewModel: RouterViewModel) {
     val vpnServer by viewModel.vpnServer.collectAsState()
 

@@ -21,6 +21,9 @@ sealed class Screen(val route: String, val title: String) {
     object WiFiSection : Screen("wifi_section", "Wi-Fi")
     object NetworkSection : Screen("network_section", "Сеть")
     object ManagementSection : Screen("management_section", "Управление")
+    object VpnSettings : Screen("vpn_settings", "VPN")
+    object DohSettings : Screen("doh_settings", "DoH")
+    object SchedulesSettings : Screen("schedules_settings", "Расписание")
 }
 
 @Composable
@@ -118,11 +121,23 @@ fun KeeneticNavHost(navController: NavHostController, viewModel: RouterViewModel
                 description = "Система, приложения и диагностика",
                 items = listOf(
                     SectionItem("Настройки системы", Screen.SystemSettings.route, "VPN, DoH, расписания"),
+                    SectionItem("VPN", Screen.VpnSettings.route, "Сервер VPN и состояние"),
+                    SectionItem("DoH", Screen.DohSettings.route, "DNS-over-HTTPS"),
+                    SectionItem("Расписание", Screen.SchedulesSettings.route, "Планы доступа и блокировок"),
                     SectionItem("Приложения", Screen.Apps.route, "OPKG, пакеты и сервисы"),
                     SectionItem("Диагностика", Screen.Terminal.route, "Команды и отладка"),
                     SectionItem("Пользователи и доступ", soon = true, subtitle = "Учетные записи и права")
                 )
             )
+        }
+        composable(Screen.VpnSettings.route) {
+            VpnSettingsScreen(viewModel = viewModel, onBack = { navController.popBackStack() })
+        }
+        composable(Screen.DohSettings.route) {
+            DohSettingsScreen(viewModel = viewModel, onBack = { navController.popBackStack() })
+        }
+        composable(Screen.SchedulesSettings.route) {
+            SchedulesSettingsScreen(viewModel = viewModel, onBack = { navController.popBackStack() })
         }
     }
 }
