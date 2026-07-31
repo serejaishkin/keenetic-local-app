@@ -21,7 +21,12 @@ import com.keenetic.local.ui.RouterViewModel
 import com.keenetic.local.ui.theme.KeeneticColors
 
 @Composable
-fun SettingsScreen(viewModel: RouterViewModel, onLoggedOut: () -> Unit, onOpenApps: () -> Unit = {}) {
+fun SettingsScreen(
+    viewModel: RouterViewModel,
+    onLoggedOut: () -> Unit,
+    onOpenApps: () -> Unit = {},
+    onOpenSystemSettings: () -> Unit = {}
+) {
     val savedIp by viewModel.routerIp.collectAsState()
     val savedLogin by viewModel.routerLogin.collectAsState()
     val savedAutoLogin by viewModel.autoLoginEnabled.collectAsState()
@@ -41,12 +46,12 @@ fun SettingsScreen(viewModel: RouterViewModel, onLoggedOut: () -> Unit, onOpenAp
             .padding(16.dp)
     ) {
         Text(
-            text = "Настройки",
+            text = "Настройки приложения",
             style = MaterialTheme.typography.headlineSmall,
             fontWeight = FontWeight.Bold
         )
         Text(
-            text = "Здесь - только подключение к роутеру и системные сервисы",
+            text = "Подключение к роутеру, авто-вход и быстрые переходы по настройкам",
             style = MaterialTheme.typography.bodySmall,
             color = KeeneticColors.TextSecondary
         )
@@ -63,7 +68,7 @@ fun SettingsScreen(viewModel: RouterViewModel, onLoggedOut: () -> Unit, onOpenAp
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Default.List, contentDescription = null, tint = KeeneticColors.Primary)
+                    Icon(Icons.Default.Apps, contentDescription = null, tint = KeeneticColors.Primary)
                     Spacer(modifier = Modifier.width(12.dp))
                     Column {
                         Text("Приложения", fontWeight = FontWeight.Medium, color = KeeneticColors.Primary)
@@ -75,6 +80,30 @@ fun SettingsScreen(viewModel: RouterViewModel, onLoggedOut: () -> Unit, onOpenAp
                     }
                 }
                 Icon(Icons.Default.KeyboardArrowRight, contentDescription = null, tint = KeeneticColors.Primary)
+            }
+        }
+        Spacer(modifier = Modifier.height(8.dp))
+
+        Card(
+            modifier = Modifier.fillMaxWidth().clickable { onOpenSystemSettings() },
+            colors = CardDefaults.cardColors(containerColor = KeeneticColors.Surface),
+            elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(16.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(Icons.Default.SettingsSystemDaydream, contentDescription = null, tint = KeeneticColors.Primary)
+                Spacer(modifier = Modifier.width(12.dp))
+                Column(modifier = Modifier.weight(1f)) {
+                    Text("Настройки системы", fontWeight = FontWeight.Medium, color = KeeneticColors.TextPrimary)
+                    Text(
+                        "VPN, DNS-over-HTTPS, расписания и системные сервисы",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = KeeneticColors.TextSecondary
+                    )
+                }
+                Icon(Icons.Default.KeyboardArrowRight, contentDescription = null, tint = KeeneticColors.TextSecondary)
             }
         }
         Spacer(modifier = Modifier.height(16.dp))
@@ -170,15 +199,6 @@ fun SettingsScreen(viewModel: RouterViewModel, onLoggedOut: () -> Unit, onOpenAp
         }
 
         Spacer(modifier = Modifier.height(16.dp))
-        VpnServerStatusCard(viewModel)
-
-        Spacer(modifier = Modifier.height(16.dp))
-        DohDnsCard(viewModel)
-
-        Spacer(modifier = Modifier.height(16.dp))
-        ScheduleCard(viewModel)
-
-        Spacer(modifier = Modifier.height(16.dp))
 
         OutlinedButton(
             onClick = {
@@ -190,6 +210,47 @@ fun SettingsScreen(viewModel: RouterViewModel, onLoggedOut: () -> Unit, onOpenAp
         ) {
             Text("Выйти")
         }
+    }
+}
+
+@Composable
+fun SystemSettingsScreen(viewModel: RouterViewModel, onOpenAppSettings: () -> Unit = {}) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState())
+            .padding(16.dp)
+    ) {
+        Text(
+            text = "Настройки системы",
+            style = MaterialTheme.typography.headlineSmall,
+            fontWeight = FontWeight.Bold
+        )
+        Text(
+            text = "VPN, DNS-over-HTTPS, расписания и системные сервисы",
+            style = MaterialTheme.typography.bodySmall,
+            color = KeeneticColors.TextSecondary
+        )
+        Spacer(modifier = Modifier.height(12.dp))
+
+        OutlinedButton(
+            onClick = { onOpenAppSettings() },
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Text("К настройкам приложения")
+        }
+        Spacer(modifier = Modifier.height(16.dp))
+
+        VpnServerStatusCard(viewModel)
+
+        Spacer(modifier = Modifier.height(16.dp))
+        DohDnsCard(viewModel)
+
+        Spacer(modifier = Modifier.height(16.dp))
+        ScheduleCard(viewModel)
+
+        Spacer(modifier = Modifier.height(16.dp))
+        ExtraServicesCard(viewModel)
     }
 }
 

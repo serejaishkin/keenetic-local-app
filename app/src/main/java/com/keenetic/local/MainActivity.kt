@@ -45,7 +45,7 @@ fun KeeneticAppTheme() {
         Screen.Dashboard to Icons.Default.Dashboard,
         Screen.Devices to Icons.Default.Devices,
         Screen.WiFi to Icons.Default.Wifi,
-        Screen.Terminal to Icons.Default.Terminal,
+        Screen.AllSections to Icons.Default.List,
         Screen.Settings to Icons.Default.Settings
     )
 
@@ -82,18 +82,17 @@ fun KeeneticAppTheme() {
             if (isLoggedIn) {
                 TopAppBar(
                     title = {
-                        Text(
-                            bottomItems.find { it.first.route == currentRoute }?.first?.title ?: "Keenetic Local",
-                            color = KeeneticColors.TextPrimary
-                        )
+                        val title = when (currentRoute) {
+                            Screen.AllSections.route -> Screen.AllSections.title
+                            Screen.SystemSettings.route -> Screen.SystemSettings.title
+                            else -> bottomItems.find { it.first.route == currentRoute }?.first?.title ?: "Keenetic Local"
+                        }
+                        Text(title, color = KeeneticColors.TextPrimary)
                     },
                     colors = TopAppBarDefaults.topAppBarColors(
                         containerColor = KeeneticColors.Surface
                     ),
                     actions = {
-                        IconButton(onClick = { navController.navigate(Screen.AllSections.route) }) {
-                            Icon(Icons.Default.List, "Все разделы")
-                        }
                         IconButton(onClick = { viewModel.refreshAll() }) {
                             Icon(Icons.Default.Refresh, "Обновить")
                         }

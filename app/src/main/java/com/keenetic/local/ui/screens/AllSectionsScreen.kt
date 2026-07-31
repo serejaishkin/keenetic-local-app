@@ -10,130 +10,123 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import com.keenetic.local.ui.Screen
 import com.keenetic.local.ui.theme.KeeneticColors
 
-/**
- * Пункт меню, повторяющий структуру реального веб-интерфейса Keenetic
- * (см. keenetic-web-ui-structure.md - извлечено из реального DOM
- * веб-морды, не догадка). route == null означает "ещё не реализовано" -
- * такие пункты показываются, но неактивны, с пометкой "Скоро".
- */
-private data class SectionItem(val label: String, val route: String?)
-private data class SectionGroup(val title: String, val items: List<SectionItem>)
+data class SectionItem(
+    val label: String,
+    val route: String? = null,
+    val subtitle: String? = null,
+    val soon: Boolean = false
+)
 
-private fun sections(): List<SectionGroup> = listOf(
-    SectionGroup("Статус", listOf(
-        SectionItem("Системный монитор", Screen.Dashboard.route),
-        SectionItem("Монитор трафика", null),
-        SectionItem("Анализатор трафика приложений", null),
-        SectionItem("Монитор Wi-Fi", null)
-    )),
-    SectionGroup("Интернет", listOf(
-        SectionItem("Кабель Ethernet", Screen.Internet.route),
-        SectionItem("Mobile", null),
-        SectionItem("Wireless ISP", Screen.WiFi.route),
-        SectionItem("Другие подключения", Screen.Dashboard.route),
-        SectionItem("Приоритеты подключений", null)
-    )),
-    SectionGroup("Мои сети и Wi-Fi", listOf(
-        SectionItem("Списки клиентов", Screen.Devices.route),
-        SectionItem("Точки доступа", Screen.WiFi.route),
-        SectionItem("Сегменты", null),
-        SectionItem("Wi-Fi-система", Screen.WiFi.route),
-        SectionItem("IntelliQoS", Screen.Apps.route)
-    )),
-    SectionGroup("Сетевые правила", listOf(
-        SectionItem("Интернет-фильтры (DNS)", Screen.Settings.route),
-        SectionItem("Межсетевой экран", null),
-        SectionItem("Переадресация портов", null),
-        SectionItem("Маршрутизация", Screen.Devices.route),
-        SectionItem("Доменное имя", null),
-        SectionItem("Контроль доступа Wi-Fi", null)
-    )),
-    SectionGroup("Управление", listOf(
-        SectionItem("Настройки системы", Screen.Settings.route),
-        SectionItem("Накопители и устройства", null),
-        SectionItem("Приложения", Screen.Apps.route),
-        SectionItem("Пользователи и доступ", null),
-        SectionItem("Диагностика", Screen.Terminal.route),
-        SectionItem("OPKG", Screen.Apps.route)
-    ))
+private data class SectionCard(
+    val title: String,
+    val description: String,
+    val icon: ImageVector,
+    val route: String
+)
+
+private fun sectionCards(navController: NavController): List<SectionCard> = listOf(
+    SectionCard("Интернет", "Подключения, каналы связи и приоритеты", Icons.Default.NetworkCheck, Screen.InternetSection.route),
+    SectionCard("Wi-Fi", "Точки доступа, клиенты и сегменты", Icons.Default.Wifi, Screen.WiFiSection.route),
+    SectionCard("Сеть", "Маршрутизация, правила и доступ", Icons.Default.Route, Screen.NetworkSection.route),
+    SectionCard("Управление", "Система, приложения и диагностика", Icons.Default.Settings, Screen.ManagementSection.route)
 )
 
 @Composable
 fun AllSectionsScreen(navController: NavController) {
     Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
         Text(
-            text = "Все разделы",
+            text = "Разделы",
             style = MaterialTheme.typography.headlineSmall,
             fontWeight = FontWeight.Bold
         )
         Text(
-            text = "Структура повторяет веб-интерфейс роутера",
+            text = "Выбирай главный блок как в веб-интерфейсе Keenetic",
             style = MaterialTheme.typography.bodySmall,
             color = KeeneticColors.TextSecondary
         )
         Spacer(modifier = Modifier.height(12.dp))
 
-        LazyColumn(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-            items(sections()) { group ->
-                Column {
-                    Text(
-                        text = group.title,
-                        style = MaterialTheme.typography.titleSmall,
-                        fontWeight = FontWeight.SemiBold,
-                        color = KeeneticColors.Primary
-                    )
-                    Spacer(modifier = Modifier.height(6.dp))
-                    Card(
-                        modifier = Modifier.fillMaxWidth(),
-                        colors = CardDefaults.cardColors(containerColor = KeeneticColors.Surface),
-                        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+        LazyColumn(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            items(sectionCards(navController)) { card ->
+                Card(
+                    modifier = Modifier.fillMaxWidth().clickable { navController.navigate(card.route) },
+                    colors = CardDefaults.cardColors(containerColor = KeeneticColors.Surface),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.padding(16.dp),
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Column {
-                            group.items.forEachIndexed { index, item ->
-                                val implemented = item.route != null
-                                Row(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .clickable(enabled = implemented) {
-                                            item.route?.let { navController.navigate(it) }
-                                        }
-                                        .padding(horizontal = 16.dp, vertical = 14.dp),
-                                    horizontalArrangement = Arrangement.SpaceBetween,
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Text(
-                                        text = item.label,
-                                        color = if (implemented) KeeneticColors.TextPrimary else KeeneticColors.TextSecondary
-                                    )
-                                    if (implemented) {
-                                        Icon(
-                                            Icons.Default.KeyboardArrowRight,
-                                            contentDescription = null,
-                                            tint = KeeneticColors.TextSecondary
-                                        )
-                                    } else {
-                                        AssistChip(
-                                            onClick = {},
-                                            enabled = false,
-                                            label = { Text("Скоро", style = MaterialTheme.typography.labelSmall) }
-                                        )
-                                    }
-                                }
-                                if (index < group.items.lastIndex) {
-                                    Divider(color = KeeneticColors.Divider)
-                                }
-                            }
+                        Icon(card.icon, contentDescription = null, tint = KeeneticColors.Primary, modifier = Modifier.size(28.dp))
+                        Spacer(modifier = Modifier.width(12.dp))
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(card.title, fontWeight = FontWeight.SemiBold, color = KeeneticColors.TextPrimary)
+                            Text(card.description, style = MaterialTheme.typography.bodySmall, color = KeeneticColors.TextSecondary)
                         }
+                        Icon(Icons.Default.KeyboardArrowRight, contentDescription = null, tint = KeeneticColors.TextSecondary)
                     }
                 }
             }
             item { Spacer(modifier = Modifier.height(16.dp)) }
+        }
+    }
+}
+
+@Composable
+fun SectionCategoryScreen(
+    navController: NavController,
+    title: String,
+    description: String,
+    items: List<SectionItem>
+) {
+    Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
+        Text(title, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+        Text(description, style = MaterialTheme.typography.bodySmall, color = KeeneticColors.TextSecondary)
+        Spacer(modifier = Modifier.height(12.dp))
+
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            colors = CardDefaults.cardColors(containerColor = KeeneticColors.Surface),
+            elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+        ) {
+            Column(modifier = Modifier.padding(vertical = 4.dp)) {
+                items.forEachIndexed { index, item ->
+                    val implemented = item.route != null && !item.soon
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable(enabled = implemented) { item.route?.let { navController.navigate(it) } }
+                            .padding(horizontal = 16.dp, vertical = 12.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text(item.label, color = if (implemented) KeeneticColors.TextPrimary else KeeneticColors.TextSecondary)
+                                if (item.soon) {
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    AssistChip(onClick = {}, enabled = false, label = { Text("Скоро", style = MaterialTheme.typography.labelSmall) })
+                                }
+                            }
+                            if (!item.subtitle.isNullOrBlank()) {
+                                Text(item.subtitle, style = MaterialTheme.typography.bodySmall, color = KeeneticColors.TextSecondary, modifier = Modifier.padding(top = 2.dp))
+                            }
+                        }
+                        if (implemented) {
+                            Icon(Icons.Default.KeyboardArrowRight, contentDescription = null, tint = KeeneticColors.TextSecondary)
+                        }
+                    }
+                    if (index < items.lastIndex) {
+                        Divider(color = KeeneticColors.Divider, modifier = Modifier.padding(start = 16.dp))
+                    }
+                }
+            }
         }
     }
 }
