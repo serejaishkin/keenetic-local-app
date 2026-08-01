@@ -265,7 +265,7 @@ fun WebServicesScreen(viewModel: RouterViewModel) {
                     Spacer(modifier = Modifier.height(12.dp))
                     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-                            Button(onClick = { openService(host, port, "inline") }) {
+                            Button(onClick = { openService(host, port, "separate") }) {
                                 Icon(Icons.Default.Public, contentDescription = null)
                                 Spacer(modifier = Modifier.width(8.dp))
                                 Text("Открыть")
