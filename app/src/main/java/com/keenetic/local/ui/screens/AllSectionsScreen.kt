@@ -5,6 +5,8 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
@@ -63,8 +65,20 @@ private fun sectionCards(): List<SectionCard> = listOf(
         route = Screen.NetworkSection.route,
         items = listOf(
             SectionItem("Маршрутизация", Screen.Devices.route, "Политики и статические маршруты"),
-            SectionItem("Переадресация портов", soon = true, subtitle = "Внешние и внутренние порты"),
-            SectionItem("Межсетевой экран", soon = true, subtitle = "Правила безопасности")
+            SectionItem("Переадресация портов", Screen.PortForwarding.route, "Внешние и внутренние порты"),
+            SectionItem("Межсетевой экран", Screen.Firewall.route, "Правила безопасности"),
+            SectionItem("LAN-сегменты", Screen.LanSegments.route, "Сегменты и изоляция")
+        )
+    ),
+    SectionCard(
+        title = "Устройства",
+        description = "Клиенты, интерфейсы и локальная сеть",
+        icon = Icons.Default.Devices,
+        route = Screen.Devices.route,
+        items = listOf(
+            SectionItem("Список устройств", Screen.Devices.route, "Подключённые клиенты"),
+            SectionItem("Интерфейсы", Screen.Internet.route, "WAN/LAN и состояние"),
+            SectionItem("Сеть и доступ", Screen.Devices.route, "Права и ограничение")
         )
     ),
     SectionCard(
@@ -75,7 +89,38 @@ private fun sectionCards(): List<SectionCard> = listOf(
         items = listOf(
             SectionItem("Настройки системы", Screen.SystemSettings.route, "VPN, DoH, расписания"),
             SectionItem("Приложения", Screen.Apps.route, "OPKG, пакеты и сервисы"),
-            SectionItem("Диагностика", Screen.Terminal.route, "Команды и отладка")
+            SectionItem("Терминал", Screen.Terminal.route, "CLI и SSH")
+        )
+    ),
+    SectionCard(
+        title = "Терминал",
+        description = "CLI и SSH для прямого управления роутером",
+        icon = Icons.Default.Terminal,
+        route = Screen.Terminal.route,
+        items = listOf(
+            SectionItem("CLI", Screen.Terminal.route, "Команды и диагностика"),
+            SectionItem("SSH", Screen.Terminal.route, "Удалённый доступ")
+        )
+    ),
+    SectionCard(
+        title = "Приложения",
+        description = "Дополнительные сервисы и пакеты",
+        icon = Icons.Default.Apps,
+        route = Screen.Apps.route,
+        items = listOf(
+            SectionItem("OPKG", Screen.Apps.route, "Пакеты и сервисы"),
+            SectionItem("Сервисы", Screen.Apps.route, "Интеллектуальные функции")
+        )
+    ),
+    SectionCard(
+        title = "Веб-сервисы",
+        description = "Мини-браузер для awg manager, nfqws2 и других сервисов",
+        icon = Icons.Default.Public,
+        route = Screen.WebServices.route,
+        items = listOf(
+            SectionItem("AWG Manager", Screen.WebServices.route, "Быстрый доступ к сервису"),
+            SectionItem("Nfqws2", Screen.WebServices.route, "Внутренний веб-интерфейс"),
+            SectionItem("Свой URL", Screen.WebServices.route, "IP + порт")
         )
     ),
     SectionCard(
@@ -85,7 +130,7 @@ private fun sectionCards(): List<SectionCard> = listOf(
         route = Screen.VpnSettings.route,
         items = listOf(
             SectionItem("Состояние VPN", Screen.VpnSettings.route, "Проверка подключения"),
-            SectionItem("Параметры сервера", Screen.VpnSettings.route, "Сеть, сегменты, доступ")
+            SectionItem("Параметры сервера", Screen.VpnAdvanced.route, "Сеть, сегменты, доступ")
         )
     ),
     SectionCard(
@@ -94,7 +139,7 @@ private fun sectionCards(): List<SectionCard> = listOf(
         icon = Icons.Default.Dns,
         route = Screen.DnsSection.route,
         items = listOf(
-            SectionItem("DNS-фильтры", Screen.DnsSection.route, "Фильтрация доменов и блокировки"),
+            SectionItem("DNS-фильтры", Screen.DnsFilters.route, "Фильтрация доменов и блокировки"),
             SectionItem("DNS-over-HTTPS", Screen.DohSettings.route, "Настройка DoH"),
             SectionItem("Текущие DNS", Screen.DnsSection.route, "Серверы и интерфейсы")
         )
@@ -192,6 +237,62 @@ fun AllSectionsScreen(navController: NavController) {
                 }
             }
             item { Spacer(modifier = Modifier.height(16.dp)) }
+        }
+    }
+}
+
+@Composable
+fun PlaceholderSectionScreen(
+    title: String,
+    description: String,
+    items: List<String>,
+    onBack: (() -> Unit)? = null
+) {
+    // Заглушка для разделов без подтверждённого API: показываем структуру UI
+    // и список будущих функций, чтобы интерфейс выглядел как полноценный сайт.
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState())
+            .padding(16.dp)
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            if (onBack != null) {
+                IconButton(onClick = onBack) {
+                    Icon(Icons.Default.ArrowBack, contentDescription = null)
+                }
+            }
+            if (onBack != null) Spacer(modifier = Modifier.width(8.dp))
+            Text(title, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+        }
+        Text(description, style = MaterialTheme.typography.bodySmall, color = KeeneticColors.TextSecondary)
+        Spacer(modifier = Modifier.height(16.dp))
+
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            colors = CardDefaults.cardColors(containerColor = KeeneticColors.Surface),
+            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        ) {
+            Column(modifier = Modifier.padding(16.dp)) {
+                Text("Структура заглушки", fontWeight = FontWeight.SemiBold)
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    "Подтверждённого API для этого раздела пока нет, поэтому добавлена готовая структура и список элементов для следующей реализации без API.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = KeeneticColors.TextSecondary
+                )
+                Spacer(modifier = Modifier.height(12.dp))
+                items.forEachIndexed { index, item ->
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Default.CheckCircle, contentDescription = null, tint = KeeneticColors.Primary, modifier = Modifier.size(18.dp))
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(item, style = MaterialTheme.typography.bodyMedium)
+                    }
+                    if (index < items.lastIndex) {
+                        Spacer(modifier = Modifier.height(8.dp))
+                    }
+                }
+            }
         }
     }
 }

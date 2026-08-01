@@ -1,8 +1,10 @@
 package com.keenetic.local.ui.screens
 
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
@@ -17,6 +19,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
@@ -28,6 +31,7 @@ import com.keenetic.local.ui.theme.KeeneticColors
 
 @Composable
 fun TerminalScreen(viewModel: RouterViewModel) {
+    var selectedTab by remember { mutableStateOf(0) }
     var command by remember { mutableStateOf("") }
     var sshPort by remember { mutableStateOf("22") }
     var sshLogin by remember { mutableStateOf("") }
@@ -61,44 +65,95 @@ fun TerminalScreen(viewModel: RouterViewModel) {
 
     Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
         Text(
-            text = "SSH Терминал",
+            text = "Терминал",
             style = MaterialTheme.typography.headlineSmall,
-            fontWeight = androidx.compose.ui.text.font.FontWeight.Bold
+            fontWeight = FontWeight.Bold
         )
         Text(
-            text = "Выполняйте команды NDMS CLI напрямую",
+            text = "CLI и SSH как отдельные рабочие режимы",
             style = MaterialTheme.typography.bodyMedium,
             color = KeeneticColors.TextSecondary
         )
         Spacer(modifier = Modifier.height(12.dp))
 
-        // Быстрые команды
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            AssistChip(
-                onClick = { runCommand("show system") },
-                label = { Text("System") },
-                leadingIcon = { Icon(Icons.Default.Terminal, null, Modifier.size(18.dp)) }
-            )
-            AssistChip(
-                onClick = { runCommand("show ip hotspot") },
-                label = { Text("Clients") },
-                leadingIcon = { Icon(Icons.Default.Terminal, null, Modifier.size(18.dp)) }
-            )
-            AssistChip(
-                onClick = { runCommand("show log tail 20") },
-                label = { Text("Logs") },
-                leadingIcon = { Icon(Icons.Default.Terminal, null, Modifier.size(18.dp)) }
-            )
-            AssistChip(
-                onClick = { runCommand("ping 8.8.8.8 -c 4") },
-                label = { Text("Ping") },
-                leadingIcon = { Icon(Icons.Default.PlayArrow, null, Modifier.size(18.dp)) }
-            )
+        TabRow(selectedTabIndex = selectedTab) {
+            Tab(selected = selectedTab == 0, onClick = { selectedTab = 0 }, text = { Text("CLI") })
+            Tab(selected = selectedTab == 1, onClick = { selectedTab = 1 }, text = { Text("SSH") })
+        }
+        Spacer(modifier = Modifier.height(12.dp))
+
+        if (selectedTab == 0) {
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(containerColor = KeeneticColors.Surface),
+                elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+            ) {
+                Column(modifier = Modifier.padding(12.dp)) {
+                    Text("CLI-команды", fontWeight = FontWeight.SemiBold)
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Row(
+                        modifier = Modifier.horizontalScroll(rememberScrollState()),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        AssistChip(onClick = { runCommand("show system") }, label = { Text("System") })
+                        AssistChip(onClick = { runCommand("show ip hotspot") }, label = { Text("Clients") })
+                        AssistChip(onClick = { runCommand("show log tail 20") }, label = { Text("Logs") })
+                        AssistChip(onClick = { runCommand("ping 8.8.8.8 -c 4") }, label = { Text("Ping") })
+                    }
+                }
+            }
+        } else {
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(containerColor = KeeneticColors.Surface),
+                elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+            ) {
+                Column(modifier = Modifier.padding(12.dp)) {
+                    Text("SSH-подключение", fontWeight = FontWeight.SemiBold)
+                    Spacer(modifier = Modifier.height(8.dp))
+                    OutlinedTextField(
+                        value = sshLogin,
+                        onValueChange = { sshLogin = it },
+                        label = { Text("SSH логин") },
+                        placeholder = { Text(routerLogin.ifBlank { "admin" }) },
+                        singleLine = true,
+                        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    OutlinedTextField(
+                        value = sshPassword,
+                        onValueChange = { sshPassword = it },
+                        label = { Text("SSH пароль") },
+                        placeholder = { Text("Если пусто, будет использован сохранённый пароль") },
+                        singleLine = true,
+                        visualTransformation = if (sshPasswordVisible) VisualTransformation.None else PasswordVisualTransformation(),
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password, imeAction = ImeAction.Next),
+                        trailingIcon = {
+                            IconButton(onClick = { sshPasswordVisible = !sshPasswordVisible }) {
+                                Icon(
+                                    imageVector = if (sshPasswordVisible) Icons.Default.Visibility else Icons.Default.VisibilityOff,
+                                    contentDescription = null
+                                )
+                            }
+                        },
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    OutlinedTextField(
+                        value = sshPort,
+                        onValueChange = { sshPort = it.filter(Char::isDigit).take(5) },
+                        label = { Text("SSH порт") },
+                        singleLine = true,
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = ImeAction.Next),
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+            }
         }
 
         Spacer(modifier = Modifier.height(12.dp))
 
-        // Вывод
         Card(
             modifier = Modifier
                 .weight(1f)
@@ -126,48 +181,6 @@ fun TerminalScreen(viewModel: RouterViewModel) {
 
         Spacer(modifier = Modifier.height(8.dp))
 
-        OutlinedTextField(
-            value = sshLogin,
-            onValueChange = { sshLogin = it },
-            label = { Text("SSH логин") },
-            placeholder = { Text(routerLogin.ifBlank { "admin" }) },
-            singleLine = true,
-            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
-            modifier = Modifier.fillMaxWidth()
-        )
-        Spacer(modifier = Modifier.height(8.dp))
-
-        OutlinedTextField(
-            value = sshPassword,
-            onValueChange = { sshPassword = it },
-            label = { Text("SSH пароль") },
-            placeholder = { Text("Если пусто, будет использован сохранённый пароль") },
-            singleLine = true,
-            visualTransformation = if (sshPasswordVisible) VisualTransformation.None else PasswordVisualTransformation(),
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password, imeAction = ImeAction.Next),
-            trailingIcon = {
-                IconButton(onClick = { sshPasswordVisible = !sshPasswordVisible }) {
-                    Icon(
-                        imageVector = if (sshPasswordVisible) Icons.Default.Visibility else Icons.Default.VisibilityOff,
-                        contentDescription = null
-                    )
-                }
-            },
-            modifier = Modifier.fillMaxWidth()
-        )
-        Spacer(modifier = Modifier.height(8.dp))
-
-        OutlinedTextField(
-            value = sshPort,
-            onValueChange = { sshPort = it.filter(Char::isDigit).take(5) },
-            label = { Text("SSH порт") },
-            singleLine = true,
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = ImeAction.Next),
-            modifier = Modifier.fillMaxWidth()
-        )
-        Spacer(modifier = Modifier.height(8.dp))
-
-        // Ввод команды
         OutlinedTextField(
             value = command,
             onValueChange = { command = it },

@@ -16,14 +16,20 @@ sealed class Screen(val route: String, val title: String) {
     object Settings : Screen("settings", "Настройки приложения")
     object AllSections : Screen("all_sections", "Разделы")
     object Apps : Screen("apps", "Приложения")
+    object WebServices : Screen("web_services", "Веб-сервисы")
     object SystemSettings : Screen("system_settings", "Настройки системы")
     object DnsSection : Screen("dns_section", "DNS")
     object InternetSection : Screen("internet_section", "Интернет")
     object WiFiSection : Screen("wifi_section", "Wi-Fi")
     object NetworkSection : Screen("network_section", "Сеть")
     object ManagementSection : Screen("management_section", "Управление")
+    object PortForwarding : Screen("port_forwarding", "Переадресация портов")
+    object Firewall : Screen("firewall", "Межсетевой экран")
+    object LanSegments : Screen("lan_segments", "LAN-сегменты")
     object VpnSettings : Screen("vpn_settings", "VPN")
+    object VpnAdvanced : Screen("vpn_advanced", "VPN-расширения")
     object DohSettings : Screen("doh_settings", "DoH")
+    object DnsFilters : Screen("dns_filters", "DNS-фильтры")
     object SchedulesSettings : Screen("schedules_settings", "Расписание")
 }
 
@@ -70,6 +76,9 @@ fun KeeneticNavHost(navController: NavHostController, viewModel: RouterViewModel
         composable(Screen.Apps.route) {
             AppsScreen(viewModel = viewModel)
         }
+        composable(Screen.WebServices.route) {
+            WebServicesScreen(viewModel = viewModel)
+        }
         composable(Screen.SystemSettings.route) {
             SystemSettingsScreen(
                 viewModel = viewModel,
@@ -109,10 +118,47 @@ fun KeeneticNavHost(navController: NavHostController, viewModel: RouterViewModel
                 description = "Правила, маршрутизация и доступ",
                 items = listOf(
                     SectionItem("Маршрутизация", Screen.Devices.route, "Политики и статические маршруты"),
-                    SectionItem("Переадресация портов", soon = true, subtitle = "Внешние и внутренние порты"),
-                    SectionItem("Межсетевой экран", soon = true, subtitle = "Правила безопасности"),
-                    SectionItem("DNS-фильтры", Screen.DnsSection.route, "DNS и блокировки")
+                    SectionItem("Переадресация портов", Screen.PortForwarding.route, "Внешние и внутренние порты"),
+                    SectionItem("Межсетевой экран", Screen.Firewall.route, "Правила безопасности"),
+                    SectionItem("LAN-сегменты", Screen.LanSegments.route, "Сегменты и изоляция"),
+                    SectionItem("DNS-фильтры", Screen.DnsFilters.route, "DNS и блокировки")
                 )
+            )
+        }
+        composable(Screen.PortForwarding.route) {
+            // Без API: это раздел-заглушка с структурой будущих правил переадресации портов.
+            PlaceholderSectionScreen(
+                title = "Переадресация портов",
+                description = "Публичные правила и внутренняя маршрутизация портов",
+                items = listOf("TCP/UDP правила", "Переход на внутренние сервисы", "Проверка активных правил"),
+                onBack = { navController.popBackStack() }
+            )
+        }
+        composable(Screen.Firewall.route) {
+            // Без API: показываем каркас правил firewall и доступа без реального управления.
+            PlaceholderSectionScreen(
+                title = "Межсетевой экран",
+                description = "Правила фильтрации трафика и доступа",
+                items = listOf("Белые и чёрные списки", "Правила по протоколу и порту", "Логи и история блокировок"),
+                onBack = { navController.popBackStack() }
+            )
+        }
+        composable(Screen.LanSegments.route) {
+            // Без API: каркас LAN-сегментов и изоляции без активной реализации.
+            PlaceholderSectionScreen(
+                title = "LAN-сегменты",
+                description = "Сегменты, DHCP, изоляция и политики доступа",
+                items = listOf("Новые сегменты", "DHCP и NAT", "Ограничение скорости и мDNS"),
+                onBack = { navController.popBackStack() }
+            )
+        }
+        composable(Screen.DnsFilters.route) {
+            // Без API: заготовка для DNS-фильтров и блокировок доменов.
+            PlaceholderSectionScreen(
+                title = "DNS-фильтры",
+                description = "Блокировка доменов и управление DNS-политиками",
+                items = listOf("Списки доменов", "Правила по категориям", "Логи и отчёты"),
+                onBack = { navController.popBackStack() }
             )
         }
         composable(Screen.DnsSection.route) {
@@ -126,16 +172,26 @@ fun KeeneticNavHost(navController: NavHostController, viewModel: RouterViewModel
                 items = listOf(
                     SectionItem("Настройки системы", Screen.SystemSettings.route, "VPN, DoH, расписания"),
                     SectionItem("VPN", Screen.VpnSettings.route, "Сервер VPN и состояние"),
+                    SectionItem("VPN-детали", Screen.VpnAdvanced.route, "Дополнительные параметры"),
                     SectionItem("DoH", Screen.DohSettings.route, "DNS-over-HTTPS"),
                     SectionItem("Расписание", Screen.SchedulesSettings.route, "Планы доступа и блокировок"),
                     SectionItem("Приложения", Screen.Apps.route, "OPKG, пакеты и сервисы"),
                     SectionItem("Диагностика", Screen.Terminal.route, "Команды и отладка"),
-                    SectionItem("Пользователи и доступ", soon = true, subtitle = "Учетные записи и права")
+                    SectionItem("Пользователи и доступ", Screen.Settings.route, subtitle = "Учетные записи и права")
                 )
             )
         }
         composable(Screen.VpnSettings.route) {
             VpnSettingsScreen(viewModel = viewModel, onBack = { navController.popBackStack() })
+        }
+        composable(Screen.VpnAdvanced.route) {
+            // Без API: заглушка для расширенных параметров VPN без реального контроля.
+            PlaceholderSectionScreen(
+                title = "VPN-расширения",
+                description = "Дополнительные параметры VPN-сервера",
+                items = listOf("Сегменты и сети", "Пользователи и доступ", "Логи соединений"),
+                onBack = { navController.popBackStack() }
+            )
         }
         composable(Screen.DohSettings.route) {
             DohSettingsScreen(viewModel = viewModel, onBack = { navController.popBackStack() })
