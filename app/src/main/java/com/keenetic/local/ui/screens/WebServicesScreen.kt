@@ -54,9 +54,9 @@ import com.keenetic.local.ui.theme.KeeneticColors
 fun WebServicesScreen(viewModel: RouterViewModel) {
     var host by remember { mutableStateOf("") }
     var port by remember { mutableStateOf("80") }
-    var url by remember { mutableStateOf("") }
-    var showBrowser by remember { mutableStateOf(false) }
-    var browserMode by remember { mutableStateOf("inline") }
+    var browserUrl by remember { mutableStateOf("") }
+    var browserTitle by remember { mutableStateOf("") }
+    var showDedicatedBrowser by remember { mutableStateOf(false) }
     var canGoBack by remember { mutableStateOf(false) }
     var canGoForward by remember { mutableStateOf(false) }
     var webViewRef by remember { mutableStateOf<WebView?>(null) }
@@ -74,7 +74,32 @@ fun WebServicesScreen(viewModel: RouterViewModel) {
         networkHint.suggestedRouterIps.take(3)
     }
 
-    fun openService(targetHost: String, targetPort: String, mode: String) {
+    fun escapeForJs(value: String): String = value
+        .replace("\\", "\\\\")
+        .replace("\"", "\\\"")
+        .replace("\n", "\\n")
+
+    fun injectCredentials(view: WebView, username: String, password: String) {
+        val script = """
+            (function() {
+              const user = "${escapeForJs(username)}";
+              const pass = "${escapeForJs(password)}";
+              const textInputs = Array.from(document.querySelectorAll('input[type="text"], input[type="email"], input:not([type]), input[name*="user"], input[name*="login"], input[id*="user"], input[id*="login"]'));
+              const passwordInputs = Array.from(document.querySelectorAll('input[type="password"]'));
+              if (user && textInputs.length > 0) {
+                textInputs[0].value = user;
+                textInputs[0].dispatchEvent(new Event('input', { bubbles: true }));
+              }
+              if (pass && passwordInputs.length > 0) {
+                passwordInputs[0].value = pass;
+                passwordInputs[0].dispatchEvent(new Event('input', { bubbles: true }));
+              }
+            })();
+        """.trimIndent()
+        view.post { view.evaluateJavascript(script, null) }
+    }
+
+    fun openService(targetHost: String, targetPort: String, username: String = "", password: String = "") {
         val normalizedHost = targetHost.trim()
         val normalizedPort = targetPort.trim().ifBlank { "80" }
         val builtUrl = if (normalizedHost.startsWith("http://") || normalizedHost.startsWith("https://")) {
@@ -85,9 +110,11 @@ fun WebServicesScreen(viewModel: RouterViewModel) {
         if (builtUrl.isNotBlank()) {
             host = normalizedHost
             port = normalizedPort
-            url = builtUrl
-            showBrowser = true
-            browserMode = mode
+            browserUrl = builtUrl
+            browserTitle = normalizedHost
+            serviceUsername = username
+            servicePassword = password
+            showDedicatedBrowser = true
         }
     }
 
@@ -151,282 +178,226 @@ fun WebServicesScreen(viewModel: RouterViewModel) {
     }
 
     Box(modifier = Modifier.fillMaxSize()) {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(16.dp)
-                .verticalScroll(scrollState)
-        ) {
-            Text(
-                text = "Веб-сервисы",
-                style = MaterialTheme.typography.headlineSmall,
-                fontWeight = FontWeight.Bold
-            )
-            Text(
-                text = "Мини-браузер для AWG Manager, Nfqws2 и других сервисов внутри приложения",
-                style = MaterialTheme.typography.bodySmall,
-                color = KeeneticColors.TextSecondary
-            )
-            Spacer(modifier = Modifier.height(12.dp))
-
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(containerColor = KeeneticColors.Surface),
-                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
-            ) {
-                Column(modifier = Modifier.padding(16.dp)) {
-                    Text("Быстрый доступ", fontWeight = FontWeight.SemiBold)
-                    Spacer(modifier = Modifier.height(8.dp))
-
-                    if (candidateHosts.isNotEmpty()) {
-                        Text("Подсказки по локальной сети", style = MaterialTheme.typography.bodySmall, color = KeeneticColors.TextSecondary)
-                        Spacer(modifier = Modifier.height(6.dp))
-                        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                            candidateHosts.forEach { suggested ->
-                                OutlinedButton(onClick = { fillSuggestedHost(suggested) }) {
-                                    Text(suggested)
+        if (showDedicatedBrowser && browserUrl.isNotBlank()) {
+            Box(modifier = Modifier.fillMaxSize()) {
+                AndroidView(
+                    factory = { context ->
+                        WebView(context).apply {
+                            settings.javaScriptEnabled = true
+                            settings.domStorageEnabled = true
+                            settings.allowFileAccess = true
+                            settings.setSupportZoom(true)
+                            settings.builtInZoomControls = true
+                            webViewClient = object : WebViewClient() {
+                                override fun onPageFinished(view: WebView, url: String) {
+                                    canGoBack = view.canGoBack()
+                                    canGoForward = view.canGoForward()
+                                    injectCredentials(view, serviceUsername, servicePassword)
                                 }
                             }
+                            webChromeClient = WebChromeClient()
+                            loadUrl(browserUrl)
                         }
-                        Spacer(modifier = Modifier.height(10.dp))
-                    }
+                    },
+                    update = { webView ->
+                        webViewRef = webView
+                        if (webView.url != browserUrl && browserUrl.isNotBlank()) {
+                            webView.loadUrl(browserUrl)
+                        }
+                        canGoBack = webView.canGoBack()
+                        canGoForward = webView.canGoForward()
+                    },
+                    modifier = Modifier.fillMaxSize()
+                )
 
-                    if (savedServices.isNotEmpty()) {
-                        Text("Сохранённые сервисы", style = MaterialTheme.typography.bodySmall, color = KeeneticColors.TextSecondary)
-                        Spacer(modifier = Modifier.height(6.dp))
-                        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                            savedServices.forEach { service ->
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.SpaceBetween,
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Column(modifier = Modifier.weight(1f)) {
-                                        Text(service.name, fontWeight = FontWeight.Medium)
-                                        Text("${service.host}:${service.port}", style = MaterialTheme.typography.bodySmall, color = KeeneticColors.TextSecondary)
-                                    }
-                                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                                        OutlinedButton(onClick = { openService(service.host, service.port, "inline") }) {
-                                            Text("Открыть")
-                                        }
-                                        OutlinedButton(onClick = { editService(service) }) {
-                                            Text("Изменить")
-                                        }
-                                        OutlinedButton(onClick = { deleteService(service) }) {
-                                            Text("Удалить")
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                        Spacer(modifier = Modifier.height(10.dp))
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(12.dp),
+                    horizontalArrangement = Arrangement.End,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Button(onClick = { showDedicatedBrowser = false }) {
+                        Text("Закрыть окно")
                     }
+                }
 
-                    OutlinedTextField(
-                        value = serviceName,
-                        onValueChange = { serviceName = it },
-                        label = { Text("Название сервиса") },
-                        singleLine = true,
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
-                    OutlinedTextField(
-                        value = host,
-                        onValueChange = { host = it },
-                        label = { Text("IP или hostname") },
-                        singleLine = true,
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
-                    OutlinedTextField(
-                        value = serviceUsername,
-                        onValueChange = { serviceUsername = it },
-                        label = { Text("Логин") },
-                        singleLine = true,
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
-                    OutlinedTextField(
-                        value = servicePassword,
-                        onValueChange = { servicePassword = it },
-                        label = { Text("Пароль") },
-                        singleLine = true,
-                        visualTransformation = PasswordVisualTransformation(),
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
-                    OutlinedTextField(
-                        value = port,
-                        onValueChange = { port = it.filter(Char::isDigit) },
-                        label = { Text("Порт") },
-                        singleLine = true,
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                    Spacer(modifier = Modifier.height(12.dp))
-                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-                            Button(onClick = { openService(host, port, "separate") }) {
-                                Icon(Icons.Default.Public, contentDescription = null)
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Text("Открыть")
-                            }
-                            Button(onClick = { saveCurrentService() }) {
-                                Icon(Icons.Default.BookmarkAdd, contentDescription = null)
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Text(if (editingService != null) "Обновить" else "Сохранить")
-                            }
-                        }
-                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-                            Button(onClick = { openService(host, port, "separate") }) {
-                                Icon(Icons.AutoMirrored.Filled.OpenInNew, contentDescription = null)
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Text("Открыть в окне")
-                            }
-                            if (editingService != null) {
-                                OutlinedButton(onClick = { cancelEditing() }) {
-                                    Text("Отмена")
-                                }
-                            }
-                        }
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(start = 12.dp, end = 12.dp, bottom = 12.dp)
+                        .align(Alignment.BottomCenter),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Button(onClick = { webViewRef?.goBack() }, enabled = canGoBack) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = null)
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text("Назад")
                     }
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Text(
-                        text = "Подсказка: сохраните сервис вручную, а затем открывайте его одним тапом.",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = KeeneticColors.TextSecondary
-                    )
-                    Button(onClick = {
-                        viewModel.refreshNetworkHint()
-                        applyCurrentNetworkHint()
-                    }) {
-                        Text("Спросить телефон о текущем IP")
+                    Button(onClick = { webViewRef?.goForward() }, enabled = canGoForward) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = null)
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text("Вперёд")
                     }
                 }
             }
+        } else {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(16.dp)
+                    .verticalScroll(scrollState)
+            ) {
+                Text(
+                    text = "Веб-сервисы",
+                    style = MaterialTheme.typography.headlineSmall,
+                    fontWeight = FontWeight.Bold
+                )
+                Text(
+                    text = "Мини-браузер для AWG Manager, Nfqws2 и других сервисов внутри приложения",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = KeeneticColors.TextSecondary
+                )
+                Spacer(modifier = Modifier.height(12.dp))
 
-            Spacer(modifier = Modifier.height(12.dp))
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(containerColor = KeeneticColors.Surface),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+                ) {
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        Text("Быстрый доступ", fontWeight = FontWeight.SemiBold)
+                        Spacer(modifier = Modifier.height(8.dp))
 
-            if (showBrowser && url.isNotBlank()) {
-                if (browserMode == "separate") {
-                    Card(
-                        modifier = Modifier.fillMaxWidth().heightIn(min = 420.dp, max = 900.dp),
-                        colors = CardDefaults.cardColors(containerColor = KeeneticColors.Surface),
-                        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
-                    ) {
-                        Column(modifier = Modifier.fillMaxWidth().padding(12.dp)) {
-                            Row(
-                                modifier = Modifier.fillMaxWidth().wrapContentHeight(),
-                                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Button(onClick = { showBrowser = false }) {
-                                    Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = null)
-                                    Spacer(modifier = Modifier.width(6.dp))
-                                    Text("Назад")
-                                }
-                                Button(onClick = { webViewRef?.goBack() }, enabled = canGoBack) {
-                                    Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = null)
-                                    Spacer(modifier = Modifier.width(6.dp))
-                                    Text("Назад по странице")
-                                }
-                                Button(onClick = { webViewRef?.goForward() }, enabled = canGoForward) {
-                                    Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = null)
-                                    Spacer(modifier = Modifier.width(6.dp))
-                                    Text("Вперёд")
+                        if (candidateHosts.isNotEmpty()) {
+                            Text("Подсказки по локальной сети", style = MaterialTheme.typography.bodySmall, color = KeeneticColors.TextSecondary)
+                            Spacer(modifier = Modifier.height(6.dp))
+                            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                candidateHosts.forEach { suggested ->
+                                    OutlinedButton(onClick = { fillSuggestedHost(suggested) }) {
+                                        Text(suggested)
+                                    }
                                 }
                             }
-                            Spacer(modifier = Modifier.height(8.dp))
-                            AndroidView(
-                                factory = { context ->
-                                    WebView(context).apply {
-                                        settings.javaScriptEnabled = true
-                                        settings.domStorageEnabled = true
-                                        settings.allowFileAccess = true
-                                        settings.setSupportZoom(true)
-                                        settings.builtInZoomControls = true
-                                        webViewClient = object : WebViewClient() {
-                                            override fun onPageFinished(view: WebView, url: String) {
-                                                canGoBack = view.canGoBack()
-                                                canGoForward = view.canGoForward()
-                                            }
-                                        }
-                                        webChromeClient = WebChromeClient()
-                                        loadUrl(url)
-                                    }
-                                },
-                                update = { webView ->
-                                    webViewRef = webView
-                                    if (webView.url != url && url.isNotBlank()) {
-                                        webView.loadUrl(url)
-                                    }
-                                    canGoBack = webView.canGoBack()
-                                    canGoForward = webView.canGoForward()
-                                },
-                                modifier = Modifier.fillMaxSize()
-                            )
+                            Spacer(modifier = Modifier.height(10.dp))
                         }
-                    }
-                } else {
-                    Card(
-                        modifier = Modifier.fillMaxWidth().heightIn(min = 360.dp, max = 640.dp),
-                        colors = CardDefaults.cardColors(containerColor = KeeneticColors.Surface),
-                        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
-                    ) {
-                        Column(modifier = Modifier.fillMaxWidth().padding(12.dp)) {
-                            Row(
-                                modifier = Modifier.fillMaxWidth().wrapContentHeight(),
-                                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Button(onClick = { webViewRef?.goBack() }, enabled = canGoBack) {
-                                    Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = null)
-                                    Spacer(modifier = Modifier.width(6.dp))
-                                    Text("Назад")
-                                }
-                                Button(onClick = { webViewRef?.goForward() }, enabled = canGoForward) {
-                                    Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = null)
-                                    Spacer(modifier = Modifier.width(6.dp))
-                                    Text("Вперёд")
-                                }
-                                Text(
-                                    text = "встроенный режим",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = KeeneticColors.TextSecondary
-                                )
-                            }
-                            Spacer(modifier = Modifier.height(8.dp))
-                            AndroidView(
-                                factory = { context ->
-                                    WebView(context).apply {
-                                        settings.javaScriptEnabled = true
-                                        settings.domStorageEnabled = true
-                                        settings.allowFileAccess = true
-                                        settings.setSupportZoom(true)
-                                        settings.builtInZoomControls = true
-                                        webViewClient = object : WebViewClient() {
-                                            override fun onPageFinished(view: WebView, url: String) {
-                                                canGoBack = view.canGoBack()
-                                                canGoForward = view.canGoForward()
+
+                        if (savedServices.isNotEmpty()) {
+                            Text("Сохранённые сервисы", style = MaterialTheme.typography.bodySmall, color = KeeneticColors.TextSecondary)
+                            Spacer(modifier = Modifier.height(6.dp))
+                            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                                savedServices.forEach { service ->
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Column(modifier = Modifier.weight(1f)) {
+                                            Text(service.name, fontWeight = FontWeight.Medium)
+                                            Text("${service.host}:${service.port}", style = MaterialTheme.typography.bodySmall, color = KeeneticColors.TextSecondary)
+                                        }
+                                        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                            OutlinedButton(onClick = { openService(service.host, service.port, service.username, service.password) }) {
+                                                Text("Открыть")
+                                            }
+                                            OutlinedButton(onClick = { editService(service) }) {
+                                                Text("Изменить")
+                                            }
+                                            OutlinedButton(onClick = { deleteService(service) }) {
+                                                Text("Удалить")
                                             }
                                         }
-                                        webChromeClient = WebChromeClient()
-                                        loadUrl(url)
                                     }
-                                },
-                                update = { webView ->
-                                    webViewRef = webView
-                                    if (webView.url != url && url.isNotBlank()) {
-                                        webView.loadUrl(url)
+                                }
+                            }
+                            Spacer(modifier = Modifier.height(10.dp))
+                        }
+
+                        OutlinedTextField(
+                            value = serviceName,
+                            onValueChange = { serviceName = it },
+                            label = { Text("Название сервиса") },
+                            singleLine = true,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        OutlinedTextField(
+                            value = host,
+                            onValueChange = { host = it },
+                            label = { Text("IP или hostname") },
+                            singleLine = true,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        OutlinedTextField(
+                            value = serviceUsername,
+                            onValueChange = { serviceUsername = it },
+                            label = { Text("Логин") },
+                            singleLine = true,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        OutlinedTextField(
+                            value = servicePassword,
+                            onValueChange = { servicePassword = it },
+                            label = { Text("Пароль") },
+                            singleLine = true,
+                            visualTransformation = PasswordVisualTransformation(),
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        OutlinedTextField(
+                            value = port,
+                            onValueChange = { port = it.filter(Char::isDigit) },
+                            label = { Text("Порт") },
+                            singleLine = true,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                        Spacer(modifier = Modifier.height(12.dp))
+                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                                Button(onClick = { openService(host, port, serviceUsername, servicePassword) }) {
+                                    Icon(Icons.Default.Public, contentDescription = null)
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text("Открыть")
+                                }
+                                Button(onClick = { saveCurrentService() }) {
+                                    Icon(Icons.Default.BookmarkAdd, contentDescription = null)
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text(if (editingService != null) "Обновить" else "Сохранить")
+                                }
+                            }
+                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                                Button(onClick = { openService(host, port, serviceUsername, servicePassword) }) {
+                                    Icon(Icons.AutoMirrored.Filled.OpenInNew, contentDescription = null)
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text("Открыть в окне")
+                                }
+                                if (editingService != null) {
+                                    OutlinedButton(onClick = { cancelEditing() }) {
+                                        Text("Отмена")
                                     }
-                                    canGoBack = webView.canGoBack()
-                                    canGoForward = webView.canGoForward()
-                                },
-                                modifier = Modifier.fillMaxSize()
-                            )
+                                }
+                            }
+                        }
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            text = "Подсказка: сохраните сервис вручную, а затем открывайте его одним тапом.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = KeeneticColors.TextSecondary
+                        )
+                        Button(onClick = {
+                            viewModel.refreshNetworkHint()
+                            applyCurrentNetworkHint()
+                        }) {
+                            Text("Спросить телефон о текущем IP")
                         }
                     }
                 }
-            } else {
+
+                Spacer(modifier = Modifier.height(12.dp))
+
                 Card(
                     modifier = Modifier.fillMaxWidth(),
                     colors = CardDefaults.cardColors(containerColor = KeeneticColors.Surface),
