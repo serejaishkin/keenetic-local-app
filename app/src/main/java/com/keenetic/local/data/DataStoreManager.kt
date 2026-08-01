@@ -9,14 +9,22 @@ import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
+import com.keenetic.local.security.KeystoreManager
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 
 private val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "keenetic_settings")
 
-data class SavedService(val name: String, val host: String, val port: String)
+data class SavedService(
+    val name: String,
+    val host: String,
+    val port: String,
+    val username: String = "",
+    val password: String = ""
+)
 
 class DataStoreManager(private val context: Context) {
+    private val keystore = KeystoreManager()
 
     companion object {
         val ROUTER_IP = stringPreferencesKey("router_ip")
@@ -35,6 +43,11 @@ class DataStoreManager(private val context: Context) {
         val raw = prefs[WEB_SERVICES] ?: "[]"
         runCatching {
             Gson().fromJson<List<SavedService>>(raw, object : TypeToken<List<SavedService>>() {}.type)
+                ?.map { service ->
+                    val decryptedPassword = service.password.takeIf { it.isNotBlank() }?.let { keystore.decrypt(it) }.orEmpty()
+                    service.copy(password = decryptedPassword)
+                }
+                ?: emptyList()
         }.getOrDefault(emptyList())
     }
 
@@ -55,7 +68,11 @@ class DataStoreManager(private val context: Context) {
     }
 
     suspend fun saveWebServices(services: List<SavedService>) {
-        context.dataStore.edit { it[WEB_SERVICES] = Gson().toJson(services) }
+        val encryptedServices = services.map { service ->
+            val encryptedPassword = service.password.takeIf { it.isNotBlank() }?.let { keystore.encrypt(it) }.orEmpty()
+            service.copy(password = encryptedPassword)
+        }
+        context.dataStore.edit { it[WEB_SERVICES] = Gson().toJson(encryptedServices) }
     }
 
     /** Очищает всё, кроме роутера/логина, - их удобно оставить для следующего входа. */

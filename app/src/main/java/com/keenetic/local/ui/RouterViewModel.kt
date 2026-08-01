@@ -165,7 +165,9 @@ class RouterViewModel(application: Application) : AndroidViewModel(application) 
             val normalized = service.copy(
                 name = service.name.trim(),
                 host = service.host.trim(),
-                port = service.port.trim().ifBlank { "80" }
+                port = service.port.trim().ifBlank { "80" },
+                username = service.username.trim(),
+                password = service.password.trim()
             )
             val updated = listOf(normalized) + _savedServices.value.filterNot {
                 it.host.equals(normalized.host, ignoreCase = true) && it.port == normalized.port
