@@ -33,6 +33,9 @@ fun SettingsScreen(
     val savedAutoLogin by viewModel.autoLoginEnabled.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
     val error by viewModel.error.collectAsState()
+    val networkHint by viewModel.networkHint.collectAsState()
+
+    LaunchedEffect(Unit) { viewModel.refreshNetworkHint() }
 
     var ip by remember(savedIp) { mutableStateOf(savedIp) }
     var login by remember(savedLogin) { mutableStateOf(savedLogin) }
@@ -108,6 +111,34 @@ fun SettingsScreen(
             }
         }
         Spacer(modifier = Modifier.height(16.dp))
+
+        val gatewayCandidate = networkHint.gateway ?: networkHint.suggestedRouterIps.firstOrNull().orEmpty()
+        if (gatewayCandidate.isNotBlank()) {
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(containerColor = KeeneticColors.Primary.copy(alpha = 0.06f)),
+                elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(12.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text("Текущая сеть", fontWeight = FontWeight.Medium, color = KeeneticColors.Primary)
+                        Text(
+                            text = "Шлюз: $gatewayCandidate${if (networkHint.currentIp != null) " • IP: ${networkHint.currentIp}" else ""}",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = KeeneticColors.TextSecondary
+                        )
+                    }
+                    OutlinedButton(onClick = { ip = gatewayCandidate }) {
+                        Text("Подставить")
+                    }
+                }
+            }
+            Spacer(modifier = Modifier.height(8.dp))
+        }
 
         Card(
             modifier = Modifier.fillMaxWidth(),

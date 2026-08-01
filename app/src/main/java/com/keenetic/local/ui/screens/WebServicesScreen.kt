@@ -1,6 +1,12 @@
 package com.keenetic.local.ui.screens
 
 import android.annotation.SuppressLint
+import android.content.Context
+import android.net.ConnectivityManager
+import android.net.NetworkCapabilities
+import android.net.wifi.WifiManager
+import android.os.Build
+import android.text.format.Formatter
 import android.webkit.WebChromeClient
 import android.webkit.WebView
 import android.webkit.WebViewClient
@@ -30,6 +36,8 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
@@ -56,6 +64,15 @@ fun WebServicesScreen(viewModel: RouterViewModel) {
     var canGoBack by remember { mutableStateOf(false) }
     var canGoForward by remember { mutableStateOf(false) }
     var webViewRef by remember { mutableStateOf<WebView?>(null) }
+    val networkHint by viewModel.networkHint.collectAsState()
+
+    LaunchedEffect(Unit) { viewModel.refreshNetworkHint() }
+
+    val candidateHosts = remember(networkHint.suggestedRouterIps) {
+        mutableStateListOf<String>().apply {
+            addAll(networkHint.suggestedRouterIps)
+        }
+    }
     val savedServices = remember {
         mutableStateListOf(
             SavedService("AWG Manager", "192.168.1.1", "80"),
@@ -90,6 +107,21 @@ fun WebServicesScreen(viewModel: RouterViewModel) {
         savedServices.add(0, SavedService(serviceName, normalizedHost, normalizedPort))
     }
 
+    fun fillSuggestedHost(suggestedHost: String) {
+        host = suggestedHost
+        if (port.isBlank()) {
+            port = "80"
+        }
+    }
+
+    fun applyCurrentNetworkHint() {
+        val preferred = networkHint.gateway ?: networkHint.currentIp ?: networkHint.suggestedRouterIps.firstOrNull().orEmpty()
+        if (preferred.isNotBlank()) {
+            host = preferred
+            if (port.isBlank()) port = "80"
+        }
+    }
+
     Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
         Text(
             text = "Веб-сервисы",
@@ -111,6 +143,19 @@ fun WebServicesScreen(viewModel: RouterViewModel) {
             Column(modifier = Modifier.padding(16.dp)) {
                 Text("Быстрый доступ", fontWeight = FontWeight.SemiBold)
                 Spacer(modifier = Modifier.height(8.dp))
+
+                if (candidateHosts.isNotEmpty()) {
+                    Text("Подсказки по локальной сети", style = MaterialTheme.typography.bodySmall, color = KeeneticColors.TextSecondary)
+                    Spacer(modifier = Modifier.height(6.dp))
+                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        candidateHosts.take(4).forEach { suggested ->
+                            OutlinedButton(onClick = { fillSuggestedHost(suggested) }) {
+                                Text(suggested)
+                            }
+                        }
+                    }
+                    Spacer(modifier = Modifier.height(10.dp))
+                }
 
                 if (savedServices.isNotEmpty()) {
                     Text("Сохранённые сервисы", style = MaterialTheme.typography.bodySmall, color = KeeneticColors.TextSecondary)
@@ -167,6 +212,18 @@ fun WebServicesScreen(viewModel: RouterViewModel) {
                         Spacer(modifier = Modifier.width(8.dp))
                         Text("Сохранить")
                     }
+                }
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    text = "Подсказка: сохраните сервис вручную, а затем открывайте его одним тапом.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = KeeneticColors.TextSecondary
+                )
+                Button(onClick = {
+                    viewModel.refreshNetworkHint()
+                    applyCurrentNetworkHint()
+                }) {
+                    Text("Спросить телефон о текущем IP")
                 }
             }
         }

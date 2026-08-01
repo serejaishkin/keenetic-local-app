@@ -1,6 +1,8 @@
 package com.keenetic.local.ui
 
 import android.app.Application
+import android.content.Context
+import android.net.ConnectivityManager
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.keenetic.local.api.*
@@ -12,6 +14,12 @@ import com.google.gson.JsonParser
 import com.google.gson.reflect.TypeToken
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
+
+data class NetworkHint(
+    val currentIp: String? = null,
+    val gateway: String? = null,
+    val suggestedRouterIps: List<String> = emptyList()
+)
 
 class RouterViewModel(application: Application) : AndroidViewModel(application) {
 
@@ -69,11 +77,15 @@ class RouterViewModel(application: Application) : AndroidViewModel(application) 
     private val _discoveredRouters = MutableStateFlow<List<AutoDiscovery.DiscoveredRouter>>(emptyList())
     val discoveredRouters: StateFlow<List<AutoDiscovery.DiscoveredRouter>> = _discoveredRouters.asStateFlow()
 
+    private val _networkHint = MutableStateFlow(NetworkHint())
+    val networkHint: StateFlow<NetworkHint> = _networkHint.asStateFlow()
+
     val routerIp: StateFlow<String> = dataStore.routerIp.stateIn(viewModelScope, SharingStarted.Lazily, "192.168.1.1")
     val routerLogin: StateFlow<String> = dataStore.routerLogin.stateIn(viewModelScope, SharingStarted.Lazily, "admin")
     val autoLoginEnabled: StateFlow<Boolean> = dataStore.autoLogin.stateIn(viewModelScope, SharingStarted.Lazily, false)
 
     init {
+        refreshNetworkHint()
         viewModelScope.launch {
             _hasSavedPassword.value = repository.hasSavedCredentials()
             val autoLogin = dataStore.autoLogin.first()
@@ -86,6 +98,56 @@ class RouterViewModel(application: Application) : AndroidViewModel(application) 
                 }
             }
             _isCheckingAutoLogin.value = false
+        }
+    }
+
+    fun refreshNetworkHint() {
+        viewModelScope.launch {
+            val connectivityManager = getApplication<Application>().getSystemService(Context.CONNECTIVITY_SERVICE) as? ConnectivityManager ?: return@launch
+            val activeNetwork = connectivityManager.activeNetwork ?: return@launch
+            val linkProperties = connectivityManager.getLinkProperties(activeNetwork)
+
+            val currentIp = linkProperties?.linkAddresses
+                ?.asSequence()
+                ?.mapNotNull { it.address?.hostAddress }
+                ?.filter { it.contains(".") && !it.startsWith("127.") && !it.startsWith("169.254.") }
+                ?.firstOrNull()
+
+            val gateway = linkProperties?.routes
+                ?.asSequence()
+                ?.filter { it.isDefaultRoute }
+                ?.mapNotNull { it.gateway?.hostAddress }
+                ?.firstOrNull()
+
+            val candidates = mutableListOf<String>()
+            gateway?.let(candidates::add)
+            currentIp?.let(candidates::add)
+
+            if (currentIp != null) {
+                val parts = currentIp.split(".")
+                if (parts.size == 4) {
+                    val prefix = parts.take(3).joinToString(".")
+                    candidates.add("$prefix.1")
+                    candidates.add("$prefix.254")
+                    candidates.add("$prefix.100")
+                }
+            }
+
+            if (gateway != null) {
+                val prefix = gateway.substringBeforeLast(".")
+                candidates.add("$prefix.1")
+                candidates.add("$prefix.254")
+                candidates.add("$prefix.100")
+            }
+
+            candidates.addAll(listOf("192.168.1.1", "192.168.0.1", "10.0.0.1", "10.0.1.1", "router.local", "keenetic.local"))
+            val suggested = candidates.distinct().filter { it.isNotBlank() }
+
+            _networkHint.value = NetworkHint(
+                currentIp = currentIp,
+                gateway = gateway,
+                suggestedRouterIps = suggested
+            )
         }
     }
 

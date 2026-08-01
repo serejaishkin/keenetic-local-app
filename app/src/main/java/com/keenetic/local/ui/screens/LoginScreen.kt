@@ -10,6 +10,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
@@ -31,9 +32,22 @@ fun LoginScreen(viewModel: RouterViewModel, onLoginSuccess: () -> Unit) {
     val error by viewModel.error.collectAsState()
     val isLoggedIn by viewModel.isLoggedIn.collectAsState()
     val hasSavedPassword by viewModel.hasSavedPassword.collectAsState()
+    val networkHint by viewModel.networkHint.collectAsState()
+
+    LaunchedEffect(Unit) { viewModel.refreshNetworkHint() }
 
     LaunchedEffect(isLoggedIn) {
         if (isLoggedIn) onLoginSuccess()
+    }
+
+    fun applyGatewayAddress(address: String) {
+        val parts = address.split(".")
+        if (parts.size == 4) {
+            ip1 = parts[0]
+            ip2 = parts[1]
+            ip3 = parts[2]
+            ip4 = parts[3]
+        }
     }
 
     Column(
@@ -61,6 +75,34 @@ fun LoginScreen(viewModel: RouterViewModel, onLoginSuccess: () -> Unit) {
             color = KeeneticColors.TextSecondary
         )
         Spacer(modifier = Modifier.height(32.dp))
+
+        val gatewayCandidate = networkHint.gateway ?: networkHint.suggestedRouterIps.firstOrNull().orEmpty()
+        if (gatewayCandidate.isNotBlank()) {
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(containerColor = KeeneticColors.Surface),
+                elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(12.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text("Текущая сеть", fontWeight = FontWeight.Medium)
+                        Text(
+                            text = "Шлюз: $gatewayCandidate${if (networkHint.currentIp != null) " • IP: ${networkHint.currentIp}" else ""}",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = KeeneticColors.TextSecondary
+                        )
+                    }
+                    OutlinedButton(onClick = { applyGatewayAddress(gatewayCandidate) }) {
+                        Text("Подставить")
+                    }
+                }
+            }
+            Spacer(modifier = Modifier.height(8.dp))
+        }
 
         Text(
             text = "IP адрес роутера",
