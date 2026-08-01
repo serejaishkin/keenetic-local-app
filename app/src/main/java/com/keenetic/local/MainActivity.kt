@@ -91,6 +91,7 @@ fun KeeneticAppTheme() {
                             Screen.ManagementSection.route -> Screen.ManagementSection.title
                             Screen.VpnSettings.route -> Screen.VpnSettings.title
                             Screen.DohSettings.route -> Screen.DohSettings.title
+                            Screen.DnsSection.route -> Screen.DnsSection.title
                             Screen.SchedulesSettings.route -> Screen.SchedulesSettings.title
                             else -> bottomItems.find { it.first.route == currentRoute }?.first?.title ?: "Keenetic Local"
                         }

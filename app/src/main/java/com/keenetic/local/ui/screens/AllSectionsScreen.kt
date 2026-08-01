@@ -89,6 +89,17 @@ private fun sectionCards(): List<SectionCard> = listOf(
         )
     ),
     SectionCard(
+        title = "DNS",
+        description = "Управление DNS, фильтрами и DoH",
+        icon = Icons.Default.Dns,
+        route = Screen.DnsSection.route,
+        items = listOf(
+            SectionItem("DNS-фильтры", Screen.DnsSection.route, "Фильтрация доменов и блокировки"),
+            SectionItem("DNS-over-HTTPS", Screen.DohSettings.route, "Настройка DoH"),
+            SectionItem("Текущие DNS", Screen.DnsSection.route, "Серверы и интерфейсы")
+        )
+    ),
+    SectionCard(
         title = "DoH",
         description = "Отдельный блок для DNS-over-HTTPS",
         icon = Icons.Default.Security,

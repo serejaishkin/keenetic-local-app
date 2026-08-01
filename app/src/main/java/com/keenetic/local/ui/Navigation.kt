@@ -17,6 +17,7 @@ sealed class Screen(val route: String, val title: String) {
     object AllSections : Screen("all_sections", "Разделы")
     object Apps : Screen("apps", "Приложения")
     object SystemSettings : Screen("system_settings", "Настройки системы")
+    object DnsSection : Screen("dns_section", "DNS")
     object InternetSection : Screen("internet_section", "Интернет")
     object WiFiSection : Screen("wifi_section", "Wi-Fi")
     object NetworkSection : Screen("network_section", "Сеть")
@@ -110,9 +111,12 @@ fun KeeneticNavHost(navController: NavHostController, viewModel: RouterViewModel
                     SectionItem("Маршрутизация", Screen.Devices.route, "Политики и статические маршруты"),
                     SectionItem("Переадресация портов", soon = true, subtitle = "Внешние и внутренние порты"),
                     SectionItem("Межсетевой экран", soon = true, subtitle = "Правила безопасности"),
-                    SectionItem("DNS-фильтры", Screen.Settings.route, "DNS и блокировки")
+                    SectionItem("DNS-фильтры", Screen.DnsSection.route, "DNS и блокировки")
                 )
             )
+        }
+        composable(Screen.DnsSection.route) {
+            DnsSettingsScreen(viewModel = viewModel, onBack = { navController.popBackStack() })
         }
         composable(Screen.ManagementSection.route) {
             SectionCategoryScreen(

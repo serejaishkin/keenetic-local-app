@@ -17,6 +17,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
+import com.keenetic.local.api.DnsServerInfo
 import com.keenetic.local.ui.RouterViewModel
 import com.keenetic.local.ui.theme.KeeneticColors
 
@@ -293,6 +294,37 @@ fun DohSettingsScreen(viewModel: RouterViewModel, onBack: () -> Unit = {}) {
 }
 
 @Composable
+fun DnsSettingsScreen(viewModel: RouterViewModel, onBack: () -> Unit = {}) {
+    val nameServers by viewModel.nameServers.collectAsState()
+    val dohUpstream by viewModel.dohUpstream.collectAsState()
+
+    LaunchedEffect(Unit) {
+        viewModel.loadNameServers()
+        viewModel.loadDohUpstream()
+    }
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState())
+            .padding(16.dp)
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            IconButton(onClick = onBack) { Icon(Icons.Default.ArrowBack, contentDescription = null) }
+            Spacer(modifier = Modifier.width(8.dp))
+            Text("DNS", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+        }
+        Text("Управление DNS-серверами, фильтрами и DoH", style = MaterialTheme.typography.bodySmall, color = KeeneticColors.TextSecondary)
+        Spacer(modifier = Modifier.height(16.dp))
+        DnsStatusCard(nameServers = nameServers, dohUpstream = dohUpstream)
+        Spacer(modifier = Modifier.height(16.dp))
+        DohDnsCard(viewModel)
+        Spacer(modifier = Modifier.height(16.dp))
+        DnsFiltersCard()
+    }
+}
+
+@Composable
 fun SchedulesSettingsScreen(viewModel: RouterViewModel, onBack: () -> Unit = {}) {
     Column(
         modifier = Modifier
@@ -355,9 +387,11 @@ fun DohDnsCard(viewModel: RouterViewModel) {
     var expanded by remember { mutableStateOf(false) }
     var dohUrl by remember { mutableStateOf("") }
     var targetInterface by remember { mutableStateOf("") }
-    val nameServers by viewModel.nameServers.collectAsState()
+    val dohUpstream by viewModel.dohUpstream.collectAsState()
 
-    LaunchedEffect(Unit) { viewModel.loadNameServers() }
+    LaunchedEffect(Unit) {
+        viewModel.loadDohUpstream()
+    }
 
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -376,23 +410,20 @@ fun DohDnsCard(viewModel: RouterViewModel) {
                 }
             }
 
-            if (nameServers.isNotEmpty()) {
+            if (dohUpstream.isNotEmpty()) {
                 Spacer(modifier = Modifier.height(4.dp))
-                Text("Сейчас настроено:", style = MaterialTheme.typography.labelSmall, color = KeeneticColors.TextSecondary)
-                nameServers.forEach {
-                    Text(
-                        "${it.address ?: "?"} (${it.interfaceName ?: "?"})",
-                        style = MaterialTheme.typography.bodySmall
-                    )
+                Text("Текущий DoH-сервер:", style = MaterialTheme.typography.labelSmall, color = KeeneticColors.TextSecondary)
+                dohUpstream.forEach {
+                    Text(it, style = MaterialTheme.typography.bodySmall)
                 }
-            } else {
-                Spacer(modifier = Modifier.height(4.dp))
-                Text(
-                    "Сейчас DNS-серверы не заданы явно (используются от провайдера)",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = KeeneticColors.TextSecondary
-                )
             }
+
+                Spacer(modifier = Modifier.height(4.dp))
+            Text(
+                "Для активации DoH задайте URL и интерфейс, если нужен привязанный трафик",
+                style = MaterialTheme.typography.labelSmall,
+                color = KeeneticColors.TextSecondary
+            )
 
             if (expanded) {
                 Spacer(modifier = Modifier.height(12.dp))
@@ -427,6 +458,63 @@ fun DohDnsCard(viewModel: RouterViewModel) {
                 ) {
                     Text("Применить")
                 }
+            }
+        }
+    }
+}
+
+@Composable
+fun DnsStatusCard(nameServers: List<DnsServerInfo>, dohUpstream: List<String>) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = KeeneticColors.Surface),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Text("Текущий DNS", fontWeight = FontWeight.SemiBold)
+            Spacer(modifier = Modifier.height(8.dp))
+            if (dohUpstream.isNotEmpty()) {
+                Text("DoH-серверы:", style = MaterialTheme.typography.labelSmall, color = KeeneticColors.TextSecondary)
+                dohUpstream.forEach { Text(it, style = MaterialTheme.typography.bodySmall) }
+                Spacer(modifier = Modifier.height(8.dp))
+            }
+            if (nameServers.isNotEmpty()) {
+                Text("DNS-серверы:", style = MaterialTheme.typography.labelSmall, color = KeeneticColors.TextSecondary)
+                nameServers.forEach {
+                    Text(
+                        "${it.address ?: "?"} (${it.interfaceName ?: "?"})",
+                        style = MaterialTheme.typography.bodySmall
+                    )
+                }
+            } else {
+                Text(
+                    "DNS-серверы явно не заданы. Используется DNS от провайдера.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = KeeneticColors.TextSecondary
+                )
+            }
+        }
+    }
+}
+
+@Composable
+fun DnsFiltersCard() {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = KeeneticColors.Surface),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Text("DNS-фильтры", fontWeight = FontWeight.SemiBold)
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(
+                "Фильтрация DNS-запросов и блокировка доменов будет доступна здесь после подтверждения API роутера.",
+                style = MaterialTheme.typography.bodySmall,
+                color = KeeneticColors.TextSecondary
+            )
+            Spacer(modifier = Modifier.height(12.dp))
+            OutlinedButton(onClick = { /* TODO: Add DNS filter settings */ }, enabled = false, modifier = Modifier.fillMaxWidth()) {
+                Text("В разработке")
             }
         }
     }

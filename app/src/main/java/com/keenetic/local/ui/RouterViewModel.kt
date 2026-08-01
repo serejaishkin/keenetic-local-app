@@ -377,6 +377,26 @@ class RouterViewModel(application: Application) : AndroidViewModel(application) 
     private val _nameServers = MutableStateFlow<List<DnsServerInfo>>(emptyList())
     val nameServers: StateFlow<List<DnsServerInfo>> = _nameServers.asStateFlow()
 
+    private val _dohUpstream = MutableStateFlow<List<String>>(emptyList())
+    val dohUpstream: StateFlow<List<String>> = _dohUpstream.asStateFlow()
+
+    fun loadDohUpstream() {
+        viewModelScope.launch {
+            try {
+                val response = repository.getRestApi().executeRci(
+                    listOf(mapOf("show" to mapOf("sc" to mapOf("dns-proxy" to mapOf("https" to mapOf("upstream" to emptyMap<String, Any>()))))))
+                )
+                if (response.isSuccessful) {
+                    val body = response.body()
+                    val first = if (body?.isJsonArray == true && body.asJsonArray.size() > 0) body.asJsonArray[0] else body
+                    _dohUpstream.value = DnsAndScheduleParser.parseDohUpstream(first)
+                }
+            } catch (e: Exception) {
+                AppLogger.logAction("DoH upstream load failed", e.message ?: "")
+            }
+        }
+    }
+
     /** Список уже созданных расписаний - подтверждено HAR (show sc schedule). */
     fun loadSchedules() {
         viewModelScope.launch {
