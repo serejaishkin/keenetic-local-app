@@ -7,6 +7,7 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.keenetic.local.api.*
 import com.keenetic.local.data.DataStoreManager
+import com.keenetic.local.data.SavedService
 import com.keenetic.local.discovery.AutoDiscovery
 import com.keenetic.local.util.AppLogger
 import com.google.gson.Gson
@@ -80,12 +81,20 @@ class RouterViewModel(application: Application) : AndroidViewModel(application) 
     private val _networkHint = MutableStateFlow(NetworkHint())
     val networkHint: StateFlow<NetworkHint> = _networkHint.asStateFlow()
 
+    private val _savedServices = MutableStateFlow<List<SavedService>>(emptyList())
+    val savedServices: StateFlow<List<SavedService>> = _savedServices.asStateFlow()
+
     val routerIp: StateFlow<String> = dataStore.routerIp.stateIn(viewModelScope, SharingStarted.Lazily, "192.168.1.1")
     val routerLogin: StateFlow<String> = dataStore.routerLogin.stateIn(viewModelScope, SharingStarted.Lazily, "admin")
     val autoLoginEnabled: StateFlow<Boolean> = dataStore.autoLogin.stateIn(viewModelScope, SharingStarted.Lazily, false)
 
     init {
         refreshNetworkHint()
+        viewModelScope.launch {
+            dataStore.webServices.collect { services ->
+                _savedServices.value = services
+            }
+        }
         viewModelScope.launch {
             _hasSavedPassword.value = repository.hasSavedCredentials()
             val autoLogin = dataStore.autoLogin.first()
@@ -148,6 +157,29 @@ class RouterViewModel(application: Application) : AndroidViewModel(application) 
                 gateway = gateway,
                 suggestedRouterIps = suggested
             )
+        }
+    }
+
+    fun saveService(service: SavedService) {
+        viewModelScope.launch {
+            val normalized = service.copy(
+                name = service.name.trim(),
+                host = service.host.trim(),
+                port = service.port.trim().ifBlank { "80" }
+            )
+            val updated = listOf(normalized) + _savedServices.value.filterNot {
+                it.host.equals(normalized.host, ignoreCase = true) && it.port == normalized.port
+            }
+            _savedServices.value = updated
+            dataStore.saveWebServices(updated)
+        }
+    }
+
+    fun deleteService(service: SavedService) {
+        viewModelScope.launch {
+            val updated = _savedServices.value.filterNot { it.host == service.host && it.port == service.port && it.name == service.name }
+            _savedServices.value = updated
+            dataStore.saveWebServices(updated)
         }
     }
 

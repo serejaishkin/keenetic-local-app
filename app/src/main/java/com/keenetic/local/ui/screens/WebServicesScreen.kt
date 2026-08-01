@@ -1,12 +1,6 @@
 package com.keenetic.local.ui.screens
 
 import android.annotation.SuppressLint
-import android.content.Context
-import android.net.ConnectivityManager
-import android.net.NetworkCapabilities
-import android.net.wifi.WifiManager
-import android.os.Build
-import android.text.format.Formatter
 import android.webkit.WebChromeClient
 import android.webkit.WebView
 import android.webkit.WebViewClient
@@ -25,8 +19,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.BookmarkAdd
-import androidx.compose.material.icons.filled.OpenInNew
 import androidx.compose.material.icons.filled.Public
+import androidx.compose.material.icons.automirrored.filled.OpenInNew
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -39,7 +33,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -48,10 +41,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
+import com.keenetic.local.data.SavedService
 import com.keenetic.local.ui.RouterViewModel
 import com.keenetic.local.ui.theme.KeeneticColors
-
-private data class SavedService(val name: String, val host: String, val port: String)
 
 @SuppressLint("SetJavaScriptEnabled")
 @Composable
@@ -64,21 +56,15 @@ fun WebServicesScreen(viewModel: RouterViewModel) {
     var canGoBack by remember { mutableStateOf(false) }
     var canGoForward by remember { mutableStateOf(false) }
     var webViewRef by remember { mutableStateOf<WebView?>(null) }
+    var serviceName by remember { mutableStateOf("") }
+    var editingService by remember { mutableStateOf<SavedService?>(null) }
     val networkHint by viewModel.networkHint.collectAsState()
+    val savedServices by viewModel.savedServices.collectAsState()
 
     LaunchedEffect(Unit) { viewModel.refreshNetworkHint() }
 
     val candidateHosts = remember(networkHint.suggestedRouterIps) {
-        mutableStateListOf<String>().apply {
-            addAll(networkHint.suggestedRouterIps)
-        }
-    }
-    val savedServices = remember {
-        mutableStateListOf(
-            SavedService("AWG Manager", "192.168.1.1", "80"),
-            SavedService("Nfqws2", "192.168.1.1", "8080"),
-            SavedService("OPKG", "192.168.1.1", "8081")
-        )
+        networkHint.suggestedRouterIps.take(3)
     }
 
     fun openService(targetHost: String, targetPort: String, mode: String) {
@@ -102,9 +88,30 @@ fun WebServicesScreen(viewModel: RouterViewModel) {
         val normalizedHost = host.trim()
         if (normalizedHost.isEmpty()) return
         val normalizedPort = port.trim().ifBlank { "80" }
-        val serviceName = if (normalizedHost.contains(".")) normalizedHost else "Сервис"
-        savedServices.removeAll { it.host == normalizedHost && it.port == normalizedPort }
-        savedServices.add(0, SavedService(serviceName, normalizedHost, normalizedPort))
+        val finalName = serviceName.trim().ifBlank { if (normalizedHost.contains(".")) normalizedHost else "Сервис" }
+        viewModel.saveService(SavedService(finalName, normalizedHost, normalizedPort))
+        serviceName = ""
+        host = ""
+        port = "80"
+        editingService = null
+    }
+
+    fun deleteService(service: SavedService) {
+        viewModel.deleteService(service)
+    }
+
+    fun editService(service: SavedService) {
+        editingService = service
+        serviceName = service.name
+        host = service.host
+        port = service.port
+    }
+
+    fun cancelEditing() {
+        editingService = null
+        serviceName = ""
+        host = ""
+        port = "80"
     }
 
     fun fillSuggestedHost(suggestedHost: String) {
@@ -171,8 +178,16 @@ fun WebServicesScreen(viewModel: RouterViewModel) {
                                     Text(service.name, fontWeight = FontWeight.Medium)
                                     Text("${service.host}:${service.port}", style = MaterialTheme.typography.bodySmall, color = KeeneticColors.TextSecondary)
                                 }
-                                OutlinedButton(onClick = { openService(service.host, service.port, "inline") }) {
-                                    Text("Открыть")
+                                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                    OutlinedButton(onClick = { openService(service.host, service.port, "inline") }) {
+                                        Text("Открыть")
+                                    }
+                                    OutlinedButton(onClick = { editService(service) }) {
+                                        Text("Изменить")
+                                    }
+                                    OutlinedButton(onClick = { deleteService(service) }) {
+                                        Text("Удалить")
+                                    }
                                 }
                             }
                         }
@@ -180,6 +195,14 @@ fun WebServicesScreen(viewModel: RouterViewModel) {
                     Spacer(modifier = Modifier.height(10.dp))
                 }
 
+                OutlinedTextField(
+                    value = serviceName,
+                    onValueChange = { serviceName = it },
+                    label = { Text("Название сервиса") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
+                )
+                Spacer(modifier = Modifier.height(8.dp))
                 OutlinedTextField(
                     value = host,
                     onValueChange = { host = it },
@@ -203,14 +226,19 @@ fun WebServicesScreen(viewModel: RouterViewModel) {
                         Text("Открыть")
                     }
                     Button(onClick = { openService(host, port, "separate") }) {
-                        Icon(Icons.Default.OpenInNew, contentDescription = null)
+                        Icon(Icons.AutoMirrored.Filled.OpenInNew, contentDescription = null)
                         Spacer(modifier = Modifier.width(8.dp))
                         Text("Открыть в окне")
                     }
                     Button(onClick = { saveCurrentService() }) {
                         Icon(Icons.Default.BookmarkAdd, contentDescription = null)
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text("Сохранить")
+                        Text(if (editingService != null) "Обновить" else "Сохранить")
+                    }
+                    if (editingService != null) {
+                        OutlinedButton(onClick = { cancelEditing() }) {
+                            Text("Отмена")
+                        }
                     }
                 }
                 Spacer(modifier = Modifier.height(8.dp))
