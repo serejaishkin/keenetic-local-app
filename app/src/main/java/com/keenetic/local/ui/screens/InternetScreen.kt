@@ -79,6 +79,11 @@ fun InternetScreen(viewModel: RouterViewModel) {
 fun PortRolesCard(viewModel: RouterViewModel, defaultWanId: String) {
     var expanded by remember { mutableStateOf(false) }
     var wanId by remember(defaultWanId) { mutableStateOf(defaultWanId) }
+    // Подтверждено ndmConstants.json (PORTS_MAP) с реального роутера:
+    // LAN1..LAN4 -> порт "1".."4" на GigabitEthernet0, WAN -> порт "0" на
+    // GigabitEthernet1. Раньше давали вписывать номер руками - теперь
+    // выбор из реального списка, нельзя вписать несуществующий порт.
+    val portOptions = listOf("Не назначен" to "", "LAN1" to "1", "LAN2" to "2", "LAN3" to "3", "LAN4" to "4")
     var inetPort by remember { mutableStateOf("") }
     var iptvPort by remember { mutableStateOf("") }
     var voipPort by remember { mutableStateOf("") }
@@ -104,7 +109,7 @@ fun PortRolesCard(viewModel: RouterViewModel, defaultWanId: String) {
             if (expanded) {
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(
-                    "⚠️ Отдельные физические порты под интернет/IPTV/VoIP провайдера. Ошибка может отключить интернет на этом порту. Оставь поле пустым, если служба не нужна.",
+                    "⚠️ Отдельные физические порты под интернет/IPTV/VoIP провайдера. Ошибка может отключить интернет на этом порту. \"Не назначен\" = служба не нужна на отдельном порту.",
                     style = MaterialTheme.typography.labelSmall,
                     color = KeeneticColors.Error
                 )
@@ -118,21 +123,14 @@ fun PortRolesCard(viewModel: RouterViewModel, defaultWanId: String) {
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth()
                 )
+                Spacer(modifier = Modifier.height(12.dp))
+
+                PortSelectorRow("Интернет", portOptions, inetPort) { inetPort = it }
                 Spacer(modifier = Modifier.height(8.dp))
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    OutlinedTextField(
-                        value = inetPort, onValueChange = { inetPort = it },
-                        label = { Text("Интернет, порт №") }, singleLine = true, modifier = Modifier.weight(1f)
-                    )
-                    OutlinedTextField(
-                        value = iptvPort, onValueChange = { iptvPort = it },
-                        label = { Text("IPTV, порт №") }, singleLine = true, modifier = Modifier.weight(1f)
-                    )
-                    OutlinedTextField(
-                        value = voipPort, onValueChange = { voipPort = it },
-                        label = { Text("VoIP, порт №") }, singleLine = true, modifier = Modifier.weight(1f)
-                    )
-                }
+                PortSelectorRow("IPTV", portOptions, iptvPort) { iptvPort = it }
+                Spacer(modifier = Modifier.height(8.dp))
+                PortSelectorRow("VoIP", portOptions, voipPort) { voipPort = it }
+
                 Spacer(modifier = Modifier.height(12.dp))
                 Button(
                     onClick = { confirmApply = true },
@@ -164,5 +162,22 @@ fun PortRolesCard(viewModel: RouterViewModel, defaultWanId: String) {
                 TextButton(onClick = { confirmApply = false }) { Text("Отмена") }
             }
         )
+    }
+}
+
+@Composable
+fun PortSelectorRow(label: String, options: List<Pair<String, String>>, selected: String, onSelect: (String) -> Unit) {
+    Column {
+        Text(label, style = MaterialTheme.typography.bodySmall, color = KeeneticColors.TextSecondary)
+        Spacer(modifier = Modifier.height(4.dp))
+        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            options.forEach { (title, value) ->
+                FilterChip(
+                    selected = selected == value,
+                    onClick = { onSelect(value) },
+                    label = { Text(title, style = MaterialTheme.typography.labelSmall) }
+                )
+            }
+        }
     }
 }
