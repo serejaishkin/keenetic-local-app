@@ -69,50 +69,50 @@ class RouterViewModel(application: Application) : AndroidViewModel(application) 
     // показываем в UI построчно вместо строгого парсинга под неизвестную
     // схему (по опыту - угадывание схемы уже дважды приводило к
     // "Expected BEGIN_ARRAY but was BEGIN_OBJECT").
-    private val _portForwardingRaw = MutableStateFlow<com.google.gson.JsonElement?>(null)
-    val portForwardingRaw: StateFlow<com.google.gson.JsonElement?> = _portForwardingRaw.asStateFlow()
+    private val _portForwardingRaw = MutableStateFlow<com.keenetic.local.ui.screens.common.ApiCallState>(com.keenetic.local.ui.screens.common.ApiCallState.Loading)
+    val portForwardingRaw: StateFlow<com.keenetic.local.ui.screens.common.ApiCallState> = _portForwardingRaw.asStateFlow()
 
-    private val _dnsFilterPresets = MutableStateFlow<com.google.gson.JsonElement?>(null)
-    val dnsFilterPresets: StateFlow<com.google.gson.JsonElement?> = _dnsFilterPresets.asStateFlow()
+    private val _dnsFilterPresets = MutableStateFlow<com.keenetic.local.ui.screens.common.ApiCallState>(com.keenetic.local.ui.screens.common.ApiCallState.Loading)
+    val dnsFilterPresets: StateFlow<com.keenetic.local.ui.screens.common.ApiCallState> = _dnsFilterPresets.asStateFlow()
 
-    private val _dnsFilterProfiles = MutableStateFlow<com.google.gson.JsonElement?>(null)
-    val dnsFilterProfiles: StateFlow<com.google.gson.JsonElement?> = _dnsFilterProfiles.asStateFlow()
+    private val _dnsFilterProfiles = MutableStateFlow<com.keenetic.local.ui.screens.common.ApiCallState>(com.keenetic.local.ui.screens.common.ApiCallState.Loading)
+    val dnsFilterProfiles: StateFlow<com.keenetic.local.ui.screens.common.ApiCallState> = _dnsFilterProfiles.asStateFlow()
 
-    private val _vpnServerRaw = MutableStateFlow<com.google.gson.JsonElement?>(null)
-    val vpnServerRaw: StateFlow<com.google.gson.JsonElement?> = _vpnServerRaw.asStateFlow()
+    private val _vpnServerRaw = MutableStateFlow<com.keenetic.local.ui.screens.common.ApiCallState>(com.keenetic.local.ui.screens.common.ApiCallState.Loading)
+    val vpnServerRaw: StateFlow<com.keenetic.local.ui.screens.common.ApiCallState> = _vpnServerRaw.asStateFlow()
 
-    private val _ipRouteRaw = MutableStateFlow<com.google.gson.JsonElement?>(null)
-    val ipRouteRaw: StateFlow<com.google.gson.JsonElement?> = _ipRouteRaw.asStateFlow()
+    private val _ipRouteRaw = MutableStateFlow<com.keenetic.local.ui.screens.common.ApiCallState>(com.keenetic.local.ui.screens.common.ApiCallState.Loading)
+    val ipRouteRaw: StateFlow<com.keenetic.local.ui.screens.common.ApiCallState> = _ipRouteRaw.asStateFlow()
 
-    private val _mobileRaw = MutableStateFlow<com.google.gson.JsonElement?>(null)
-    val mobileRaw: StateFlow<com.google.gson.JsonElement?> = _mobileRaw.asStateFlow()
+    private val _mobileRaw = MutableStateFlow<com.keenetic.local.ui.screens.common.ApiCallState>(com.keenetic.local.ui.screens.common.ApiCallState.Loading)
+    val mobileRaw: StateFlow<com.keenetic.local.ui.screens.common.ApiCallState> = _mobileRaw.asStateFlow()
 
-    private val _simRaw = MutableStateFlow<com.google.gson.JsonElement?>(null)
-    val simRaw: StateFlow<com.google.gson.JsonElement?> = _simRaw.asStateFlow()
+    private val _simRaw = MutableStateFlow<com.keenetic.local.ui.screens.common.ApiCallState>(com.keenetic.local.ui.screens.common.ApiCallState.Loading)
+    val simRaw: StateFlow<com.keenetic.local.ui.screens.common.ApiCallState> = _simRaw.asStateFlow()
 
-    private val _ipNeighbourRaw = MutableStateFlow<com.google.gson.JsonElement?>(null)
-    val ipNeighbourRaw: StateFlow<com.google.gson.JsonElement?> = _ipNeighbourRaw.asStateFlow()
+    private val _ipNeighbourRaw = MutableStateFlow<com.keenetic.local.ui.screens.common.ApiCallState>(com.keenetic.local.ui.screens.common.ApiCallState.Loading)
+    val ipNeighbourRaw: StateFlow<com.keenetic.local.ui.screens.common.ApiCallState> = _ipNeighbourRaw.asStateFlow()
 
-    private val _usersRaw = MutableStateFlow<com.google.gson.JsonElement?>(null)
-    val usersRaw: StateFlow<com.google.gson.JsonElement?> = _usersRaw.asStateFlow()
+    private val _usersRaw = MutableStateFlow<com.keenetic.local.ui.screens.common.ApiCallState>(com.keenetic.local.ui.screens.common.ApiCallState.Loading)
+    val usersRaw: StateFlow<com.keenetic.local.ui.screens.common.ApiCallState> = _usersRaw.asStateFlow()
 
-    private val _systemUpdateStatusRaw = MutableStateFlow<com.google.gson.JsonElement?>(null)
-    val systemUpdateStatusRaw: StateFlow<com.google.gson.JsonElement?> = _systemUpdateStatusRaw.asStateFlow()
+    private val _systemUpdateStatusRaw = MutableStateFlow<com.keenetic.local.ui.screens.common.ApiCallState>(com.keenetic.local.ui.screens.common.ApiCallState.Loading)
+    val systemUpdateStatusRaw: StateFlow<com.keenetic.local.ui.screens.common.ApiCallState> = _systemUpdateStatusRaw.asStateFlow()
 
-    private val _dhcpPoolRaw = MutableStateFlow<com.google.gson.JsonElement?>(null)
-    val dhcpPoolRaw: StateFlow<com.google.gson.JsonElement?> = _dhcpPoolRaw.asStateFlow()
+    private val _dhcpPoolRaw = MutableStateFlow<com.keenetic.local.ui.screens.common.ApiCallState>(com.keenetic.local.ui.screens.common.ApiCallState.Loading)
+    val dhcpPoolRaw: StateFlow<com.keenetic.local.ui.screens.common.ApiCallState> = _dhcpPoolRaw.asStateFlow()
 
-    private val _upnpRedirectRaw = MutableStateFlow<com.google.gson.JsonElement?>(null)
-    val upnpRedirectRaw: StateFlow<com.google.gson.JsonElement?> = _upnpRedirectRaw.asStateFlow()
+    private val _upnpRedirectRaw = MutableStateFlow<com.keenetic.local.ui.screens.common.ApiCallState>(com.keenetic.local.ui.screens.common.ApiCallState.Loading)
+    val upnpRedirectRaw: StateFlow<com.keenetic.local.ui.screens.common.ApiCallState> = _upnpRedirectRaw.asStateFlow()
 
-    private val _internetStatusRaw = MutableStateFlow<com.google.gson.JsonElement?>(null)
-    val internetStatusRaw: StateFlow<com.google.gson.JsonElement?> = _internetStatusRaw.asStateFlow()
+    private val _internetStatusRaw = MutableStateFlow<com.keenetic.local.ui.screens.common.ApiCallState>(com.keenetic.local.ui.screens.common.ApiCallState.Loading)
+    val internetStatusRaw: StateFlow<com.keenetic.local.ui.screens.common.ApiCallState> = _internetStatusRaw.asStateFlow()
 
-    private val _ntceSummaryRaw = MutableStateFlow<com.google.gson.JsonElement?>(null)
-    val ntceSummaryRaw: StateFlow<com.google.gson.JsonElement?> = _ntceSummaryRaw.asStateFlow()
+    private val _ntceSummaryRaw = MutableStateFlow<com.keenetic.local.ui.screens.common.ApiCallState>(com.keenetic.local.ui.screens.common.ApiCallState.Loading)
+    val ntceSummaryRaw: StateFlow<com.keenetic.local.ui.screens.common.ApiCallState> = _ntceSummaryRaw.asStateFlow()
 
-    private val _ntceStatusRaw = MutableStateFlow<com.google.gson.JsonElement?>(null)
-    val ntceStatusRaw: StateFlow<com.google.gson.JsonElement?> = _ntceStatusRaw.asStateFlow()
+    private val _ntceStatusRaw = MutableStateFlow<com.keenetic.local.ui.screens.common.ApiCallState>(com.keenetic.local.ui.screens.common.ApiCallState.Loading)
+    val ntceStatusRaw: StateFlow<com.keenetic.local.ui.screens.common.ApiCallState> = _ntceStatusRaw.asStateFlow()
 
     private val _sshOutput = MutableStateFlow("")
     val sshOutput: StateFlow<String> = _sshOutput.asStateFlow()
@@ -412,26 +412,8 @@ class RouterViewModel(application: Application) : AndroidViewModel(application) 
      * команды `show ip static` из Терминала - по нему построим парсер, как
      * уже делали для wans/associations.
      */
-    fun loadPortForwardingRules() {
-        viewModelScope.launch {
-            try {
-                val response = repository.getRestApi().getIpStaticRaw()
-                if (response.isSuccessful) {
-                    _portForwardingRaw.value = response.body()
-                } else {
-                    AppLogger.logAction("Port forwarding load failed", "HTTP ${response.code()}")
-                }
-            } catch (e: Exception) {
-                AppLogger.logAction("Port forwarding load failed", e.message ?: "")
-            }
-        }
-    }
+    fun loadPortForwardingRules() = loadRawInto("Port forwarding", _portForwardingRaw) { repository.getRestApi().getIpStaticRaw() }
 
-    /**
-     * Загружает пресеты и профили DNS-фильтрации (dns-proxy.filter.*).
-     * Только чтение - привязка профиля к клиенту/сети (dns-proxy.filter.assign)
-     * не подключена, set-команда не подтверждена HAR.
-     */
     /**
      * Пробует прочитать статус VPN-сервера (L2TP/IKEv2) через REST /rci/.
      * Ранее команда `show vpn-server` через SSH возвращала пустой ответ -
@@ -440,20 +422,7 @@ class RouterViewModel(application: Application) : AndroidViewModel(application) 
      * Если и тут пусто/ошибка - VPN-сервер на этом роутере, вероятно,
      * действительно не настроен или endpoint не поддерживается прошивкой.
      */
-    fun loadVpnServerStatus() {
-        viewModelScope.launch {
-            try {
-                val response = repository.getRestApi().getVpnServerRaw()
-                if (response.isSuccessful) {
-                    _vpnServerRaw.value = response.body()
-                } else {
-                    AppLogger.logAction("VPN server status load failed", "HTTP ${response.code()}")
-                }
-            } catch (e: Exception) {
-                AppLogger.logAction("VPN server status load failed", e.message ?: "")
-            }
-        }
-    }
+    fun loadVpnServerStatus() = loadRawInto("VPN server status", _vpnServerRaw) { repository.getRestApi().getVpnServerRaw() }
 
     /**
      * Общий helper для простых read-only GET-запросов, которые возвращают
@@ -464,18 +433,30 @@ class RouterViewModel(application: Application) : AndroidViewModel(application) 
      */
     private fun loadRawInto(
         label: String,
-        target: MutableStateFlow<com.google.gson.JsonElement?>,
+        target: MutableStateFlow<com.keenetic.local.ui.screens.common.ApiCallState>,
         call: suspend () -> retrofit2.Response<com.google.gson.JsonElement>
     ) {
         viewModelScope.launch {
+            target.value = com.keenetic.local.ui.screens.common.ApiCallState.Loading
             try {
                 val response = call()
                 if (response.isSuccessful) {
-                    target.value = response.body()
+                    val body = response.body()
+                    target.value = if (body != null) {
+                        com.keenetic.local.ui.screens.common.ApiCallState.Success(body)
+                    } else {
+                        com.keenetic.local.ui.screens.common.ApiCallState.Error("пустое тело ответа")
+                    }
                 } else {
+                    target.value = com.keenetic.local.ui.screens.common.ApiCallState.Error("HTTP ${response.code()}")
                     AppLogger.logAction("$label load failed", "HTTP ${response.code()}")
                 }
             } catch (e: Exception) {
+                // Раньше здесь состояние НЕ обновлялось при ошибке - target
+                // так и оставался в исходном "Loading" навсегда, из-за чего
+                // на реальном роутере карточка VPN-сервера зависала на
+                // "Загрузка..." бесконечно. Теперь ошибка - видимое состояние.
+                target.value = com.keenetic.local.ui.screens.common.ApiCallState.Error(e.message ?: "неизвестная ошибка")
                 AppLogger.logAction("$label load failed", e.message ?: "")
             }
         }
@@ -506,20 +487,8 @@ class RouterViewModel(application: Application) : AndroidViewModel(application) 
     }
 
     fun loadDnsFilters() {
-        viewModelScope.launch {
-            try {
-                val presets = repository.getRestApi().getDnsFilterPresets()
-                if (presets.isSuccessful) _dnsFilterPresets.value = presets.body()
-            } catch (e: Exception) {
-                AppLogger.logAction("DNS filter presets load failed", e.message ?: "")
-            }
-            try {
-                val profiles = repository.getRestApi().getDnsFilterProfiles()
-                if (profiles.isSuccessful) _dnsFilterProfiles.value = profiles.body()
-            } catch (e: Exception) {
-                AppLogger.logAction("DNS filter profiles load failed", e.message ?: "")
-            }
-        }
+        loadRawInto("DNS filter presets", _dnsFilterPresets) { repository.getRestApi().getDnsFilterPresets() }
+        loadRawInto("DNS filter profiles", _dnsFilterProfiles) { repository.getRestApi().getDnsFilterProfiles() }
     }
 
     fun loadInterfaces() {

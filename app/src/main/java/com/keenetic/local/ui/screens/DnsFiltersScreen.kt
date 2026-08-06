@@ -3,6 +3,7 @@ package com.keenetic.local.ui.screens
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -10,9 +11,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import com.google.gson.JsonElement
 import com.keenetic.local.ui.RouterViewModel
 import com.keenetic.local.ui.theme.KeeneticColors
+import com.keenetic.local.ui.screens.common.RawJsonCard
 
 /**
  * Раздел "DNS-фильтры" (родительский контроль / блокировка категорий сайтов).
@@ -51,69 +52,24 @@ fun DnsFiltersScreen(viewModel: RouterViewModel, onBack: () -> Unit = {}) {
                     modifier = Modifier.fillMaxWidth(),
                     colors = CardDefaults.cardColors(containerColor = KeeneticColors.Surface)
                 ) {
-                    Column(modifier = Modifier.padding(16.dp)) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(Icons.Default.Info, contentDescription = null, tint = KeeneticColors.TextSecondary)
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text(
-                                "Назначение профиля устройству/сети пока недоступно - нужен HAR момента реального переключения на веб-морде.",
-                                style = MaterialTheme.typography.labelSmall,
-                                color = KeeneticColors.TextSecondary
-                            )
-                        }
+                    Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Default.Info, contentDescription = null, tint = KeeneticColors.TextSecondary)
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            "Назначение профиля устройству/сети пока недоступно - нужен HAR момента реального переключения на веб-морде.",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = KeeneticColors.TextSecondary
+                        )
                     }
                 }
             }
 
             item {
-                DnsFilterSection(title = "Пресеты фильтрации", data = presets)
+                RawJsonCard(title = "Пресеты фильтрации", state = presets, emptyText = "Пусто или не поддерживается на этой прошивке")
             }
             item {
-                DnsFilterSection(title = "Профили", data = profiles)
+                RawJsonCard(title = "Профили", state = profiles, emptyText = "Пусто или не поддерживается на этой прошивке")
             }
         }
-    }
-}
-
-@Composable
-private fun DnsFilterSection(title: String, data: JsonElement?) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = KeeneticColors.Surface)
-    ) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            Text(title, fontWeight = FontWeight.SemiBold)
-            Spacer(modifier = Modifier.height(8.dp))
-            when {
-                data == null -> Text(
-                    "Загрузка…",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = KeeneticColors.TextSecondary
-                )
-                isEmptyDns(data) -> Text(
-                    "Пусто или не поддерживается на этой прошивке",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = KeeneticColors.TextSecondary
-                )
-                else -> Text(
-                    // Временно "как есть" - schema ответа ещё не оформлена в
-                    // отдельный parser/DTO, ждём подтверждения реальными
-                    // данными с роутера (пресеты у части прошивок пустые).
-                    text = data.toString(),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = KeeneticColors.TextSecondary
-                )
-            }
-        }
-    }
-}
-
-private fun isEmptyDns(el: JsonElement?): Boolean {
-    if (el == null) return true
-    return when {
-        el.isJsonNull -> true
-        el.isJsonArray -> el.asJsonArray.size() == 0
-        el.isJsonObject -> el.asJsonObject.entrySet().isEmpty()
-        else -> false
     }
 }

@@ -9,7 +9,6 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import com.google.gson.JsonElement
 import com.keenetic.local.ui.RouterViewModel
 import com.keenetic.local.ui.theme.KeeneticColors
 import com.keenetic.local.ui.screens.common.RawJsonCard
@@ -61,34 +60,13 @@ fun PortForwardingScreen(viewModel: RouterViewModel) {
 
         LazyColumn(verticalArrangement = Arrangement.spacedBy(16.dp)) {
             item {
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = CardDefaults.cardColors(containerColor = KeeneticColors.Surface)
-                ) {
-                    Column(modifier = Modifier.padding(16.dp)) {
-                        Text("Текущие правила", fontWeight = FontWeight.SemiBold)
-                        Spacer(modifier = Modifier.height(8.dp))
-                        when {
-                            rawRules == null -> Text(
-                                "Загрузка…",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = KeeneticColors.TextSecondary
-                            )
-                            isEmptyJson(rawRules) -> Text(
-                                "Ни одного правила ещё не создано",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = KeeneticColors.TextSecondary
-                            )
-                            else -> RawJsonDump(rawRules!!)
-                        }
-                    }
-                }
+                RawJsonCard(title = "Текущие правила", state = rawRules, emptyText = "Ни одного правила ещё не создано")
             }
 
             item {
                 RawJsonCard(
                     title = "Открытые порты по UPnP",
-                    data = upnpRules,
+                    state = upnpRules,
                     emptyText = "Нет открытых портов по UPnP"
                 )
             }
@@ -178,27 +156,4 @@ fun PortForwardingScreen(viewModel: RouterViewModel) {
             }
         }
     }
-}
-
-private fun isEmptyJson(el: JsonElement?): Boolean {
-    if (el == null) return true
-    return when {
-        el.isJsonNull -> true
-        el.isJsonArray -> el.asJsonArray.size() == 0
-        el.isJsonObject -> el.asJsonObject.entrySet().isEmpty()
-        else -> false
-    }
-}
-
-@Composable
-private fun RawJsonDump(el: JsonElement) {
-    // Временное отображение "как есть" построчно, пока схема не подтверждена
-    // HAR-дампом реальных правил. Как только пришлёшь `show ip static` с
-    // непустым списком - заменим на нормальные карточки правил.
-    val text = remember(el) { el.toString() }
-    Text(
-        text = text,
-        style = MaterialTheme.typography.bodySmall,
-        color = KeeneticColors.TextSecondary
-    )
 }

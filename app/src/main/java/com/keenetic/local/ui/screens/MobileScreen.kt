@@ -39,9 +39,9 @@ fun MobileScreen(viewModel: RouterViewModel, onBack: () -> Unit = {}) {
             color = KeeneticColors.TextSecondary
         )
         Spacer(modifier = Modifier.height(16.dp))
-        RawJsonCard(title = "Модем", data = mobile, emptyText = "Модем не обнаружен или не активен")
+        RawJsonCard(title = "Модем", state = mobile, emptyText = "Модем не обнаружен или не активен")
         Spacer(modifier = Modifier.height(12.dp))
-        RawJsonCard(title = "SIM-карта", data = sim, emptyText = "SIM не обнаружена")
+        RawJsonCard(title = "SIM-карта", state = sim, emptyText = "SIM не обнаружена")
         Spacer(modifier = Modifier.height(12.dp))
         Text(
             "SMS и USSD в этом разделе пока нет - точный RCI-путь для них не подтверждён (в отличие от статуса модема/SIM выше), нужен HAR открытия соответствующей вкладки на веб-морде.",

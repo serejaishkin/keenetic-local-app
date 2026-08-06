@@ -37,6 +37,6 @@ fun StaticRoutesScreen(viewModel: RouterViewModel, onBack: () -> Unit = {}) {
             color = KeeneticColors.TextSecondary
         )
         Spacer(modifier = Modifier.height(16.dp))
-        RawJsonCard(title = "Маршруты", data = routes, emptyText = "Статических маршрутов не найдено")
+        RawJsonCard(title = "Маршруты", state = routes, emptyText = "Статических маршрутов не найдено")
     }
 }

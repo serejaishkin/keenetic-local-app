@@ -12,6 +12,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.keenetic.local.ui.RouterViewModel
 import com.keenetic.local.ui.theme.KeeneticColors
+import com.keenetic.local.ui.screens.common.RawJsonCard
 
 /**
  * Раздел "VPN-расширения" - статус встроенного VPN-сервера (L2TP/IKEv2).
@@ -45,32 +46,11 @@ fun VpnAdvancedScreen(viewModel: RouterViewModel, onBack: () -> Unit = {}) {
         )
         Spacer(modifier = Modifier.height(16.dp))
 
-        Card(
-            modifier = Modifier.fillMaxWidth(),
-            colors = CardDefaults.cardColors(containerColor = KeeneticColors.Surface)
-        ) {
-            Column(modifier = Modifier.padding(16.dp)) {
-                Text("Статус VPN-сервера", fontWeight = FontWeight.SemiBold)
-                Spacer(modifier = Modifier.height(8.dp))
-                when {
-                    raw == null -> Text(
-                        "Загрузка…",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = KeeneticColors.TextSecondary
-                    )
-                    raw!!.isJsonNull || (raw!!.isJsonObject && raw!!.asJsonObject.entrySet().isEmpty()) -> Text(
-                        "Пусто - VPN-сервер, вероятно, не настроен на этом роутере, либо этот REST-путь не поддерживается прошивкой",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = KeeneticColors.TextSecondary
-                    )
-                    else -> Text(
-                        text = raw.toString(),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = KeeneticColors.TextSecondary
-                    )
-                }
-            }
-        }
+        RawJsonCard(
+            title = "Статус VPN-сервера",
+            state = raw,
+            emptyText = "Пусто - VPN-сервер, вероятно, не настроен на этом роутере, либо этот REST-путь не поддерживается прошивкой"
+        )
 
         Spacer(modifier = Modifier.height(16.dp))
         Card(

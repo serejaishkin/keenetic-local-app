@@ -309,7 +309,7 @@ private fun SystemUpdateCard(viewModel: RouterViewModel) {
     LaunchedEffect(Unit) { viewModel.loadSystemUpdateStatus() }
     com.keenetic.local.ui.screens.common.RawJsonCard(
         title = "Обновление прошивки",
-        data = data,
+        state = data,
         emptyText = "Нет данных (или обновления не проверялись)"
     )
 }
@@ -321,7 +321,7 @@ private fun AdminUsersCard(viewModel: RouterViewModel) {
     LaunchedEffect(Unit) { viewModel.loadUsers() }
     com.keenetic.local.ui.screens.common.RawJsonCard(
         title = "Пользователи и доступ",
-        data = data,
+        state = data,
         emptyText = "Список пуст"
     )
 }
@@ -333,7 +333,7 @@ private fun DhcpPoolCard(viewModel: RouterViewModel) {
     LaunchedEffect(Unit) { viewModel.loadDhcpPool() }
     com.keenetic.local.ui.screens.common.RawJsonCard(
         title = "Пул DHCP",
-        data = data,
+        state = data,
         emptyText = "Нет данных"
     )
 }
@@ -350,13 +350,13 @@ private fun IntelliQosCard(viewModel: RouterViewModel) {
     Column {
         com.keenetic.local.ui.screens.common.RawJsonCard(
             title = "IntelliQoS: сводка",
-            data = summary,
+            state = summary,
             emptyText = "Нет данных"
         )
         Spacer(modifier = Modifier.height(12.dp))
         com.keenetic.local.ui.screens.common.RawJsonCard(
             title = "IntelliQoS: статус",
-            data = status,
+            state = status,
             emptyText = "Нет данных"
         )
     }

@@ -202,7 +202,19 @@ interface KeeneticRestApi {
     @GET("rci/show/internet/status")
     suspend fun getInternetStatusRaw(): Response<JsonElement>
 
-    /** Сводка IntelliQoS (Приоритеты подключений). */
+    /**
+     * Сводка IntelliQoS (Приоритеты подключений).
+     *
+     * ПРОВЕРЕНО НА РЕАЛЬНОМ РОУТЕРЕ (06.08): этот путь как простой GET не
+     * работает - роутер отвечает 200 OK, но с телом
+     * {"status":[{"status":"error","code":"7471107","ident":"Command::Root",
+     * "message":"no input [http/rci ...]."}]}. То есть "нет входных данных" -
+     * похоже, ntce.summary не читается как простой лист-эндпоинт, а требует
+     * батч-POST на корневой /rci/ (как show wans/show associations), а не
+     * GET на /rci/show/.... Оставляю метод как есть (не угадываю новый
+     * формат), но если понадобится реально показывать IntelliQoS - нужен
+     * HAR открытия раздела "Приоритеты подключений" на веб-морде.
+     */
     @GET("rci/show/ntce/summary")
     suspend fun getNtceSummaryRaw(): Response<JsonElement>
 

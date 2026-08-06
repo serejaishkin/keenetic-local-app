@@ -544,7 +544,7 @@ private fun InternetStatusCard(viewModel: RouterViewModel) {
     LaunchedEffect(Unit) { viewModel.loadInternetStatus() }
     com.keenetic.local.ui.screens.common.RawJsonCard(
         title = "Статус интернета",
-        data = data,
+        state = data,
         emptyText = "Нет данных"
     )
 }
