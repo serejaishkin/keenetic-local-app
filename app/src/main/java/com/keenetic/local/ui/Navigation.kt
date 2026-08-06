@@ -31,6 +31,8 @@ sealed class Screen(val route: String, val title: String) {
     object DohSettings : Screen("doh_settings", "DoH")
     object DnsFilters : Screen("dns_filters", "DNS-фильтры")
     object SchedulesSettings : Screen("schedules_settings", "Расписание")
+    object StaticRoutes : Screen("static_routes", "Маршрутизация")
+    object Mobile : Screen("mobile", "Мобильный интернет")
 }
 
 @Composable
@@ -92,7 +94,7 @@ fun KeeneticNavHost(navController: NavHostController, viewModel: RouterViewModel
                 description = "Подключения, каналы связи и приоритеты",
                 items = listOf(
                     SectionItem("Кабель Ethernet", Screen.Internet.route, "WAN/LAN и состояние интерфейсов"),
-                    SectionItem("Mobile", soon = true, subtitle = "Модемы и мобильные соединения"),
+                    SectionItem("Mobile", Screen.Mobile.route, subtitle = "Модемы и мобильные соединения"),
                     SectionItem("Wireless ISP", Screen.WiFi.route, "Беспроводные провайдеры"),
                     SectionItem("Приоритеты подключений", soon = true, subtitle = "Маршрутизация по каналам")
                 )
@@ -106,7 +108,7 @@ fun KeeneticNavHost(navController: NavHostController, viewModel: RouterViewModel
                 items = listOf(
                     SectionItem("Точки доступа", Screen.WiFi.route, "SSID, безопасность, состояние"),
                     SectionItem("Списки клиентов", Screen.Devices.route, "Подключённые устройства"),
-                    SectionItem("Сегменты", soon = true, subtitle = "LAN-сегменты и изоляция"),
+                    SectionItem("Сегменты", Screen.LanSegments.route, subtitle = "LAN-сегменты и изоляция"),
                     SectionItem("Wi-Fi-система", Screen.WiFi.route, "Режимы и характеристики WLAN")
                 )
             )
@@ -117,7 +119,7 @@ fun KeeneticNavHost(navController: NavHostController, viewModel: RouterViewModel
                 title = "Сеть",
                 description = "Правила, маршрутизация и доступ",
                 items = listOf(
-                    SectionItem("Маршрутизация", Screen.Devices.route, "Политики и статические маршруты"),
+                    SectionItem("Маршрутизация", Screen.StaticRoutes.route, "Политики и статические маршруты"),
                     SectionItem("Переадресация портов", Screen.PortForwarding.route, "Внешние и внутренние порты"),
                     SectionItem("Межсетевой экран", Screen.Firewall.route, "Правила безопасности"),
                     SectionItem("LAN-сегменты", Screen.LanSegments.route, "Сегменты и изоляция"),
@@ -126,40 +128,16 @@ fun KeeneticNavHost(navController: NavHostController, viewModel: RouterViewModel
             )
         }
         composable(Screen.PortForwarding.route) {
-            // Без API: это раздел-заглушка с структурой будущих правил переадресации портов.
-            PlaceholderSectionScreen(
-                title = "Переадресация портов",
-                description = "Публичные правила и внутренняя маршрутизация портов",
-                items = listOf("TCP/UDP правила", "Переход на внутренние сервисы", "Проверка активных правил"),
-                onBack = { navController.popBackStack() }
-            )
+            PortForwardingScreen(viewModel = viewModel)
         }
         composable(Screen.Firewall.route) {
-            // Без API: показываем каркас правил firewall и доступа без реального управления.
-            PlaceholderSectionScreen(
-                title = "Межсетевой экран",
-                description = "Правила фильтрации трафика и доступа",
-                items = listOf("Белые и чёрные списки", "Правила по протоколу и порту", "Логи и история блокировок"),
-                onBack = { navController.popBackStack() }
-            )
+            FirewallScreen(viewModel = viewModel)
         }
         composable(Screen.LanSegments.route) {
-            // Без API: каркас LAN-сегментов и изоляции без активной реализации.
-            PlaceholderSectionScreen(
-                title = "LAN-сегменты",
-                description = "Сегменты, DHCP, изоляция и политики доступа",
-                items = listOf("Новые сегменты", "DHCP и NAT", "Ограничение скорости и мDNS"),
-                onBack = { navController.popBackStack() }
-            )
+            LanSegmentsScreen(viewModel = viewModel, onBack = { navController.popBackStack() })
         }
         composable(Screen.DnsFilters.route) {
-            // Без API: заготовка для DNS-фильтров и блокировок доменов.
-            PlaceholderSectionScreen(
-                title = "DNS-фильтры",
-                description = "Блокировка доменов и управление DNS-политиками",
-                items = listOf("Списки доменов", "Правила по категориям", "Логи и отчёты"),
-                onBack = { navController.popBackStack() }
-            )
+            DnsFiltersScreen(viewModel = viewModel, onBack = { navController.popBackStack() })
         }
         composable(Screen.DnsSection.route) {
             DnsSettingsScreen(viewModel = viewModel, onBack = { navController.popBackStack() })
@@ -185,19 +163,19 @@ fun KeeneticNavHost(navController: NavHostController, viewModel: RouterViewModel
             VpnSettingsScreen(viewModel = viewModel, onBack = { navController.popBackStack() })
         }
         composable(Screen.VpnAdvanced.route) {
-            // Без API: заглушка для расширенных параметров VPN без реального контроля.
-            PlaceholderSectionScreen(
-                title = "VPN-расширения",
-                description = "Дополнительные параметры VPN-сервера",
-                items = listOf("Сегменты и сети", "Пользователи и доступ", "Логи соединений"),
-                onBack = { navController.popBackStack() }
-            )
+            VpnAdvancedScreen(viewModel = viewModel, onBack = { navController.popBackStack() })
         }
         composable(Screen.DohSettings.route) {
             DohSettingsScreen(viewModel = viewModel, onBack = { navController.popBackStack() })
         }
         composable(Screen.SchedulesSettings.route) {
             SchedulesSettingsScreen(viewModel = viewModel, onBack = { navController.popBackStack() })
+        }
+        composable(Screen.StaticRoutes.route) {
+            StaticRoutesScreen(viewModel = viewModel, onBack = { navController.popBackStack() })
+        }
+        composable(Screen.Mobile.route) {
+            MobileScreen(viewModel = viewModel, onBack = { navController.popBackStack() })
         }
     }
 }

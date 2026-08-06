@@ -134,6 +134,81 @@ interface KeeneticRestApi {
     @GET("rci/show/ip/dhcp/bindings")
     suspend fun getDhcpBindings(): Response<JsonElement>
 
+    // Переадресация портов. RCI-путь "ip.static" подтверждён строкой в
+    // main-553997B.js (B$="ip.static", show.sc.ip.static) - это ЧТЕНИЕ.
+    // Схема ответа (массив/объект) и формат set-команды на создание правила
+    // пока НЕ подтверждены HAR - см. заметку в PortForwardingScreen.kt.
+    @GET("rci/show/ip/static")
+    suspend fun getIpStaticRaw(): Response<JsonElement>
+
+    // DNS-фильтры. RCI-пути подтверждены строками в main-553997B.js:
+    // "show.dns-proxy.filter.presets" и "show.dns-proxy.filter.profiles"
+    // (готовые пресеты вроде "Семейный"/"Без рекламы" и пользовательские
+    // профили фильтрации). Чтение; set-команда назначения профиля
+    // ("dns-proxy.filter.assign") пока не подтверждена HAR.
+    @GET("rci/show/dns-proxy/filter/presets")
+    suspend fun getDnsFilterPresets(): Response<JsonElement>
+
+    @GET("rci/show/dns-proxy/filter/profiles")
+    suspend fun getDnsFilterProfiles(): Response<JsonElement>
+
+    // VPN-сервер (L2TP/IKEv2). RCI-путь подтверждён строкой в
+    // main-553997B.js: "show.vpn-server". Это отдельный REST-путь через
+    // /rci/, не то же самое, что SSH-команда `show vpn-server`, которая
+    // ранее вернула пустой ответ (см. ROADMAP.md) - стоит попробовать этот
+    // путь отдельно, механизмы разные (RCI HTTP vs CLI shell).
+    @GET("rci/show/vpn-server")
+    suspend fun getVpnServerRaw(): Response<JsonElement>
+
+    // Ниже - полный список дополнительных ЧТЕНИЙ, у каждого RCI-путь
+    // подтверждён буквальной строкой "show.xxx" в main-553997B.js (список
+    // сверен со ВСЕМИ 248 show-путями, что отдаёт сама веб-морда - см.
+    // API-REFERENCE.md). Ни одного угаданного пути ниже нет. Set-команды
+    // по-прежнему не пишем без HAR.
+
+    /** Маршрутизация (Управление -> Сеть -> Маршрутизация на сайте). */
+    @GET("rci/show/ip/route")
+    suspend fun getIpRouteRaw(): Response<JsonElement>
+
+    /** Статус мобильного (LTE/3G) соединения - актуально для Hero 4G+. */
+    @GET("rci/show/mobile")
+    suspend fun getMobileRaw(): Response<JsonElement>
+
+    /** Состояние SIM-карты. */
+    @GET("rci/show/sim")
+    suspend fun getSimRaw(): Response<JsonElement>
+
+    /** ARP/соседи в локальной сети. */
+    @GET("rci/show/ip/neighbour")
+    suspend fun getIpNeighbourRaw(): Response<JsonElement>
+
+    /** Список учётных записей администратора роутера. */
+    @GET("rci/show/user")
+    suspend fun getUsersRaw(): Response<JsonElement>
+
+    /** Проверка наличия обновления прошивки. */
+    @GET("rci/show/system/update/status")
+    suspend fun getSystemUpdateStatusRaw(): Response<JsonElement>
+
+    /** Диапазон(ы) пула DHCP. */
+    @GET("rci/show/ip/dhcp/pool")
+    suspend fun getDhcpPoolRaw(): Response<JsonElement>
+
+    /** Проброшенные автоматически через UPnP порты (дополняет ручную переадресацию). */
+    @GET("rci/show/upnp/redirect")
+    suspend fun getUpnpRedirectRaw(): Response<JsonElement>
+
+    /** Общий статус интернет-соединения (агрегирует активный WAN). */
+    @GET("rci/show/internet/status")
+    suspend fun getInternetStatusRaw(): Response<JsonElement>
+
+    /** Сводка IntelliQoS (Приоритеты подключений). */
+    @GET("rci/show/ntce/summary")
+    suspend fun getNtceSummaryRaw(): Response<JsonElement>
+
+    @GET("rci/show/ntce/status")
+    suspend fun getNtceStatusRaw(): Response<JsonElement>
+
     // Реальный внутренний протокол Keenetic RCI: изменения настроек (в отличие
     // от чтения /rci/show/...) отправляются пакетом команд на корневой /rci/.
     // Формат подтверждён снятым HAR-дампом с настоящего роутера:

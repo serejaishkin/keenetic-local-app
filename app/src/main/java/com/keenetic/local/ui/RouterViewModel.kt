@@ -63,6 +63,57 @@ class RouterViewModel(application: Application) : AndroidViewModel(application) 
     private val _dhcpBindings = MutableStateFlow<List<DhcpBinding>>(emptyList())
     val dhcpBindings: StateFlow<List<DhcpBinding>> = _dhcpBindings.asStateFlow()
 
+    // Сырой JSON правил "ip static" (переадресация портов). Схема ответа
+    // (массив/объект-словарь) ещё не подтверждена HAR - см. ROADMAP.md,
+    // раздел "Задача 1: паритет с веб-мордой". Пока храним как есть и
+    // показываем в UI построчно вместо строгого парсинга под неизвестную
+    // схему (по опыту - угадывание схемы уже дважды приводило к
+    // "Expected BEGIN_ARRAY but was BEGIN_OBJECT").
+    private val _portForwardingRaw = MutableStateFlow<com.google.gson.JsonElement?>(null)
+    val portForwardingRaw: StateFlow<com.google.gson.JsonElement?> = _portForwardingRaw.asStateFlow()
+
+    private val _dnsFilterPresets = MutableStateFlow<com.google.gson.JsonElement?>(null)
+    val dnsFilterPresets: StateFlow<com.google.gson.JsonElement?> = _dnsFilterPresets.asStateFlow()
+
+    private val _dnsFilterProfiles = MutableStateFlow<com.google.gson.JsonElement?>(null)
+    val dnsFilterProfiles: StateFlow<com.google.gson.JsonElement?> = _dnsFilterProfiles.asStateFlow()
+
+    private val _vpnServerRaw = MutableStateFlow<com.google.gson.JsonElement?>(null)
+    val vpnServerRaw: StateFlow<com.google.gson.JsonElement?> = _vpnServerRaw.asStateFlow()
+
+    private val _ipRouteRaw = MutableStateFlow<com.google.gson.JsonElement?>(null)
+    val ipRouteRaw: StateFlow<com.google.gson.JsonElement?> = _ipRouteRaw.asStateFlow()
+
+    private val _mobileRaw = MutableStateFlow<com.google.gson.JsonElement?>(null)
+    val mobileRaw: StateFlow<com.google.gson.JsonElement?> = _mobileRaw.asStateFlow()
+
+    private val _simRaw = MutableStateFlow<com.google.gson.JsonElement?>(null)
+    val simRaw: StateFlow<com.google.gson.JsonElement?> = _simRaw.asStateFlow()
+
+    private val _ipNeighbourRaw = MutableStateFlow<com.google.gson.JsonElement?>(null)
+    val ipNeighbourRaw: StateFlow<com.google.gson.JsonElement?> = _ipNeighbourRaw.asStateFlow()
+
+    private val _usersRaw = MutableStateFlow<com.google.gson.JsonElement?>(null)
+    val usersRaw: StateFlow<com.google.gson.JsonElement?> = _usersRaw.asStateFlow()
+
+    private val _systemUpdateStatusRaw = MutableStateFlow<com.google.gson.JsonElement?>(null)
+    val systemUpdateStatusRaw: StateFlow<com.google.gson.JsonElement?> = _systemUpdateStatusRaw.asStateFlow()
+
+    private val _dhcpPoolRaw = MutableStateFlow<com.google.gson.JsonElement?>(null)
+    val dhcpPoolRaw: StateFlow<com.google.gson.JsonElement?> = _dhcpPoolRaw.asStateFlow()
+
+    private val _upnpRedirectRaw = MutableStateFlow<com.google.gson.JsonElement?>(null)
+    val upnpRedirectRaw: StateFlow<com.google.gson.JsonElement?> = _upnpRedirectRaw.asStateFlow()
+
+    private val _internetStatusRaw = MutableStateFlow<com.google.gson.JsonElement?>(null)
+    val internetStatusRaw: StateFlow<com.google.gson.JsonElement?> = _internetStatusRaw.asStateFlow()
+
+    private val _ntceSummaryRaw = MutableStateFlow<com.google.gson.JsonElement?>(null)
+    val ntceSummaryRaw: StateFlow<com.google.gson.JsonElement?> = _ntceSummaryRaw.asStateFlow()
+
+    private val _ntceStatusRaw = MutableStateFlow<com.google.gson.JsonElement?>(null)
+    val ntceStatusRaw: StateFlow<com.google.gson.JsonElement?> = _ntceStatusRaw.asStateFlow()
+
     private val _sshOutput = MutableStateFlow("")
     val sshOutput: StateFlow<String> = _sshOutput.asStateFlow()
 
@@ -350,6 +401,123 @@ class RouterViewModel(application: Application) : AndroidViewModel(application) 
                 }
             } catch (e: Exception) {
                 AppLogger.logAction("DHCP bindings load failed", e.message ?: "")
+            }
+        }
+    }
+
+    /**
+     * Загружает правила переадресации портов (ip.static). Читаем как сырой
+     * JSON - схема (массив/объект) не подтверждена, строгий парсер писать
+     * рано. Если понадобится точный список, попроси прислать результат
+     * команды `show ip static` из Терминала - по нему построим парсер, как
+     * уже делали для wans/associations.
+     */
+    fun loadPortForwardingRules() {
+        viewModelScope.launch {
+            try {
+                val response = repository.getRestApi().getIpStaticRaw()
+                if (response.isSuccessful) {
+                    _portForwardingRaw.value = response.body()
+                } else {
+                    AppLogger.logAction("Port forwarding load failed", "HTTP ${response.code()}")
+                }
+            } catch (e: Exception) {
+                AppLogger.logAction("Port forwarding load failed", e.message ?: "")
+            }
+        }
+    }
+
+    /**
+     * Загружает пресеты и профили DNS-фильтрации (dns-proxy.filter.*).
+     * Только чтение - привязка профиля к клиенту/сети (dns-proxy.filter.assign)
+     * не подключена, set-команда не подтверждена HAR.
+     */
+    /**
+     * Пробует прочитать статус VPN-сервера (L2TP/IKEv2) через REST /rci/.
+     * Ранее команда `show vpn-server` через SSH возвращала пустой ответ -
+     * но это отдельный механизм (CLI shell), REST-путь show/vpn-server
+     * подтверждён строкой в JS-бандле веб-морды и может вести себя иначе.
+     * Если и тут пусто/ошибка - VPN-сервер на этом роутере, вероятно,
+     * действительно не настроен или endpoint не поддерживается прошивкой.
+     */
+    fun loadVpnServerStatus() {
+        viewModelScope.launch {
+            try {
+                val response = repository.getRestApi().getVpnServerRaw()
+                if (response.isSuccessful) {
+                    _vpnServerRaw.value = response.body()
+                } else {
+                    AppLogger.logAction("VPN server status load failed", "HTTP ${response.code()}")
+                }
+            } catch (e: Exception) {
+                AppLogger.logAction("VPN server status load failed", e.message ?: "")
+            }
+        }
+    }
+
+    /**
+     * Общий helper для простых read-only GET-запросов, которые возвращают
+     * сырой JSON и пока не нуждаются в строгом парсере (см. соответствующие
+     * комментарии в KeeneticRestApi.kt про то, какой show-путь чем
+     * подтверждён). Не глотает ошибки молча - пишет в AppLogger, чтобы
+     * было видно в Терминале/логах, что конкретно не удалось загрузить.
+     */
+    private fun loadRawInto(
+        label: String,
+        target: MutableStateFlow<com.google.gson.JsonElement?>,
+        call: suspend () -> retrofit2.Response<com.google.gson.JsonElement>
+    ) {
+        viewModelScope.launch {
+            try {
+                val response = call()
+                if (response.isSuccessful) {
+                    target.value = response.body()
+                } else {
+                    AppLogger.logAction("$label load failed", "HTTP ${response.code()}")
+                }
+            } catch (e: Exception) {
+                AppLogger.logAction("$label load failed", e.message ?: "")
+            }
+        }
+    }
+
+    fun loadStaticRoutes() = loadRawInto("Static routes", _ipRouteRaw) { repository.getRestApi().getIpRouteRaw() }
+
+    fun loadMobileStatus() {
+        loadRawInto("Mobile status", _mobileRaw) { repository.getRestApi().getMobileRaw() }
+        loadRawInto("SIM status", _simRaw) { repository.getRestApi().getSimRaw() }
+    }
+
+    fun loadIpNeighbours() = loadRawInto("IP neighbours", _ipNeighbourRaw) { repository.getRestApi().getIpNeighbourRaw() }
+
+    fun loadUsers() = loadRawInto("Users", _usersRaw) { repository.getRestApi().getUsersRaw() }
+
+    fun loadSystemUpdateStatus() = loadRawInto("System update status", _systemUpdateStatusRaw) { repository.getRestApi().getSystemUpdateStatusRaw() }
+
+    fun loadDhcpPool() = loadRawInto("DHCP pool", _dhcpPoolRaw) { repository.getRestApi().getDhcpPoolRaw() }
+
+    fun loadUpnpRedirect() = loadRawInto("UPnP redirect", _upnpRedirectRaw) { repository.getRestApi().getUpnpRedirectRaw() }
+
+    fun loadInternetStatus() = loadRawInto("Internet status", _internetStatusRaw) { repository.getRestApi().getInternetStatusRaw() }
+
+    fun loadIntelliQos() {
+        loadRawInto("IntelliQoS summary", _ntceSummaryRaw) { repository.getRestApi().getNtceSummaryRaw() }
+        loadRawInto("IntelliQoS status", _ntceStatusRaw) { repository.getRestApi().getNtceStatusRaw() }
+    }
+
+    fun loadDnsFilters() {
+        viewModelScope.launch {
+            try {
+                val presets = repository.getRestApi().getDnsFilterPresets()
+                if (presets.isSuccessful) _dnsFilterPresets.value = presets.body()
+            } catch (e: Exception) {
+                AppLogger.logAction("DNS filter presets load failed", e.message ?: "")
+            }
+            try {
+                val profiles = repository.getRestApi().getDnsFilterProfiles()
+                if (profiles.isSuccessful) _dnsFilterProfiles.value = profiles.body()
+            } catch (e: Exception) {
+                AppLogger.logAction("DNS filter profiles load failed", e.message ?: "")
             }
         }
     }
@@ -665,6 +833,57 @@ class RouterViewModel(application: Application) : AndroidViewModel(application) 
                 }
             } catch (e: Exception) {
                 _error.value = "Ошибка переименования: ${e.message}"
+            } finally {
+                _isLoading.value = false
+            }
+        }
+    }
+
+    /**
+     * Создаёт правило межсетевого экрана (ip access-list) для входящего
+     * трафика указанного WAN-интерфейса. Формат команды - тот же принцип
+     * частичного патча, что и у остальных set-команд в проекте: массив с
+     * завершающим system.configuration.save. protocol == "" означает "любой
+     * протокол" (поле не отправляется вовсе, а не отправляется пустой
+     * строкой - на 🔴/непроверенных полях лучше не отправлять лишнего).
+     */
+    fun createFirewallRule(
+        wanId: String,
+        action: String,
+        protocol: String,
+        sourceIp: String,
+        sourceMask: String,
+        destIp: String,
+        destMask: String,
+        description: String
+    ) {
+        viewModelScope.launch {
+            _isLoading.value = true
+            try {
+                AppLogger.logAction(
+                    "Create firewall rule",
+                    "wan=$wanId action=$action protocol=$protocol src=$sourceIp/$sourceMask dst=$destIp/$destMask"
+                )
+                val rule = mutableMapOf<String, Any>(
+                    "interface" to wanId,
+                    "action" to action,
+                    "source-address" to mapOf("ip" to sourceIp, "mask" to sourceMask),
+                    "destination-address" to mapOf("ip" to destIp, "mask" to destMask)
+                )
+                if (protocol.isNotBlank()) rule["protocol"] = protocol
+                if (description.isNotBlank()) rule["description"] = description
+
+                val response = repository.getRestApi().executeRci(
+                    listOf(
+                        mapOf("ip" to mapOf("access-list" to rule)),
+                        mapOf("system" to mapOf("configuration" to mapOf("save" to emptyMap<String, Any>())))
+                    )
+                )
+                if (!response.isSuccessful) {
+                    _error.value = "Ошибка создания правила: HTTP ${response.code()}"
+                }
+            } catch (e: Exception) {
+                _error.value = "Ошибка создания правила: ${e.message}"
             } finally {
                 _isLoading.value = false
             }

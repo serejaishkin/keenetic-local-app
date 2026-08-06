@@ -63,6 +63,10 @@ fun DashboardScreen(viewModel: RouterViewModel) {
         }
 
         item {
+            InternetStatusCard(viewModel)
+        }
+
+        item {
             QuickActionsCard(viewModel)
         }
 
@@ -527,4 +531,20 @@ fun InterfaceCard(iface: com.keenetic.local.api.InterfaceInfo) {
             }
         }
     }
+}
+/**
+ * Общий статус интернет-соединения (агрегирует активный WAN, а не карточка
+ * конкретного интерфейса). RCI-путь show/internet/status подтверждён
+ * строкой в main-553997B.js. Схема ответа под конкретный parser/DTO пока
+ * не оформлена - показываем как есть через общий RawJsonCard.
+ */
+@Composable
+private fun InternetStatusCard(viewModel: RouterViewModel) {
+    val data by viewModel.internetStatusRaw.collectAsState()
+    LaunchedEffect(Unit) { viewModel.loadInternetStatus() }
+    com.keenetic.local.ui.screens.common.RawJsonCard(
+        title = "Статус интернета",
+        data = data,
+        emptyText = "Нет данных"
+    )
 }

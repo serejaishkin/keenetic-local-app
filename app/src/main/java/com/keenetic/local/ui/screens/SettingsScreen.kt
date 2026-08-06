@@ -283,6 +283,82 @@ fun SystemSettingsScreen(viewModel: RouterViewModel, onOpenAppSettings: () -> Un
 
         Spacer(modifier = Modifier.height(16.dp))
         ExtraServicesCard(viewModel)
+
+        Spacer(modifier = Modifier.height(16.dp))
+        SystemUpdateCard(viewModel)
+
+        Spacer(modifier = Modifier.height(16.dp))
+        AdminUsersCard(viewModel)
+
+        Spacer(modifier = Modifier.height(16.dp))
+        DhcpPoolCard(viewModel)
+
+        Spacer(modifier = Modifier.height(16.dp))
+        IntelliQosCard(viewModel)
+    }
+}
+
+/**
+ * Проверка обновления прошивки. RCI-путь show/system/update/status
+ * подтверждён строкой в main-553997B.js. Только статус - сама установка
+ * обновления (system.update) не подключена, это опасная операция без HAR.
+ */
+@Composable
+private fun SystemUpdateCard(viewModel: RouterViewModel) {
+    val data by viewModel.systemUpdateStatusRaw.collectAsState()
+    LaunchedEffect(Unit) { viewModel.loadSystemUpdateStatus() }
+    com.keenetic.local.ui.screens.common.RawJsonCard(
+        title = "Обновление прошивки",
+        data = data,
+        emptyText = "Нет данных (или обновления не проверялись)"
+    )
+}
+
+/** Список учётных записей администратора. RCI-путь show/user подтверждён. */
+@Composable
+private fun AdminUsersCard(viewModel: RouterViewModel) {
+    val data by viewModel.usersRaw.collectAsState()
+    LaunchedEffect(Unit) { viewModel.loadUsers() }
+    com.keenetic.local.ui.screens.common.RawJsonCard(
+        title = "Пользователи и доступ",
+        data = data,
+        emptyText = "Список пуст"
+    )
+}
+
+/** Диапазон пула DHCP. RCI-путь show/ip/dhcp/pool подтверждён. */
+@Composable
+private fun DhcpPoolCard(viewModel: RouterViewModel) {
+    val data by viewModel.dhcpPoolRaw.collectAsState()
+    LaunchedEffect(Unit) { viewModel.loadDhcpPool() }
+    com.keenetic.local.ui.screens.common.RawJsonCard(
+        title = "Пул DHCP",
+        data = data,
+        emptyText = "Нет данных"
+    )
+}
+
+/**
+ * Сводка IntelliQoS (Приоритеты подключений). RCI-пути show/ntce/summary и
+ * show/ntce/status подтверждены. Управление приоритетами не подключено.
+ */
+@Composable
+private fun IntelliQosCard(viewModel: RouterViewModel) {
+    val summary by viewModel.ntceSummaryRaw.collectAsState()
+    val status by viewModel.ntceStatusRaw.collectAsState()
+    LaunchedEffect(Unit) { viewModel.loadIntelliQos() }
+    Column {
+        com.keenetic.local.ui.screens.common.RawJsonCard(
+            title = "IntelliQoS: сводка",
+            data = summary,
+            emptyText = "Нет данных"
+        )
+        Spacer(modifier = Modifier.height(12.dp))
+        com.keenetic.local.ui.screens.common.RawJsonCard(
+            title = "IntelliQoS: статус",
+            data = status,
+            emptyText = "Нет данных"
+        )
     }
 }
 
