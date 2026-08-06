@@ -1,9 +1,16 @@
-name: Build APK
+name: Build & Release
 
 on:
   push:
     branches: [ main ]
+    tags: [ 'v*.*.*' ]
+  pull_request:
+    branches: [ main ]
   workflow_dispatch: {}
+
+# Нужно для softprops/action-gh-release - создание релиза через встроенный GITHUB_TOKEN.
+permissions:
+  contents: write
 
 jobs:
   build:
@@ -16,6 +23,7 @@ jobs:
         with:
           distribution: temurin
           java-version: '17'
+          cache: gradle
 
       - name: Grant execute permission for gradlew
         run: chmod +x gradlew
@@ -23,8 +31,34 @@ jobs:
       - name: Build debug APK
         run: ./gradlew assembleDebug --no-daemon
 
-      - name: Upload APK
+      # buildTypes.release в app/build.gradle.kts использует
+      # signingConfigs.getByName("debug") - т.е. release-сборка подписана
+      # тем же debug-ключом и устанавливается без доп. настройки подписи.
+      # Когда появится боевой keystore - здесь ничего менять не надо, только
+      # signingConfig в build.gradle.kts.
+      - name: Build release APK
+        run: ./gradlew assembleRelease --no-daemon
+
+      - name: Upload debug APK
         uses: actions/upload-artifact@v4
         with:
           name: keenetic-local-debug-apk
           path: app/build/outputs/apk/debug/app-debug.apk
+
+      - name: Upload release APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: keenetic-local-release-apk
+          path: app/build/outputs/apk/release/app-release.apk
+
+      # Срабатывает только при пуше тега вида v1.2.3 - обычный push в main
+      # или PR релиз не создают, только собирают артефакты выше.
+      - name: Create GitHub Release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          name: ${{ github.ref_name }}
+          generate_release_notes: true
+          files: |
+            app/build/outputs/apk/debug/app-debug.apk
+            app/build/outputs/apk/release/app-release.apk
