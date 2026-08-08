@@ -48,10 +48,6 @@ fun DnsFiltersScreen(viewModel: RouterViewModel, onBack: () -> Unit = {}) {
 
         LazyColumn(verticalArrangement = Arrangement.spacedBy(16.dp)) {
             item {
-                DnsFilterEngineCard(viewModel)
-            }
-
-            item {
                 Card(
                     modifier = Modifier.fillMaxWidth(),
                     colors = CardDefaults.cardColors(containerColor = KeeneticColors.Surface)
@@ -73,57 +69,6 @@ fun DnsFiltersScreen(viewModel: RouterViewModel, onBack: () -> Unit = {}) {
             }
             item {
                 RawJsonCard(title = "Профили", state = profiles, emptyText = "Пусто или не поддерживается на этой прошивке")
-            }
-        }
-    }
-}
-
-/**
- * ПОДТВЕРЖДЕНО HAR (07.08, найдено при повторном полном проходе по всем
- * 8 файлам архива - в первый раз проверял только route.har, поэтому
- * пропустил). Реальная команда: {"dns-proxy":{"filter":{"engine":{"no":true}}}}
- * + save, ответ роутера успешный.
- *
- * Кнопки, а не Switch - потому что НЕТ подтверждённого способа прочитать
- * текущее состояние (в архиве не встретился show-запрос именно этого поля),
- * поэтому нечестно рисовать переключатель, как будто мы знаем состояние.
- */
-@Composable
-private fun DnsFilterEngineCard(viewModel: RouterViewModel) {
-    var lastAction by remember { mutableStateOf<Boolean?>(null) }
-    val error by viewModel.error.collectAsState()
-
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = KeeneticColors.Surface)
-    ) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            Text("Движок DNS-фильтрации", fontWeight = FontWeight.SemiBold)
-            Spacer(modifier = Modifier.height(4.dp))
-            Text(
-                "Текущее состояние неизвестно приложению - нет подтверждённого способа его прочитать, только переключить.",
-                style = MaterialTheme.typography.labelSmall,
-                color = KeeneticColors.TextSecondary
-            )
-            Spacer(modifier = Modifier.height(12.dp))
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Button(
-                    onClick = { lastAction = true; viewModel.setDnsFilterEngine(true) },
-                    colors = ButtonDefaults.buttonColors(containerColor = KeeneticColors.Accent)
-                ) {
-                    Text("Включить")
-                }
-                OutlinedButton(onClick = { lastAction = false; viewModel.setDnsFilterEngine(false) }) {
-                    Text("Выключить")
-                }
-            }
-            if (lastAction != null) {
-                Spacer(modifier = Modifier.height(8.dp))
-                Text(
-                    if (error != null) "Ошибка: $error" else if (lastAction == true) "Отправлено: включить" else "Отправлено: выключить",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = if (error != null) KeeneticColors.Error else KeeneticColors.Accent
-                )
             }
         }
     }

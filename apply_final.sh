@@ -14,6 +14,7 @@ mkdir -p app/src/main/java/com/keenetic/local/ui/screens/common
 declare -A FILES=(
   ["MainActivity.kt"]="app/src/main/java/com/keenetic/local/MainActivity.kt"
   ["KeeneticRestApi.kt"]="app/src/main/java/com/keenetic/local/api/KeeneticRestApi.kt"
+  ["InterfaceMapper.kt"]="app/src/main/java/com/keenetic/local/api/InterfaceMapper.kt"
   ["RouterViewModel.kt"]="app/src/main/java/com/keenetic/local/ui/RouterViewModel.kt"
   ["DashboardScreen.kt"]="app/src/main/java/com/keenetic/local/ui/screens/DashboardScreen.kt"
   ["DevicesScreen.kt"]="app/src/main/java/com/keenetic/local/ui/screens/DevicesScreen.kt"

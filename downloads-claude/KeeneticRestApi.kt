@@ -13,7 +13,24 @@ data class SystemInfo(
     val memory: String? = null,
     val uptime: String? = null,
     val version: String? = null,
-    val hostname: String? = null
+    val hostname: String? = null,
+    // Для "Активные соединения" (card_system в веб-дашборде) - conntotal -
+    // connfree. Подтверждено HAR (07.08) - это тот же самый эндпоинт
+    // rci/show/system, просто эти два поля раньше не парсились.
+    val conntotal: Int? = null,
+    val connfree: Int? = null
+)
+
+/**
+ * Модель/версия прошивки - ПОДТВЕРЖДЕНО HAR (07.08): отдельный эндпоинт
+ * rci/show/version (НЕ show/system, где раньше "Версия ОС" искалась и была
+ * всегда пустой - её там просто нет). title - тот самый "5.1.1", что видно
+ * в вебе как версию, model - "KN-2311 (KN-2311)".
+ */
+data class VersionInfo(
+    val title: String? = null,
+    val model: String? = null,
+    @com.google.gson.annotations.SerializedName("hw_id") val hwId: String? = null
 )
 
 data class Client(
@@ -42,7 +59,14 @@ data class InterfaceInfo(
     val link: String? = null,       // физическое состояние линка: "up" / "down"
     val connected: String? = null,
     val address: String? = null,
-    val up: Boolean = false
+    val up: Boolean = false,
+    // ПОДТВЕРЖДЕНО HAR (07.08) - реальные поля "mac" и "mask" в ответе
+    // /rci/show/interface для GigabitEthernet0/Vlan4 (WAN). "gateway" в
+    // этом объекте НЕТ вообще (ни в этом, ни в show wans) - не выдумываю,
+    // просто не показываем эту строку, пока не найдётся подтверждённый
+    // источник.
+    val mac: String? = null,
+    val mask: String? = null
 )
 
 /**
@@ -95,6 +119,9 @@ interface KeeneticRestApi {
 
     @GET("rci/show/system")
     suspend fun getSystem(): Response<SystemInfo>
+
+    @GET("rci/show/version")
+    suspend fun getVersion(): Response<VersionInfo>
 
     @GET("rci/show/ip/hotspot")
     suspend fun getClients(): Response<HotspotResponse>

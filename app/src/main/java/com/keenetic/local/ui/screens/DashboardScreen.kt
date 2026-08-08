@@ -2,6 +2,7 @@ package com.keenetic.local.ui.screens
 
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.Icons
@@ -22,6 +23,7 @@ import com.keenetic.local.ui.theme.KeeneticColors
 @Composable
 fun DashboardScreen(viewModel: RouterViewModel) {
     val systemInfo by viewModel.systemInfo.collectAsState()
+    val versionInfo by viewModel.versionInfo.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
     val interfaces by viewModel.interfaces.collectAsState()
     val interfaceStats by viewModel.interfaceStats.collectAsState()
@@ -30,6 +32,7 @@ fun DashboardScreen(viewModel: RouterViewModel) {
 
     LaunchedEffect(Unit) {
         viewModel.refreshAll()
+        viewModel.loadVersionInfo()
     }
 
     // Периодический опрос раз в 5 сек, чтобы статус (в т.ч. VPN/Proxy,
@@ -59,7 +62,7 @@ fun DashboardScreen(viewModel: RouterViewModel) {
         }
 
         item {
-            StatusCard(systemInfo)
+            StatusCard(systemInfo, versionInfo)
         }
 
         item {
@@ -87,6 +90,10 @@ fun DashboardScreen(viewModel: RouterViewModel) {
             wanCandidates.forEach { wan ->
                 WanStatusCard(wan, viewModel, interfaceStats[wan.id])
             }
+        }
+
+        item {
+            NetworksAndWifiCard(viewModel)
         }
 
         item {
@@ -132,7 +139,7 @@ fun DashboardScreen(viewModel: RouterViewModel) {
 }
 
 @Composable
-fun StatusCard(info: com.keenetic.local.api.SystemInfo?) {
+fun StatusCard(info: com.keenetic.local.api.SystemInfo?, version: com.keenetic.local.api.VersionInfo? = null) {
     Card(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(containerColor = KeeneticColors.Surface),
@@ -142,13 +149,22 @@ fun StatusCard(info: com.keenetic.local.api.SystemInfo?) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Icon(Icons.Default.CheckCircle, contentDescription = null, tint = KeeneticColors.Accent)
                 Spacer(modifier = Modifier.width(8.dp))
-                Text("Роутер онлайн", fontWeight = FontWeight.Medium, color = KeeneticColors.Accent)
+                Text("О системе", fontWeight = FontWeight.Medium, color = KeeneticColors.Accent)
             }
             Spacer(modifier = Modifier.height(12.dp))
-            InfoRow("Версия ОС", info?.version ?: "—")
-            InfoRow("CPU", "${info?.cpuload ?: "—"}%")
-            InfoRow("RAM", info?.memory ?: "—")
-            InfoRow("Uptime", formatUptime(info?.uptime))
+            // Поля и порядок - по образцу реальной карточки "О системе"
+            // (card_system) из веб-дашборда, см. assets/language/locale.ru.json
+            // из htdocs. Модель/версия ОС - ПОДТВЕРЖДЕНО HAR 07.08, отдельный
+            // эндпоинт rci/show/version (раньше "Версия ОС" искалась в
+            // show/system, где её нет вообще - потому и была всегда пустой).
+            InfoRow("Модель", version?.model ?: version?.hwId ?: "—")
+            InfoRow("Версия ОС", version?.title ?: "—")
+            InfoRow("ЦП", "${info?.cpuload ?: "—"}%")
+            InfoRow("ОЗУ", info?.memory ?: "—")
+            InfoRow("Время работы", formatUptime(info?.uptime))
+            if (info?.conntotal != null && info.connfree != null) {
+                InfoRow("Активные соединения", "${info.conntotal - info.connfree}")
+            }
             InfoRow("Имя", info?.hostname ?: "—")
         }
     }
@@ -191,7 +207,6 @@ fun WanStatusCard(wan: com.keenetic.local.api.InterfaceInfo, viewModel: RouterVi
             Spacer(modifier = Modifier.height(12.dp))
             val ipObtained = !wan.address.isNullOrBlank()
             InfoRow("Статус", if (wan.up) "Подключено" else "Нет соединения")
-            InfoRow("IP-адрес", wan.address ?: "—")
             if (stat != null) {
                 InfoRow("Скорость", "${formatSpeed(stat.rxspeed)} ↓ · ${formatSpeed(stat.txspeed)} ↑")
             }
@@ -209,6 +224,35 @@ fun WanStatusCard(wan: com.keenetic.local.api.InterfaceInfo, viewModel: RouterVi
                     style = MaterialTheme.typography.labelSmall,
                     color = if (ipObtained) KeeneticColors.Accent else KeeneticColors.Error
                 )
+            }
+            Spacer(modifier = Modifier.height(12.dp))
+            HorizontalDivider()
+            Spacer(modifier = Modifier.height(12.dp))
+            // Группировка полей 2x2, как в карточке "Интернет" веб-дашборда:
+            // IP-адрес/MAC-адрес в одной строке, Маска/Принято-Отправлено в
+            // следующих. "Шлюз" в веб-версии не показываю - подтверждённого
+            // поля gateway нет ни в show/interface, ни в show wans, а
+            // угадывать его не буду.
+            Row(modifier = Modifier.fillMaxWidth()) {
+                Column(modifier = Modifier.weight(1f)) {
+                    InfoRow("IP-адрес", wan.address ?: "—")
+                }
+                Column(modifier = Modifier.weight(1f)) {
+                    InfoRow("MAC-адрес", wan.mac ?: "—")
+                }
+            }
+            if (!wan.mask.isNullOrBlank()) {
+                InfoRow("Маска подсети", wan.mask)
+            }
+            if (stat?.rxbytes != null || stat?.txbytes != null) {
+                Row(modifier = Modifier.fillMaxWidth()) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        InfoRow("Принято", formatBytesTotal(stat?.rxbytes))
+                    }
+                    Column(modifier = Modifier.weight(1f)) {
+                        InfoRow("Отправлено", formatBytesTotal(stat?.txbytes))
+                    }
+                }
             }
         }
     }
@@ -343,6 +387,17 @@ private fun formatSpeed(bytesPerSec: Long?): String {
         v >= 1024 * 1024 -> "%.1f МБ/с".format(v / (1024.0 * 1024))
         v >= 1024 -> "%.1f КБ/с".format(v / 1024.0)
         else -> "$v Б/с"
+    }
+}
+
+/** Суммарный трафик (Принято/Отправлено) - как на веб-дашборде, "37,7 ГБ". */
+private fun formatBytesTotal(bytes: Long?): String {
+    val v = bytes ?: return "—"
+    return when {
+        v >= 1024L * 1024 * 1024 -> "%.1f ГБ".format(v / (1024.0 * 1024 * 1024))
+        v >= 1024 * 1024 -> "%.1f МБ".format(v / (1024.0 * 1024))
+        v >= 1024 -> "%.1f КБ".format(v / 1024.0)
+        else -> "$v Б"
     }
 }
 
@@ -541,6 +596,110 @@ fun InterfaceCard(iface: com.keenetic.local.api.InterfaceInfo) {
             }
             if (iface.connected != null) {
                 Text(text = iface.connected, style = MaterialTheme.typography.labelSmall, color = KeeneticColors.Accent)
+            }
+        }
+    }
+}
+
+/**
+ * "Мои сети и Wi-Fi" - структура подачи по образцу веб-дашборда: Wi-Fi сети
+ * сгруппированы по Домашняя/Гостевая (WifiNetwork.guest - надёжное поле),
+ * плюс общая сводка проводных/беспроводных устройств.
+ *
+ * Разбивку по количеству устройств именно НА КАЖДЫЙ сегмент (как в вебе -
+ * "Сегмент 3: Wi-Fi 0, Проводные 0") сознательно не делаю: точной привязки
+ * устройства к конкретному сегменту в уже собранных данных нет (только
+ * текстовое interfaceDescription/ssid, сопоставление было бы нечётким и
+ * могло бы показать неверные цифры) - лучше честная общая сводка со
+ * ссылкой на полный список сегментов, чем гадание.
+ */
+@Composable
+private fun NetworksAndWifiCard(viewModel: RouterViewModel) {
+    val wifiNetworks by viewModel.wifiNetworks.collectAsState()
+    val deviceList by viewModel.deviceList.collectAsState()
+
+    val homeNetworks = wifiNetworks.filter { !it.guest }
+    val guestNetworks = wifiNetworks.filter { it.guest }
+    val wiredCount = deviceList.count { it.active && it.wired }
+    val wifiCount = deviceList.count { it.active && !it.wired }
+
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = KeeneticColors.Surface),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(Icons.Default.Wifi, contentDescription = null, tint = KeeneticColors.Primary)
+                Spacer(modifier = Modifier.width(8.dp))
+                Text("Мои сети и Wi-Fi", fontWeight = FontWeight.Medium, color = KeeneticColors.Primary)
+            }
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(
+                "Wi-Fi: $wifiCount активных · Проводные: $wiredCount активных",
+                style = MaterialTheme.typography.bodySmall,
+                color = KeeneticColors.TextSecondary
+            )
+            Spacer(modifier = Modifier.height(12.dp))
+
+            if (homeNetworks.isNotEmpty()) {
+                NetworkGroupRow("Основная", homeNetworks)
+            }
+            if (guestNetworks.isNotEmpty()) {
+                Spacer(modifier = Modifier.height(8.dp))
+                NetworkGroupRow("Гости", guestNetworks)
+            }
+        }
+    }
+}
+
+@Composable
+private fun NetworkGroupRow(title: String, networks: List<com.keenetic.local.api.WifiNetwork>) {
+    var expanded by remember { mutableStateOf(false) }
+    Column {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable { expanded = !expanded },
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Text(title, fontWeight = FontWeight.Medium)
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    "${networks.count { it.enabled }}/${networks.size} вкл",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = KeeneticColors.TextSecondary
+                )
+                Icon(
+                    if (expanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
+                    contentDescription = null,
+                    tint = KeeneticColors.TextSecondary
+                )
+            }
+        }
+        if (expanded) {
+            networks.forEach { net ->
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(start = 8.dp, top = 6.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Column {
+                        Text(net.ssid, style = MaterialTheme.typography.bodySmall)
+                        Text(
+                            "${net.band} · ${net.security}",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = KeeneticColors.TextSecondary
+                        )
+                    }
+                    Icon(
+                        if (net.enabled) Icons.Default.CheckCircle else Icons.Default.RadioButtonUnchecked,
+                        contentDescription = null,
+                        tint = if (net.enabled) KeeneticColors.Accent else KeeneticColors.TextSecondary,
+                        modifier = Modifier.size(18.dp)
+                    )
+                }
             }
         }
     }

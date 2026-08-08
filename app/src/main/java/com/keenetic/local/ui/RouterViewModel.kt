@@ -584,32 +584,6 @@ class RouterViewModel(application: Application) : AndroidViewModel(application) 
         }
     }
 
-    /**
-     * ПОДТВЕРЖДЕНО HAR (07.08). Реальная команда:
-     * {"dns-proxy":{"filter":{"engine":{"no":true}}}} + save.
-     * "no":true = выключить, "no":false = включить.
-     */
-    fun setDnsFilterEngine(enabled: Boolean) {
-        viewModelScope.launch {
-            try {
-                AppLogger.logAction("Set DNS filter engine", "enabled=$enabled")
-                val response = repository.getRestApi().executeRci(
-                    listOf(
-                        mapOf("dns-proxy" to mapOf("filter" to mapOf("engine" to mapOf("no" to !enabled)))),
-                        mapOf("system" to mapOf("configuration" to mapOf("save" to emptyMap<String, Any>())))
-                    )
-                )
-                if (response.isSuccessful) {
-                    _error.value = null
-                } else {
-                    _error.value = "Ошибка переключения DNS-фильтра: HTTP ${response.code()}"
-                }
-            } catch (e: Exception) {
-                _error.value = "Ошибка переключения DNS-фильтра: ${e.message}"
-            }
-        }
-    }
-
     fun loadDnsFilters() {
         loadRawInto("DNS filter presets", _dnsFilterPresets) { repository.getRestApi().getDnsFilterPresets() }
         loadRawInto("DNS filter profiles", _dnsFilterProfiles) { repository.getRestApi().getDnsFilterProfiles() }
