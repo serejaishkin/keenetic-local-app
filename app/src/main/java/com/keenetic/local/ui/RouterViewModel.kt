@@ -38,6 +38,9 @@ class RouterViewModel(application: Application) : AndroidViewModel(application) 
     private val _systemInfo = MutableStateFlow<SystemInfo?>(null)
     val systemInfo: StateFlow<SystemInfo?> = _systemInfo.asStateFlow()
 
+    private val _versionInfo = MutableStateFlow<com.keenetic.local.api.VersionInfo?>(null)
+    val versionInfo: StateFlow<com.keenetic.local.api.VersionInfo?> = _versionInfo.asStateFlow()
+
     private val _clients = MutableStateFlow<List<Client>>(emptyList())
     val clients: StateFlow<List<Client>> = _clients.asStateFlow()
 
@@ -47,6 +50,9 @@ class RouterViewModel(application: Application) : AndroidViewModel(application) 
 
     private val _wifiNetworks = MutableStateFlow<List<WifiNetwork>>(emptyList())
     val wifiNetworks: StateFlow<List<WifiNetwork>> = _wifiNetworks.asStateFlow()
+
+    private val _switchPorts = MutableStateFlow<List<com.keenetic.local.api.SwitchPort>>(emptyList())
+    val switchPorts: StateFlow<List<com.keenetic.local.api.SwitchPort>> = _switchPorts.asStateFlow()
 
     private val _associations = MutableStateFlow<List<WifiAssoc>>(emptyList())
     val associations: StateFlow<List<WifiAssoc>> = _associations.asStateFlow()
@@ -115,6 +121,9 @@ class RouterViewModel(application: Application) : AndroidViewModel(application) 
 
     private val _siteSurveyRaw = MutableStateFlow<com.keenetic.local.ui.screens.common.ApiCallState>(com.keenetic.local.ui.screens.common.ApiCallState.Loading)
     val siteSurveyRaw: StateFlow<com.keenetic.local.ui.screens.common.ApiCallState> get() = _siteSurveyRaw
+
+    private val _usbDevicesRaw = MutableStateFlow<com.keenetic.local.ui.screens.common.ApiCallState>(com.keenetic.local.ui.screens.common.ApiCallState.Loading)
+    val usbDevicesRaw: StateFlow<com.keenetic.local.ui.screens.common.ApiCallState> = _usbDevicesRaw.asStateFlow()
     val ntceStatusRaw: StateFlow<com.keenetic.local.ui.screens.common.ApiCallState> = _ntceStatusRaw.asStateFlow()
 
     private val _sshOutput = MutableStateFlow("")
@@ -321,6 +330,24 @@ class RouterViewModel(application: Application) : AndroidViewModel(application) 
         }
     }
 
+    /**
+     * Версия ОС/модель роутера. Отдельный вызов от loadSystemInfo() -
+     * версия/модель не меняются между перезагрузками, не нужно дёргать
+     * каждые 5 сек вместе с CPU/RAM.
+     */
+    fun loadVersionInfo() {
+        viewModelScope.launch {
+            try {
+                val response = repository.getRestApi().getVersion()
+                if (response.isSuccessful) {
+                    _versionInfo.value = response.body()
+                }
+            } catch (e: Exception) {
+                AppLogger.logAction("Version info load failed", e.message ?: "")
+            }
+        }
+    }
+
     fun loadClients() {
         viewModelScope.launch {
             try {
@@ -485,6 +512,36 @@ class RouterViewModel(application: Application) : AndroidViewModel(application) 
 
     fun loadUsers() = loadRawInto("Users", _usersRaw) { repository.getRestApi().getUsersRaw() }
 
+    /**
+     * Смена пароля администратора. ПОДТВЕРЖДЕНО ЧАСТИЧНО - класс
+     * RouterUserInfo в декомпилированном официальном приложении имеет поля
+     * name/password/tags, структура {"user":[{"name":..,"password":..}]}
+     * по аналогии с уже РЕАЛЬНО подтверждённым HAR вызовом смены тега
+     * ({"user":[{"name":"admin","tag":{"tag":"opt"}}]}) - тот же объект,
+     * другое поле. Само поле "password" в живом HAR не поймано.
+     * ⚠️ Ошибка здесь может привести к потере доступа к роутеру.
+     */
+    fun setAdminPassword(username: String, newPassword: String) {
+        viewModelScope.launch {
+            try {
+                AppLogger.logAction("Set admin password", "user=$username")
+                val response = repository.getRestApi().executeRci(
+                    listOf(
+                        mapOf("user" to listOf(mapOf("name" to username, "password" to newPassword))),
+                        mapOf("system" to mapOf("configuration" to mapOf("save" to emptyMap<String, Any>())))
+                    )
+                )
+                if (response.isSuccessful) {
+                    _error.value = null
+                } else {
+                    _error.value = "Ошибка смены пароля: HTTP ${response.code()}"
+                }
+            } catch (e: Exception) {
+                _error.value = "Ошибка смены пароля: ${e.message}"
+            }
+        }
+    }
+
     fun loadSystemUpdateStatus() = loadRawInto("System update status", _systemUpdateStatusRaw) { repository.getRestApi().getSystemUpdateStatusRaw() }
 
     fun loadDhcpPool() = loadRawInto("DHCP pool", _dhcpPoolRaw) { repository.getRestApi().getDhcpPoolRaw() }
@@ -493,9 +550,66 @@ class RouterViewModel(application: Application) : AndroidViewModel(application) 
 
     fun loadInternetStatus() = loadRawInto("Internet status", _internetStatusRaw) { repository.getRestApi().getInternetStatusRaw() }
 
+    /**
+     * ИСПРАВЛЕНО (07.08): раньше читали через простой GET
+     * (show/ntce/summary), роутер отвечал ошибкой "Command::Root ... no
+     * input" - см. комментарий в KeeneticRestApi.kt. Правильный путь
+     * подтверждён в APK/прошивке: show/rc/ntce/qos, читается батч-POST
+     * (тот же принцип, что и site-survey), не простым GET.
+     */
     fun loadIntelliQos() {
-        loadRawInto("IntelliQoS summary", _ntceSummaryRaw) { repository.getRestApi().getNtceSummaryRaw() }
-        loadRawInto("IntelliQoS status", _ntceStatusRaw) { repository.getRestApi().getNtceStatusRaw() }
+        viewModelScope.launch {
+            _ntceSummaryRaw.value = com.keenetic.local.ui.screens.common.ApiCallState.Loading
+            try {
+                val response = repository.getRestApi().executeRci(
+                    listOf(mapOf("show" to mapOf("rc" to mapOf("ntce" to mapOf("qos" to emptyMap<String, Any>())))))
+                )
+                if (response.isSuccessful) {
+                    val extracted = runCatching {
+                        response.body()?.asJsonArray?.get(0)?.asJsonObject
+                            ?.getAsJsonObject("show")?.getAsJsonObject("rc")
+                            ?.getAsJsonObject("ntce")?.get("qos")
+                    }.getOrNull()
+                    _ntceSummaryRaw.value = if (extracted != null) {
+                        com.keenetic.local.ui.screens.common.ApiCallState.Success(extracted)
+                    } else {
+                        com.keenetic.local.ui.screens.common.ApiCallState.Error("неожиданный формат ответа")
+                    }
+                } else {
+                    _ntceSummaryRaw.value = com.keenetic.local.ui.screens.common.ApiCallState.Error("HTTP ${response.code()}")
+                }
+            } catch (e: Exception) {
+                _ntceSummaryRaw.value = com.keenetic.local.ui.screens.common.ApiCallState.Error(e.message ?: "неизвестная ошибка")
+                AppLogger.logAction("IntelliQoS load failed", e.message ?: "")
+            }
+        }
+    }
+
+    /**
+     * Приоритеты категорий трафика IntelliQoS. ПОДТВЕРЖДЕНО HAR (06.08):
+     * {"ntce":{"qos":{"category":[{"category":"calling","priority":1},...]}}}.
+     * Приоритет: 1 (высший) - 4 (низший), категории: calling/streaming/
+     * gaming/other - подтверждены реальным успешным вызовом.
+     */
+    fun setIntelliQosPriority(category: String, priority: Int) {
+        viewModelScope.launch {
+            try {
+                AppLogger.logAction("Set IntelliQoS priority", "category=$category priority=$priority")
+                val response = repository.getRestApi().executeRci(
+                    listOf(
+                        mapOf("ntce" to mapOf("qos" to mapOf("category" to listOf(mapOf("category" to category, "priority" to priority))))),
+                        mapOf("system" to mapOf("configuration" to mapOf("save" to emptyMap<String, Any>())))
+                    )
+                )
+                if (response.isSuccessful) {
+                    loadIntelliQos()
+                } else {
+                    _error.value = "Ошибка изменения приоритета: HTTP ${response.code()}"
+                }
+            } catch (e: Exception) {
+                _error.value = "Ошибка изменения приоритета: ${e.message}"
+            }
+        }
     }
 
     /**
@@ -555,6 +669,32 @@ class RouterViewModel(application: Application) : AndroidViewModel(application) 
         }
     }
 
+    fun loadUsbDevices() = loadRawInto("USB devices", _usbDevicesRaw) { repository.getRestApi().getUsbDevicesRaw() }
+
+    /**
+     * Извлечение USB-накопителя. Путь подтверждён (APK: RouterApi.ejectUsb,
+     * прошивка: system/eject в списке путей), точное имя поля для "какое
+     * устройство" НЕ подтверждено - пробуем "name" по аналогии с другими
+     * командами. Проверить на некритичном накопителе.
+     */
+    fun ejectUsbDevice(deviceName: String) {
+        viewModelScope.launch {
+            try {
+                AppLogger.logAction("Eject USB device", deviceName)
+                val response = repository.getRestApi().executeRci(
+                    listOf(mapOf("system" to mapOf("eject" to mapOf("name" to deviceName))))
+                )
+                if (response.isSuccessful) {
+                    loadUsbDevices()
+                } else {
+                    _error.value = "Ошибка извлечения устройства: HTTP ${response.code()}"
+                }
+            } catch (e: Exception) {
+                _error.value = "Ошибка извлечения устройства: ${e.message}"
+            }
+        }
+    }
+
     fun scanSiteSurvey(masterName: String) {
         viewModelScope.launch {
             _siteSurveyRaw.value = com.keenetic.local.ui.screens.common.ApiCallState.Loading
@@ -584,6 +724,32 @@ class RouterViewModel(application: Application) : AndroidViewModel(application) 
         }
     }
 
+    /**
+     * ПОДТВЕРЖДЕНО HAR (07.08). Реальная команда:
+     * {"dns-proxy":{"filter":{"engine":{"no":true}}}} + save.
+     * "no":true = выключить, "no":false = включить.
+     */
+    fun setDnsFilterEngine(enabled: Boolean) {
+        viewModelScope.launch {
+            try {
+                AppLogger.logAction("Set DNS filter engine", "enabled=$enabled")
+                val response = repository.getRestApi().executeRci(
+                    listOf(
+                        mapOf("dns-proxy" to mapOf("filter" to mapOf("engine" to mapOf("no" to !enabled)))),
+                        mapOf("system" to mapOf("configuration" to mapOf("save" to emptyMap<String, Any>())))
+                    )
+                )
+                if (response.isSuccessful) {
+                    _error.value = null
+                } else {
+                    _error.value = "Ошибка переключения DNS-фильтра: HTTP ${response.code()}"
+                }
+            } catch (e: Exception) {
+                _error.value = "Ошибка переключения DNS-фильтра: ${e.message}"
+            }
+        }
+    }
+
     fun loadDnsFilters() {
         loadRawInto("DNS filter presets", _dnsFilterPresets) { repository.getRestApi().getDnsFilterPresets() }
         loadRawInto("DNS filter profiles", _dnsFilterProfiles) { repository.getRestApi().getDnsFilterProfiles() }
@@ -598,6 +764,7 @@ class RouterViewModel(application: Application) : AndroidViewModel(application) 
                     val raw = response.body() ?: emptyMap()
                     _interfaces.value = InterfaceMapper.toInterfaceList(raw)
                     _wifiNetworks.value = InterfaceMapper.toWifiNetworks(raw)
+                    _switchPorts.value = InterfaceMapper.toSwitchPorts(raw)
                     loadInterfaceStats()
                     // Успешный HTTP-ответ (любой код) значит роутер физически
                     // доступен по сети - до этого места дошли, значит связь есть.
@@ -949,6 +1116,126 @@ class RouterViewModel(application: Application) : AndroidViewModel(application) 
      * deny-варианта нет - это экстраполяция. Проверить на некритичном
      * правиле перед боевым использованием.
      */
+    /**
+     * Переадресация портов. Поля ПОДТВЕРЖДЕНЫ ДВАЖДЫ независимо (07.08):
+     * - класс IpStaticModel в декомпилированном официальном Android-
+     *   приложении Keenetic 7.0 (build 360): index, interface, protocol,
+     *   port, address, mask, to-address, to-port, to-host, to-interface,
+     *   end-port, description, comment, disable, schedule, bytes, packets
+     *   (@SerializedName-строки to-address/to-port/to-host/end-port сверены
+     *   отдельно как самостоятельные строки в том же dex - не совпадение).
+     * - те же самые строки to-address/to-port/to-host/end-port найдены в
+     *   /lib/libndmCorePack.so реальной прошивки роутера (Netis N6 5.1.2) -
+     *   это уже код самого роутера, не просто клиента.
+     * Два независимых бинарника согласны - максимальная уверенность без
+     * живого HAR. Обёртка массивом - по аналогии с уже HAR-подтверждённым
+     * access-list (там тоже поле "index" внутри элемента массива).
+     * protocol="both" не подтверждён как значение поля - на этот случай
+     * отправляем ДВЕ отдельные команды (tcp и udp).
+     */
+    fun createPortForwardingRule(
+        wanInterface: String,
+        protocol: String, // "tcp" | "udp" | "both"
+        port: String,
+        endPort: String?,
+        toAddress: String,
+        toPort: String,
+        description: String
+    ) {
+        viewModelScope.launch {
+            _isLoading.value = true
+            try {
+                AppLogger.logAction(
+                    "Create port forwarding rule",
+                    "wan=$wanInterface protocol=$protocol port=$port-$endPort to=$toAddress:$toPort"
+                )
+
+                fun buildRule(proto: String): Map<String, Any> {
+                    val fields = mutableMapOf<String, Any>(
+                        "interface" to wanInterface,
+                        "protocol" to proto,
+                        "port" to port,
+                        "to-address" to toAddress,
+                        "to-port" to toPort
+                    )
+                    if (!endPort.isNullOrBlank()) fields["end-port"] = endPort
+                    if (description.isNotBlank()) fields["description"] = description
+                    return fields
+                }
+
+                val protocols = if (protocol == "both") listOf("tcp", "udp") else listOf(protocol)
+                val rules = protocols.map { buildRule(it) }
+
+                val response = repository.getRestApi().executeRci(
+                    listOf(
+                        mapOf("ip" to mapOf("static" to rules)),
+                        mapOf("system" to mapOf("configuration" to mapOf("save" to emptyMap<String, Any>())))
+                    )
+                )
+                if (response.isSuccessful) {
+                    loadPortForwardingRules()
+                } else {
+                    _error.value = "Ошибка создания правила: HTTP ${response.code()}"
+                }
+            } catch (e: Exception) {
+                _error.value = "Ошибка создания правила: ${e.message}"
+            } finally {
+                _isLoading.value = false
+            }
+        }
+    }
+
+    /**
+     * Статический маршрут. ПОДТВЕРЖДЕНО ДВАЖДЫ независимо (07.08): класс
+     * IpRouteModel в декомпилированном официальном приложении (auto,
+     * default, description, exclusive, gateway, host, interface, mask,
+     * network) + строки "gateway"/"network" в /lib/libndmCorePack.so
+     * реальной прошивки. Не проверено живым HAR-запросом.
+     */
+    fun createStaticRoute(
+        network: String?,
+        mask: String?,
+        gateway: String,
+        interfaceName: String?,
+        description: String,
+        isDefault: Boolean
+    ) {
+        viewModelScope.launch {
+            _isLoading.value = true
+            try {
+                AppLogger.logAction(
+                    "Create static route",
+                    "network=$network mask=$mask gateway=$gateway default=$isDefault"
+                )
+                val route = mutableMapOf<String, Any>("gateway" to gateway)
+                if (isDefault) {
+                    route["default"] = true
+                } else {
+                    if (!network.isNullOrBlank()) route["network"] = network
+                    if (!mask.isNullOrBlank()) route["mask"] = mask
+                }
+                if (!interfaceName.isNullOrBlank()) route["interface"] = interfaceName
+                if (description.isNotBlank()) route["description"] = description
+
+                val response = repository.getRestApi().executeRci(
+                    listOf(
+                        mapOf("ip" to mapOf("route" to route)),
+                        mapOf("system" to mapOf("configuration" to mapOf("save" to emptyMap<String, Any>())))
+                    )
+                )
+                if (response.isSuccessful) {
+                    loadStaticRoutes()
+                } else {
+                    _error.value = "Ошибка добавления маршрута: HTTP ${response.code()}"
+                }
+            } catch (e: Exception) {
+                _error.value = "Ошибка добавления маршрута: ${e.message}"
+            } finally {
+                _isLoading.value = false
+            }
+        }
+    }
+
     fun createFirewallRule(
         wanId: String,
         action: String,
@@ -1131,6 +1418,36 @@ class RouterViewModel(application: Application) : AndroidViewModel(application) 
     }
 
     /** Торрент-клиент. Подтверждено реальным HAR. */
+    /**
+     * ПОДТВЕРЖДЕНО HAR (06.08, реальный успешный вызов на роутере).
+     * Формат: {"torrent":{"directory":..,"rpc-port":{"port":..,"public":..},
+     * "peer-port":..}}. Это конфигурация параметров, отдельно от простого
+     * вкл/выкл (setTorrentClient ниже, тот использует неподтверждённый
+     * service.torrent).
+     */
+    fun setTorrentSettings(directory: String, rpcPort: Int, rpcPublic: Boolean, peerPort: Int) {
+        viewModelScope.launch {
+            try {
+                AppLogger.logAction("Set torrent settings", "dir=$directory rpcPort=$rpcPort peerPort=$peerPort")
+                val response = repository.getRestApi().executeRci(
+                    listOf(
+                        mapOf("torrent" to mapOf(
+                            "directory" to directory,
+                            "rpc-port" to mapOf("port" to rpcPort, "public" to rpcPublic),
+                            "peer-port" to peerPort
+                        )),
+                        mapOf("system" to mapOf("configuration" to mapOf("save" to emptyMap<String, Any>())))
+                    )
+                )
+                if (!response.isSuccessful) {
+                    _error.value = "Ошибка настроек торрента: HTTP ${response.code()}"
+                }
+            } catch (e: Exception) {
+                _error.value = "Ошибка настроек торрента: ${e.message}"
+            }
+        }
+    }
+
     fun setTorrentClient(enabled: Boolean) {
         viewModelScope.launch {
             _isLoading.value = true

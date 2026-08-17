@@ -81,6 +81,21 @@ data class WifiNetwork(
     val guest: Boolean
 )
 
+/**
+ * Физический порт коммутатора ("Сетевые порты" на веб-дашборде).
+ * ПОДТВЕРЖДЕНО HAR (07.08): реальный объект type=="Port" плоским ключом на
+ * верхнем уровне /rci/show/interface (GigabitEthernet0/0..3 для LAN-портов
+ * этой модели, GigabitEthernet1/0 - отдельный порт под WAN/SFP).
+ */
+data class SwitchPort(
+    val id: String,
+    val label: String,     // видимый номер порта, напр. "1"
+    val link: String?,     // "up" / "down"
+    val speed: String?,    // "1000" (Мбит/с) при link=up
+    val duplex: String?,
+    val roleFor: String?   // id VLAN/интерфейса, который использует порт (если есть)
+)
+
 data class WifiAssoc(
     val mac: String? = null,
     val hostname: String? = null,
@@ -247,6 +262,16 @@ interface KeeneticRestApi {
 
     @GET("rci/show/ntce/status")
     suspend fun getNtceStatusRaw(): Response<JsonElement>
+
+    // USB-накопители. ПОДТВЕРЖДЕНО HAR (07.08): show/usb - реальный путь
+    // (найден в JS-бандле веб-морды и в списке путей APK/прошивки).
+    // eject/power-cycle - пути подтверждены (APK: RouterApi.ejectUsb,
+    // interface/usb/power-cycle), точный формат тела запроса не проверен -
+    // отправляем как {"system":{"eject":{"name":deviceName}}} и
+    // {"interface":{"usb":{"power-cycle":true},"name":port}} по аналогии
+    // с остальными командами интерфейсов в проекте.
+    @GET("rci/show/usb")
+    suspend fun getUsbDevicesRaw(): Response<JsonElement>
 
     // Реальный внутренний протокол Keenetic RCI: изменения настроек (в отличие
     // от чтения /rci/show/...) отправляются пакетом команд на корневой /rci/.

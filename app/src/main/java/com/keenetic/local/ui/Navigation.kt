@@ -33,6 +33,7 @@ sealed class Screen(val route: String, val title: String) {
     object SchedulesSettings : Screen("schedules_settings", "Расписание")
     object StaticRoutes : Screen("static_routes", "Маршрутизация")
     object Mobile : Screen("mobile", "Мобильный интернет")
+    object UsbDevices : Screen("usb_devices", "Накопители")
 }
 
 @Composable
@@ -154,6 +155,7 @@ fun KeeneticNavHost(navController: NavHostController, viewModel: RouterViewModel
                     SectionItem("DoH", Screen.DohSettings.route, "DNS-over-HTTPS"),
                     SectionItem("Расписание", Screen.SchedulesSettings.route, "Планы доступа и блокировок"),
                     SectionItem("Приложения", Screen.Apps.route, "OPKG, пакеты и сервисы"),
+                    SectionItem("Накопители", Screen.UsbDevices.route, "USB-устройства"),
                     SectionItem("Диагностика", Screen.Terminal.route, "Команды и отладка"),
                     SectionItem("Пользователи и доступ", Screen.Settings.route, subtitle = "Учетные записи и права")
                 )
@@ -176,6 +178,9 @@ fun KeeneticNavHost(navController: NavHostController, viewModel: RouterViewModel
         }
         composable(Screen.Mobile.route) {
             MobileScreen(viewModel = viewModel, onBack = { navController.popBackStack() })
+        }
+        composable(Screen.UsbDevices.route) {
+            UsbDevicesScreen(viewModel = viewModel, onBack = { navController.popBackStack() })
         }
     }
 }

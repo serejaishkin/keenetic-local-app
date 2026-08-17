@@ -358,12 +358,81 @@ private fun SystemUpdateCard(viewModel: RouterViewModel) {
 @Composable
 private fun AdminUsersCard(viewModel: RouterViewModel) {
     val data by viewModel.usersRaw.collectAsState()
+    val error by viewModel.error.collectAsState()
     LaunchedEffect(Unit) { viewModel.loadUsers() }
-    com.keenetic.local.ui.screens.common.RawJsonCard(
-        title = "Пользователи и доступ",
-        state = data,
-        emptyText = "Список пуст"
-    )
+
+    var username by remember { mutableStateOf("admin") }
+    var newPassword by remember { mutableStateOf("") }
+    var confirmChange by remember { mutableStateOf(false) }
+
+    Column {
+        com.keenetic.local.ui.screens.common.RawJsonCard(
+            title = "Пользователи и доступ",
+            state = data,
+            emptyText = "Список пуст"
+        )
+        Spacer(modifier = Modifier.height(12.dp))
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            colors = CardDefaults.cardColors(containerColor = KeeneticColors.Surface)
+        ) {
+            Column(modifier = Modifier.padding(16.dp)) {
+                Text("Сменить пароль", fontWeight = FontWeight.SemiBold)
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    "Формат подтверждён по аналогии с уже рабочей командой смены тега пользователя (opkg) - поле password добавляется в тот же объект. Не проверено живым HAR-запросом именно смены пароля.",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = KeeneticColors.TextSecondary
+                )
+                Spacer(modifier = Modifier.height(12.dp))
+                OutlinedTextField(
+                    value = username, onValueChange = { username = it },
+                    label = { Text("Имя пользователя") }, singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                OutlinedTextField(
+                    value = newPassword, onValueChange = { newPassword = it },
+                    label = { Text("Новый пароль") }, singleLine = true,
+                    visualTransformation = androidx.compose.ui.text.input.PasswordVisualTransformation(),
+                    modifier = Modifier.fillMaxWidth()
+                )
+                if (error != null) {
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(error ?: "", color = KeeneticColors.Error, style = MaterialTheme.typography.bodySmall)
+                }
+                Spacer(modifier = Modifier.height(12.dp))
+                Button(
+                    onClick = { confirmChange = true },
+                    enabled = username.isNotBlank() && newPassword.length >= 8,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text("Сменить пароль")
+                }
+            }
+        }
+    }
+
+    if (confirmChange) {
+        AlertDialog(
+            onDismissRequest = { confirmChange = false },
+            icon = { Icon(Icons.Default.Warning, contentDescription = null, tint = KeeneticColors.Warning) },
+            title = { Text("Сменить пароль администратора?") },
+            text = { Text("Если что-то пойдёт не так, доступ к роутеру можно потерять. Убедись, что запомнил новый пароль, прежде чем продолжить.") },
+            confirmButton = {
+                TextButton(onClick = {
+                    viewModel.setAdminPassword(username, newPassword)
+                    newPassword = ""
+                    confirmChange = false
+                }) {
+                    Text("Сменить", color = KeeneticColors.Error)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { confirmChange = false }) { Text("Отмена") }
+            }
+        )
+    }
 }
 
 /** Диапазон пула DHCP. RCI-путь show/ip/dhcp/pool подтверждён. */
@@ -385,20 +454,59 @@ private fun DhcpPoolCard(viewModel: RouterViewModel) {
 @Composable
 private fun IntelliQosCard(viewModel: RouterViewModel) {
     val summary by viewModel.ntceSummaryRaw.collectAsState()
-    val status by viewModel.ntceStatusRaw.collectAsState()
     LaunchedEffect(Unit) { viewModel.loadIntelliQos() }
     Column {
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            colors = CardDefaults.cardColors(containerColor = KeeneticColors.Surface)
+        ) {
+            Column(modifier = Modifier.padding(16.dp)) {
+                Text("Приоритеты трафика", fontWeight = FontWeight.SemiBold)
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    "Подтверждено HAR. 1 - высший приоритет, 4 - низший.",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = KeeneticColors.TextSecondary
+                )
+                Spacer(modifier = Modifier.height(12.dp))
+                listOf(
+                    "calling" to "Звонки",
+                    "streaming" to "Стриминг",
+                    "gaming" to "Игры",
+                    "other" to "Остальное"
+                ).forEach { (category, label) ->
+                    IntelliQosCategoryRow(category, label, viewModel)
+                }
+            }
+        }
+        Spacer(modifier = Modifier.height(12.dp))
         com.keenetic.local.ui.screens.common.RawJsonCard(
-            title = "IntelliQoS: сводка",
+            title = "IntelliQoS: текущее состояние",
             state = summary,
             emptyText = "Нет данных"
         )
-        Spacer(modifier = Modifier.height(12.dp))
-        com.keenetic.local.ui.screens.common.RawJsonCard(
-            title = "IntelliQoS: статус",
-            state = status,
-            emptyText = "Нет данных"
-        )
+    }
+}
+
+@Composable
+private fun IntelliQosCategoryRow(category: String, label: String, viewModel: RouterViewModel) {
+    Row(
+        modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.SpaceBetween
+    ) {
+        Text(label, style = MaterialTheme.typography.bodyMedium)
+        Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+            (1..4).forEach { priority ->
+                OutlinedButton(
+                    onClick = { viewModel.setIntelliQosPriority(category, priority) },
+                    contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
+                    modifier = Modifier.size(width = 40.dp, height = 32.dp)
+                ) {
+                    Text("$priority", style = MaterialTheme.typography.labelSmall)
+                }
+            }
+        }
     }
 }
 
