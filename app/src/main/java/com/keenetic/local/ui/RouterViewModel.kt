@@ -1,5 +1,6 @@
 package com.keenetic.local.ui
 
+import com.keenetic.local.utils.toSwitchPorts
 import android.app.Application
 import android.content.Context
 import android.net.ConnectivityManager
