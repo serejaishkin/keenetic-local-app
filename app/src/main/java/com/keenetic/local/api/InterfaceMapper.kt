@@ -7,14 +7,9 @@ import com.google.gson.JsonObject
  * и разные прошивки/модели отдают чуть разный набор полей. Поэтому весь
  * разбор здесь сделан "защитно" — пробуем несколько вероятных названий
  * полей и не падаем, если чего-то нет.
- *
- * Если после подключения реального роутера что-то по-прежнему не совпадает —
- * пришли сюда сырой JSON одного элемента (curl/SSH `show interface` с одной
- * точкой доступа), и маппинг легко уточнить под конкретную прошивку.
  */
 object InterfaceMapper {
 
-    /** Человекочитаемые имена для типовых системных интерфейсов Keenetic. */
     private val KNOWN_NAMES = mapOf(
         "GigabitEthernet0" to "Интернет (WAN)",
         "GigabitEthernet0/0" to "LAN 1",
@@ -31,11 +26,6 @@ object InterfaceMapper {
 
     fun toInterfaceList(raw: Map<String, JsonObject>): List<InterfaceInfo> =
         raw.entries
-            // "Port" - это отдельные физические порты свитча (вложены и внутри
-            // родительского GigabitEthernetX, и продублированы плоскими ключами
-            // на верхнем уровне JSON) - пользователю неинтересны сами по себе.
-            // "WifiStation" - интерфейс Wi-Fi клиентского режима (репитер),
-            // обычно не используется и всегда down на большинстве роутеров.
             .filterNot { (_, obj) -> typeOf(obj) in setOf("Port", "WifiStation") }
             .map { (key, obj) -> toInterfaceInfo(key, obj) }
             .sortedWith(compareBy({ it.type != "AccessPoint" }, { it.id }))
@@ -43,14 +33,44 @@ object InterfaceMapper {
     fun toWifiNetworks(raw: Map<String, JsonObject>): List<WifiNetwork> =
         raw.entries
             .filter { (_, obj) -> typeOf(obj).equals("AccessPoint", ignoreCase = true) }
-            // Keenetic резервирует до 7 виртуальных AP на радиомодуль; реально
-            // настроенные всегда имеют непустое description (см. реальный дамп
-            // /rci/show/interface). Пустые слоты без description и без ssid
-            // отфильтровываем, иначе в списке будет десяток пустых карточек.
             .filter { (_, obj) -> !str(obj, "description").isNullOrBlank() || !str(obj, "ssid").isNullOrBlank() }
             .map { (key, obj) -> toWifiNetwork(key, obj) }
 
-    // ---- отдельный интерфейс ----
+    /**
+     * Преобразует плоские объекты type=Port из /rci/show/interface
+     * в модели физических портов свитча.
+     *
+     * На разных моделях Keenetic номер порта может быть представлен как
+     * port/number, поэтому используем несколько безопасных вариантов.
+     */
+    fun toSwitchPorts(raw: Map<String, JsonObject>): List<SwitchPort> =
+        raw.entries
+            .filter { (_, obj) -> typeOf(obj).equals("Port", ignoreCase = true) }
+            .map { (key, obj) ->
+                val id = str(obj, "id") ?: key
+                val number = str(obj, "port")
+                    ?: str(obj, "number")
+                    ?: id.substringAfterLast('/').takeIf { it.isNotBlank() }
+                    ?: id
+
+                SwitchPort(
+                    id = id,
+                    label = portLabel(number),
+                    link = str(obj, "link") ?: str(obj, "state"),
+                    speed = str(obj, "speed") ?: str(obj, "rate"),
+                    duplex = str(obj, "duplex"),
+                    roleFor = str(obj, "for") ?: str(obj, "role") ?: str(obj, "interface")
+                )
+            }
+            .sortedWith(compareBy({ portSortKey(it.label) }, { it.id }))
+
+    private fun portLabel(raw: String): String {
+        val n = raw.filter { it.isDigit() }.toIntOrNull()
+        return if (n != null) n.toString() else raw
+    }
+
+    private fun portSortKey(label: String): Int =
+        label.toIntOrNull() ?: Int.MAX_VALUE
 
     private fun toInterfaceInfo(key: String, obj: JsonObject): InterfaceInfo {
         val id = str(obj, "id") ?: key
@@ -88,8 +108,6 @@ object InterfaceMapper {
         )
     }
 
-    // ---- Wi-Fi ----
-
     private fun toWifiNetwork(key: String, obj: JsonObject): WifiNetwork {
         val id = str(obj, "id") ?: key
         val ifName = str(obj, "interface-name")
@@ -122,25 +140,15 @@ object InterfaceMapper {
     }
 
     private fun bandOf(id: String, obj: JsonObject): String {
-        // Явное поле диапазона (встречается на некоторых прошивках).
         str(obj, "band")?.let { return normalizeBand(it) }
         str(obj, "frequency")?.let { return normalizeBand(it) }
-
-        // Реальные дампы Keenetic содержат подсказку в description,
-        // например "5GHz Wi-Fi access point".
         str(obj, "description")?.let { desc ->
             if (desc.contains("5G", ignoreCase = true)) return "5 ГГц"
             if (desc.contains("2.4G", ignoreCase = true) || desc.contains("2,4G", ignoreCase = true)) return "2.4 ГГц"
         }
-
-        // По каналу: >14 обычно означает диапазон 5 ГГц.
         obj.get("channel")?.takeIf { it.isJsonPrimitive }?.asString?.toIntOrNull()?.let { ch ->
             return if (ch > 14) "5 ГГц" else "2.4 ГГц"
         }
-
-        // Фолбэк — по родительскому радио-модулю (для большинства моделей
-        // Keenetic WifiMaster0 = 2.4 ГГц, WifiMaster1 = 5 ГГц; подтверждено
-        // реальным дампом /rci/show/interface).
         return when {
             id.contains("WifiMaster0", ignoreCase = true) -> "2.4 ГГц"
             id.contains("WifiMaster1", ignoreCase = true) -> "5 ГГц"
@@ -154,12 +162,6 @@ object InterfaceMapper {
         else -> raw
     }
 
-    /**
-     * На реальном роутере шифрование - это плоское строковое поле "encryption"
-     * ("wpa2", "wpa3", "" для отключённых/незащищённых сетей), без вложенного
-     * объекта "security". Поле "auth-type" относится к 802.1x/RADIUS и не
-     * определяет открытость сети, поэтому не используется здесь.
-     */
     private fun securityOf(obj: JsonObject): String {
         val encryption = str(obj, "encryption")
         return when {
