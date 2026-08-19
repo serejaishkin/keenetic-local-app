@@ -1,6 +1,5 @@
 package com.keenetic.local.ui
 
-import com.keenetic.local.utils.toSwitchPorts
 import android.app.Application
 import android.content.Context
 import android.net.ConnectivityManager
@@ -502,7 +501,54 @@ class RouterViewModel(application: Application) : AndroidViewModel(application) 
         }
     }
 
-    fun loadStaticRoutes() = loadRawInto("Static routes", _ipRouteRaw) { repository.getRestApi().getIpRouteRaw() }
+    /**
+     * Читает show-путь через батч-POST на корневой /rci/ вместо простого
+     * GET convenience-роута. ИСПРАВЛЕНО (18.08): show/ip/route и
+     * show/upnp/redirect реально возвращали HTTP 401 через простой @GET на
+     * устройстве - тот же самый паттерн, что уже был у show/site-survey и
+     * show/rc/ntce/qos (те тоже требуют батч, не просто GET). Судя по
+     * всему, только ПОДМНОЖЕСТВО show-путей открыто как прямые GET-роуты,
+     * остальные принимает только основной RCI-процессор через POST /rci/.
+     * pathSegments - например listOf("ip","route") -> {"show":{"ip":{"route":{}}}}.
+     */
+    private fun loadShowViaBatch(
+        label: String,
+        target: MutableStateFlow<com.keenetic.local.ui.screens.common.ApiCallState>,
+        pathSegments: List<String>
+    ) {
+        viewModelScope.launch {
+            target.value = com.keenetic.local.ui.screens.common.ApiCallState.Loading
+            try {
+                var inner: Map<String, Any> = emptyMap()
+                for (key in pathSegments.reversed()) {
+                    inner = mapOf(key to inner)
+                }
+                val command: Map<String, Any> = mapOf("show" to inner)
+                val response = repository.getRestApi().executeRci(listOf<Map<String, Any>>(command))
+                if (response.isSuccessful) {
+                    var node: com.google.gson.JsonElement? = response.body()
+                        ?.takeIf { it.isJsonArray && it.asJsonArray.size() > 0 }
+                        ?.asJsonArray?.get(0)?.asJsonObject?.get("show")
+                    for (key in pathSegments) {
+                        node = node?.takeIf { it.isJsonObject }?.asJsonObject?.get(key)
+                    }
+                    target.value = if (node != null) {
+                        com.keenetic.local.ui.screens.common.ApiCallState.Success(node)
+                    } else {
+                        com.keenetic.local.ui.screens.common.ApiCallState.Error("неожиданный формат ответа")
+                    }
+                } else {
+                    target.value = com.keenetic.local.ui.screens.common.ApiCallState.Error("HTTP ${response.code()}")
+                    AppLogger.logAction("$label load failed", "HTTP ${response.code()}")
+                }
+            } catch (e: Exception) {
+                target.value = com.keenetic.local.ui.screens.common.ApiCallState.Error(e.message ?: "неизвестная ошибка")
+                AppLogger.logAction("$label load failed", e.message ?: "")
+            }
+        }
+    }
+
+    fun loadStaticRoutes() = loadShowViaBatch("Static routes", _ipRouteRaw, listOf("ip", "route"))
 
     fun loadMobileStatus() {
         loadRawInto("Mobile status", _mobileRaw) { repository.getRestApi().getMobileRaw() }
@@ -527,7 +573,7 @@ class RouterViewModel(application: Application) : AndroidViewModel(application) 
             try {
                 AppLogger.logAction("Set admin password", "user=$username")
                 val response = repository.getRestApi().executeRci(
-                    listOf(
+                    listOf<Map<String, Any>>(
                         mapOf("user" to listOf(mapOf("name" to username, "password" to newPassword))),
                         mapOf("system" to mapOf("configuration" to mapOf("save" to emptyMap<String, Any>())))
                     )
@@ -547,7 +593,7 @@ class RouterViewModel(application: Application) : AndroidViewModel(application) 
 
     fun loadDhcpPool() = loadRawInto("DHCP pool", _dhcpPoolRaw) { repository.getRestApi().getDhcpPoolRaw() }
 
-    fun loadUpnpRedirect() = loadRawInto("UPnP redirect", _upnpRedirectRaw) { repository.getRestApi().getUpnpRedirectRaw() }
+    fun loadUpnpRedirect() = loadShowViaBatch("UPnP redirect", _upnpRedirectRaw, listOf("upnp", "redirect"))
 
     fun loadInternetStatus() = loadRawInto("Internet status", _internetStatusRaw) { repository.getRestApi().getInternetStatusRaw() }
 
@@ -563,7 +609,7 @@ class RouterViewModel(application: Application) : AndroidViewModel(application) 
             _ntceSummaryRaw.value = com.keenetic.local.ui.screens.common.ApiCallState.Loading
             try {
                 val response = repository.getRestApi().executeRci(
-                    listOf(mapOf("show" to mapOf("rc" to mapOf("ntce" to mapOf("qos" to emptyMap<String, Any>())))))
+                    listOf<Map<String, Any>>(mapOf("show" to mapOf("rc" to mapOf("ntce" to mapOf("qos" to emptyMap<String, Any>())))))
                 )
                 if (response.isSuccessful) {
                     val extracted = runCatching {
@@ -597,7 +643,7 @@ class RouterViewModel(application: Application) : AndroidViewModel(application) 
             try {
                 AppLogger.logAction("Set IntelliQoS priority", "category=$category priority=$priority")
                 val response = repository.getRestApi().executeRci(
-                    listOf(
+                    listOf<Map<String, Any>>(
                         mapOf("ntce" to mapOf("qos" to mapOf("category" to listOf(mapOf("category" to category, "priority" to priority))))),
                         mapOf("system" to mapOf("configuration" to mapOf("save" to emptyMap<String, Any>())))
                     )
@@ -633,7 +679,7 @@ class RouterViewModel(application: Application) : AndroidViewModel(application) 
         viewModelScope.launch {
             try {
                 val response = repository.getRestApi().executeRci(
-                    listOf(mapOf("show" to mapOf("sc" to mapOf("components" to mapOf("auto-update" to emptyMap<String, Any>())))))
+                    listOf<Map<String, Any>>(mapOf("show" to mapOf("sc" to mapOf("components" to mapOf("auto-update" to emptyMap<String, Any>())))))
                 )
                 if (response.isSuccessful) {
                     val enabled = runCatching {
@@ -654,7 +700,7 @@ class RouterViewModel(application: Application) : AndroidViewModel(application) 
             try {
                 AppLogger.logAction("Set auto-update", "enabled=$enabled")
                 val response = repository.getRestApi().executeRci(
-                    listOf(
+                    listOf<Map<String, Any>>(
                         mapOf("components" to mapOf("auto-update" to mapOf("disable" to !enabled))),
                         mapOf("system" to mapOf("configuration" to mapOf("save" to emptyMap<String, Any>())))
                     )
@@ -682,9 +728,8 @@ class RouterViewModel(application: Application) : AndroidViewModel(application) 
         viewModelScope.launch {
             try {
                 AppLogger.logAction("Eject USB device", deviceName)
-                val response = repository.getRestApi().executeRci(
-                    listOf(mapOf("system" to mapOf("eject" to mapOf("name" to deviceName))))
-                )
+                val ejectCommand: Map<String, Any> = mapOf("system" to mapOf("eject" to mapOf("name" to deviceName)))
+                val response = repository.getRestApi().executeRci(listOf(ejectCommand))
                 if (response.isSuccessful) {
                     loadUsbDevices()
                 } else {
@@ -696,13 +741,24 @@ class RouterViewModel(application: Application) : AndroidViewModel(application) 
         }
     }
 
+    /**
+     * ИСПРАВЛЕНО (18.08): реальный краш на устройстве -
+     * "Parameter type must not include a type variable or wildcard" в
+     * executeRci. Причина (по совпадению с рабочими вызовами) - здесь
+     * все значения были строковыми, и Kotlin вывел более узкий тип
+     * List<Map<String, Map<String, Map<String, String>>>> вместо
+     * List<Map<String, Any>>, который ожидает интерфейс. Во всех уже
+     * рабочих вызовах (setWifiPassword и т.д.) есть explicit
+     * emptyMap<String, Any>() где-то в теле - это заставляет Kotlin
+     * вывести правильный широкий тип для всего выражения. Добавляю то же
+     * самое здесь через явную аннотацию типа.
+     */
     fun scanSiteSurvey(masterName: String) {
         viewModelScope.launch {
             _siteSurveyRaw.value = com.keenetic.local.ui.screens.common.ApiCallState.Loading
             try {
-                val response = repository.getRestApi().executeRci(
-                    listOf(mapOf("show" to mapOf("site-survey" to mapOf("name" to masterName))))
-                )
+                val command: Map<String, Any> = mapOf("show" to mapOf("site-survey" to mapOf("name" to masterName)))
+                val response = repository.getRestApi().executeRci(listOf(command))
                 if (response.isSuccessful) {
                     val body = response.body()
                     val extracted = runCatching {
@@ -735,7 +791,7 @@ class RouterViewModel(application: Application) : AndroidViewModel(application) 
             try {
                 AppLogger.logAction("Set DNS filter engine", "enabled=$enabled")
                 val response = repository.getRestApi().executeRci(
-                    listOf(
+                    listOf<Map<String, Any>>(
                         mapOf("dns-proxy" to mapOf("filter" to mapOf("engine" to mapOf("no" to !enabled)))),
                         mapOf("system" to mapOf("configuration" to mapOf("save" to emptyMap<String, Any>())))
                     )
@@ -897,7 +953,7 @@ class RouterViewModel(application: Application) : AndroidViewModel(application) 
         viewModelScope.launch {
             try {
                 val response = repository.getRestApi().executeRci(
-                    listOf(mapOf("show" to mapOf("sc" to mapOf("dns-proxy" to mapOf("https" to mapOf("upstream" to emptyMap<String, Any>()))))))
+                    listOf<Map<String, Any>>(mapOf("show" to mapOf("sc" to mapOf("dns-proxy" to mapOf("https" to mapOf("upstream" to emptyMap<String, Any>()))))))
                 )
                 if (response.isSuccessful) {
                     val body = response.body()
@@ -915,7 +971,7 @@ class RouterViewModel(application: Application) : AndroidViewModel(application) 
         viewModelScope.launch {
             try {
                 val response = repository.getRestApi().executeRci(
-                    listOf(mapOf("show" to mapOf("sc" to mapOf("schedule" to emptyMap<String, Any>()))))
+                    listOf<Map<String, Any>>(mapOf("show" to mapOf("sc" to mapOf("schedule" to emptyMap<String, Any>()))))
                 )
                 if (response.isSuccessful) {
                     val body = response.body()
@@ -937,7 +993,7 @@ class RouterViewModel(application: Application) : AndroidViewModel(application) 
         viewModelScope.launch {
             try {
                 val response = repository.getRestApi().executeRci(
-                    listOf(mapOf("show" to mapOf("sc" to mapOf("ip" to mapOf("name-server" to emptyMap<String, Any>())))))
+                    listOf<Map<String, Any>>(mapOf("show" to mapOf("sc" to mapOf("ip" to mapOf("name-server" to emptyMap<String, Any>())))))
                 )
                 if (response.isSuccessful) {
                     val body = response.body()
@@ -967,7 +1023,7 @@ class RouterViewModel(application: Application) : AndroidViewModel(application) 
                     actions += mapOf("action" to "stop", "hour" to stopHour.toString(), "min" to stopMin.toString(), "dow" to dow.toString())
                 }
                 val response = repository.getRestApi().executeRci(
-                    listOf(
+                    listOf<Map<String, Any>>(
                         mapOf("schedule" to mapOf("name" to name, "description" to description, "action" to actions)),
                         mapOf("system" to mapOf("configuration" to mapOf("save" to emptyMap<String, Any>())))
                     )
@@ -995,7 +1051,7 @@ class RouterViewModel(application: Application) : AndroidViewModel(application) 
             _isLoading.value = true
             try {
                 val response = repository.getRestApi().executeRci(
-                    listOf(
+                    listOf<Map<String, Any>>(
                         mapOf("ip" to mapOf("hotspot" to mapOf("host" to mapOf("mac" to mac, "schedule" to scheduleName)))),
                         mapOf("system" to mapOf("configuration" to mapOf("save" to emptyMap<String, Any>())))
                     )
@@ -1033,7 +1089,7 @@ class RouterViewModel(application: Application) : AndroidViewModel(application) 
             try {
                 AppLogger.logAction("Set client policy", "mac=$mac policy=$policyName")
                 val response = repository.getRestApi().executeRci(
-                    listOf(
+                    listOf<Map<String, Any>>(
                         mapOf("ip" to mapOf("hotspot" to mapOf("host" to mapOf("mac" to mac, "policy" to policyName)))),
                         mapOf("system" to mapOf("configuration" to mapOf("save" to emptyMap<String, Any>())))
                     )
@@ -1077,7 +1133,7 @@ class RouterViewModel(application: Application) : AndroidViewModel(application) 
             try {
                 AppLogger.logAction("Rename device", "mac=$mac name=$newName")
                 val response = repository.getRestApi().executeRci(
-                    listOf(
+                    listOf<Map<String, Any>>(
                         mapOf("known" to mapOf("host" to mapOf("name" to newName, "mac" to mac))),
                         mapOf("system" to mapOf("configuration" to mapOf("save" to emptyMap<String, Any>())))
                     )
@@ -1168,7 +1224,7 @@ class RouterViewModel(application: Application) : AndroidViewModel(application) 
                 val rules = protocols.map { buildRule(it) }
 
                 val response = repository.getRestApi().executeRci(
-                    listOf(
+                    listOf<Map<String, Any>>(
                         mapOf("ip" to mapOf("static" to rules)),
                         mapOf("system" to mapOf("configuration" to mapOf("save" to emptyMap<String, Any>())))
                     )
@@ -1219,7 +1275,7 @@ class RouterViewModel(application: Application) : AndroidViewModel(application) 
                 if (description.isNotBlank()) route["description"] = description
 
                 val response = repository.getRestApi().executeRci(
-                    listOf(
+                    listOf<Map<String, Any>>(
                         mapOf("ip" to mapOf("route" to route)),
                         mapOf("system" to mapOf("configuration" to mapOf("save" to emptyMap<String, Any>())))
                     )
@@ -1271,7 +1327,7 @@ class RouterViewModel(application: Application) : AndroidViewModel(application) 
                 if (description.isNotBlank()) ruleFields["description"] = description
 
                 val response = repository.getRestApi().executeRci(
-                    listOf(
+                    listOf<Map<String, Any>>(
                         mapOf("access-list" to listOf(mapOf("acl" to aclName, verbKey to ruleFields))),
                         mapOf(
                             "interface" to mapOf(
@@ -1332,7 +1388,7 @@ class RouterViewModel(application: Application) : AndroidViewModel(application) 
 
                 AppLogger.logAction("Update wifi network", "network=$networkId fields=${wlanFields.keys}")
                 val response = repository.getRestApi().executeRci(
-                    listOf(
+                    listOf<Map<String, Any>>(
                         mapOf("mws" to mapOf("wlan" to wlanFields)),
                         mapOf("system" to mapOf("configuration" to mapOf("save" to emptyMap<String, Any>())))
                     )
@@ -1368,7 +1424,7 @@ class RouterViewModel(application: Application) : AndroidViewModel(application) 
                     "work" to 4, "surfing" to 5, "other" to 6, "filetransfering" to 7
                 )
                 val response = repository.getRestApi().executeRci(
-                    listOf(
+                    listOf<Map<String, Any>>(
                         mapOf("ntce" to mapOf("qos" to mapOf(
                             "category" to defaultPriorities.map { (cat, pr) -> mapOf("category" to cat, "priority" to pr) }
                         ))),
@@ -1398,7 +1454,7 @@ class RouterViewModel(application: Application) : AndroidViewModel(application) 
             _isLoading.value = true
             try {
                 val response = repository.getRestApi().executeRci(
-                    listOf(
+                    listOf<Map<String, Any>>(
                         mapOf("opkg" to mapOf(
                             "disk" to mapOf("disk" to (if (enabled) disk else ""), "no" to !enabled),
                             "initrc" to mapOf("path" to (if (enabled) "1" else ""), "no" to !enabled)
@@ -1431,7 +1487,7 @@ class RouterViewModel(application: Application) : AndroidViewModel(application) 
             try {
                 AppLogger.logAction("Set torrent settings", "dir=$directory rpcPort=$rpcPort peerPort=$peerPort")
                 val response = repository.getRestApi().executeRci(
-                    listOf(
+                    listOf<Map<String, Any>>(
                         mapOf("torrent" to mapOf(
                             "directory" to directory,
                             "rpc-port" to mapOf("port" to rpcPort, "public" to rpcPublic),
@@ -1454,7 +1510,7 @@ class RouterViewModel(application: Application) : AndroidViewModel(application) 
             _isLoading.value = true
             try {
                 val response = repository.getRestApi().executeRci(
-                    listOf(
+                    listOf<Map<String, Any>>(
                         mapOf("service" to mapOf("torrent" to enabled)),
                         mapOf("system" to mapOf("configuration" to mapOf("save" to emptyMap<String, Any>())))
                     )
@@ -1477,7 +1533,7 @@ class RouterViewModel(application: Application) : AndroidViewModel(application) 
         viewModelScope.launch {
             try {
                 val response = repository.getRestApi().executeRci(
-                    listOf(mapOf("show" to mapOf("sc" to mapOf("vpn-server" to emptyMap<String, Any>()))))
+                    listOf<Map<String, Any>>(mapOf("show" to mapOf("sc" to mapOf("vpn-server" to emptyMap<String, Any>()))))
                 )
                 if (response.isSuccessful) {
                     val body = response.body()
@@ -1497,7 +1553,7 @@ class RouterViewModel(application: Application) : AndroidViewModel(application) 
                 val entry = mutableMapOf<String, Any>("url" to url, "hash" to "", "domain" to "")
                 targetInterface?.let { entry["interface"] = it }
                 val response = repository.getRestApi().executeRci(
-                    listOf(
+                    listOf<Map<String, Any>>(
                         mapOf("dns-proxy" to mapOf("https" to mapOf("upstream" to listOf(mapOf("no" to true), entry)))),
                         mapOf("system" to mapOf("configuration" to mapOf("save" to emptyMap<String, Any>())))
                     )
@@ -1534,9 +1590,8 @@ class RouterViewModel(application: Application) : AndroidViewModel(application) 
             _isScanning.value = true
             _scanResults.value = emptyList()
             try {
-                val response = repository.getRestApi().executeRci(
-                    listOf(mapOf("show" to mapOf("site-survey" to mapOf("name" to masterRadio))))
-                )
+                val scanCommand: Map<String, Any> = mapOf("show" to mapOf("site-survey" to mapOf("name" to masterRadio)))
+                val response = repository.getRestApi().executeRci(listOf(scanCommand))
                 if (response.isSuccessful) {
                     val body = response.body()
                     val first = if (body?.isJsonArray == true && body.asJsonArray.size() > 0) body.asJsonArray[0] else body
@@ -1567,7 +1622,7 @@ class RouterViewModel(application: Application) : AndroidViewModel(application) 
             _isLoading.value = true
             try {
                 val response = repository.getRestApi().executeRci(
-                    listOf(
+                    listOf<Map<String, Any>>(
                         mapOf("interface" to mapOf(
                             "ipoe" to mapOf(
                                 "inet-port" to inetPort, "inet-pcp" to "", "inet-vlan" to "",
@@ -1598,7 +1653,7 @@ class RouterViewModel(application: Application) : AndroidViewModel(application) 
             try {
                 val stationId = "$masterRadio/WifiStation0"
                 val response = repository.getRestApi().executeRci(
-                    listOf(
+                    listOf<Map<String, Any>>(
                         mapOf("interface" to mapOf("ip" to mapOf("address" to mapOf("no" to true, "dhcp" to true)), "name" to stationId)),
                         mapOf("interface" to mapOf("description" to ssid, "name" to stationId)),
                         mapOf("interface" to mapOf("ssid" to ssid, "name" to stationId)),
@@ -1637,7 +1692,7 @@ class RouterViewModel(application: Application) : AndroidViewModel(application) 
             try {
                 val stationId = "$masterRadio/WifiStation0"
                 val response = repository.getRestApi().executeRci(
-                    listOf(
+                    listOf<Map<String, Any>>(
                         mapOf("interface" to mapOf("ssid" to mapOf("no" to true), "name" to stationId)),
                         mapOf("interface" to mapOf("up" to false, "name" to stationId)),
                         mapOf("interface" to mapOf("description" to mapOf("no" to true), "name" to stationId)),
@@ -1668,7 +1723,7 @@ class RouterViewModel(application: Application) : AndroidViewModel(application) 
             try {
                 AppLogger.logAction("Set WiFi password", "network=$networkId")
                 val response = repository.getRestApi().executeRci(
-                    listOf(
+                    listOf<Map<String, Any>>(
                         mapOf("mws" to mapOf("wlan" to mapOf("id" to networkId, "wpa" to mapOf("psk" to newPassword)))),
                         mapOf("system" to mapOf("configuration" to mapOf("save" to emptyMap<String, Any>())))
                     )
@@ -1709,7 +1764,7 @@ class RouterViewModel(application: Application) : AndroidViewModel(application) 
                 // через общий /rci/ (не rci/interface/{name}, как было раньше -
                 // тот путь не был подтверждён ни разу).
                 val response = repository.getRestApi().executeRci(
-                    listOf(
+                    listOf<Map<String, Any>>(
                         mapOf("interface" to mapOf("up" to up, "name" to name)),
                         mapOf("system" to mapOf("configuration" to mapOf("save" to emptyMap<String, Any>())))
                     )
