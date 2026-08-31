@@ -1,0 +1,6 @@
+{
+  "name": "Keenetic Local",
+  "description": "Local Web Management Dashboard and Control Center for Keenetic Routers via RCI REST API.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
