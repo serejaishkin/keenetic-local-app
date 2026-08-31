@@ -125,6 +125,23 @@ export interface PingResult {
   status: 'success' | 'running' | 'failed';
 }
 
+export interface TracerouteHop {
+  hop: number;
+  ip: string;
+  host: string;
+  rtt1: number;
+  rtt2: number;
+  rtt3: number;
+  loss: boolean;
+}
+
+export interface TracerouteResult {
+  target: string;
+  hops: TracerouteHop[];
+  status: 'running' | 'completed' | 'failed';
+  timestamp: string;
+}
+
 export interface RciCommandLog {
   id: string;
   path: string;
@@ -134,6 +151,51 @@ export interface RciCommandLog {
   response: any;
   timestamp: string;
   durationMs: number;
+}
+
+export interface SyslogEntry {
+  id: string;
+  timestamp: string;
+  level: 'INFO' | 'WARNING' | 'ERROR' | 'NOTICE';
+  facility: 'dhcpd' | 'ndm' | 'kernel' | 'wpa_supplicant' | 'dnsmasq' | 'wireguard' | 'upnp' | 'system';
+  message: string;
+}
+
+export interface PortForwardingRule {
+  id: string;
+  name: string;
+  protocol: 'TCP' | 'UDP' | 'TCP/UDP';
+  externalPort: string;
+  internalIp: string;
+  internalPort: string;
+  enabled: boolean;
+  comment?: string;
+}
+
+export interface DnsFilterConfig {
+  mode: 'none' | 'adguard' | 'nextdns' | 'cloudflare' | 'yandex_safe' | 'yandex_family' | 'custom';
+  customDnsPrimary: string;
+  customDnsSecondary: string;
+  dohEnabled: boolean;
+  dohServer: string;
+  blockedQueriesCount: number;
+  totalQueriesCount: number;
+}
+
+export interface VpnConnection {
+  id: string;
+  name: string;
+  type: 'WireGuard' | 'OpenVPN' | 'SSTP' | 'IPsec';
+  status: 'connected' | 'disconnected' | 'connecting';
+  serverAddress: string;
+  clientIp: string;
+  txBytes: number;
+  rxBytes: number;
+  rxSpeed: number;
+  txSpeed: number;
+  uptime: string;
+  policy: 'all' | 'specific_domains' | 'selected_devices';
+  devicesCount: number;
 }
 
 export interface AiDiagnosticResult {

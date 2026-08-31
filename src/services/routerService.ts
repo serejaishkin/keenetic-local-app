@@ -7,7 +7,12 @@ import {
   PortStatus,
   TrafficPoint,
   PingResult,
+  TracerouteResult,
   RciCommandLog,
+  SyslogEntry,
+  PortForwardingRule,
+  DnsFilterConfig,
+  VpnConnection,
   AiDiagnosticResult
 } from '../types';
 
@@ -28,6 +33,124 @@ let simulatedUptime = 842190; // ~9.7 days
 let simulatedCpu = 14;
 let simulatedMemUsed = 148200; // KB
 const simulatedMemTotal = 524288; // 512MB RAM
+
+// Simulated Port Forwarding Rules
+let simulatedPortRules: PortForwardingRule[] = [
+  {
+    id: 'rule-1',
+    name: 'Home Web Server (HTTPS)',
+    protocol: 'TCP',
+    externalPort: '443',
+    internalIp: '192.168.1.120',
+    internalPort: '443',
+    enabled: true,
+    comment: 'Synology NAS Web Station & SSL',
+  },
+  {
+    id: 'rule-2',
+    name: 'SSH Secure Access',
+    protocol: 'TCP',
+    externalPort: '2222',
+    internalIp: '192.168.1.120',
+    internalPort: '22',
+    enabled: true,
+    comment: 'Custom SSH forwarding to server',
+  },
+  {
+    id: 'rule-3',
+    name: 'WireGuard Server Port',
+    protocol: 'UDP',
+    externalPort: '51820',
+    internalIp: '192.168.1.1',
+    internalPort: '51820',
+    enabled: true,
+    comment: 'Direct tunnel endpoint',
+  },
+  {
+    id: 'rule-4',
+    name: 'Plex Media Server',
+    protocol: 'TCP',
+    externalPort: '32400',
+    internalIp: '192.168.1.120',
+    internalPort: '32400',
+    enabled: false,
+    comment: 'Remote media streaming',
+  },
+];
+
+// Simulated DNS Filtration State
+let simulatedDnsFilter: DnsFilterConfig = {
+  mode: 'adguard',
+  customDnsPrimary: '94.140.14.14',
+  customDnsSecondary: '94.140.15.15',
+  dohEnabled: true,
+  dohServer: 'https://dns.adguard-dns.com/dns-query',
+  blockedQueriesCount: 3842,
+  totalQueriesCount: 29410,
+};
+
+// Simulated VPN Tunnels
+let simulatedVpnList: VpnConnection[] = [
+  {
+    id: 'vpn-wg-1',
+    name: 'Amsterdam WireGuard Fast',
+    type: 'WireGuard',
+    status: 'connected',
+    serverAddress: '185.156.72.44:51820',
+    clientIp: '10.8.0.2/32',
+    txBytes: 142000000,
+    rxBytes: 890000000,
+    rxSpeed: 3800000,
+    txSpeed: 450000,
+    uptime: '4d 12h 30m',
+    policy: 'all',
+    devicesCount: 4,
+  },
+  {
+    id: 'vpn-ovpn-1',
+    name: 'Office Corporate Gateway',
+    type: 'OpenVPN',
+    status: 'disconnected',
+    serverAddress: 'vpn.company-hq.net:1194',
+    clientIp: '172.16.10.55',
+    txBytes: 12000000,
+    rxBytes: 34000000,
+    rxSpeed: 0,
+    txSpeed: 0,
+    uptime: '—',
+    policy: 'selected_devices',
+    devicesCount: 1,
+  },
+  {
+    id: 'vpn-sstp-1',
+    name: 'KeenDNS Cloud SSTP',
+    type: 'SSTP',
+    status: 'connected',
+    serverAddress: 'sergei.keenetic.pro:443',
+    clientIp: '192.168.99.2',
+    txBytes: 5400000,
+    rxBytes: 8100000,
+    rxSpeed: 120000,
+    txSpeed: 30000,
+    uptime: '1d 08h 15m',
+    policy: 'specific_domains',
+    devicesCount: 2,
+  },
+];
+
+// Simulated Syslog
+let simulatedSyslog: SyslogEntry[] = [
+  { id: 'log-1', timestamp: '18:52:10', level: 'INFO', facility: 'ndm', message: 'Core::Syslog: initialized KeeneticOS 4.2.3 logging system' },
+  { id: 'log-2', timestamp: '18:52:12', level: 'NOTICE', facility: 'kernel', message: 'MediaTek MT7622: Ethernet switch ports 1-4 Link Status Up 1000 Mbps Full Duplex' },
+  { id: 'log-3', timestamp: '18:52:15', level: 'INFO', facility: 'dhcpd', message: 'DHCPACK on 192.168.1.101 to 38:f9:d3:44:aa:11 (iPhone-15-Pro) via br0' },
+  { id: 'log-4', timestamp: '18:52:20', level: 'INFO', facility: 'wpa_supplicant', message: 'WifiMaster1/AccessPoint0: STA 38:f9:d3:44:aa:11 IEEE 802.11: associated (Wi-Fi 6 AX 5GHz, 80MHz)' },
+  { id: 'log-5', timestamp: '18:52:33', level: 'NOTICE', facility: 'dnsmasq', message: 'AdGuard DoH DNS: verified encrypted upstream https://dns.adguard-dns.com/dns-query (latency 12ms)' },
+  { id: 'log-6', timestamp: '18:52:45', level: 'INFO', facility: 'wireguard', message: 'WireGuard0: peer [k8F...s9A=] handshake completed, endpoint 185.156.72.44:51820' },
+  { id: 'log-7', timestamp: '18:53:02', level: 'INFO', facility: 'dhcpd', message: 'DHCPREQUEST for 192.168.1.120 from 00:11:32:88:cc:99 (Synology-DS920) accepted (Static IP binding)' },
+  { id: 'log-8', timestamp: '18:53:14', level: 'WARNING', facility: 'ndm', message: 'Security::Firewall: dropped unsolicited TCP packet from 45.154.255.80:44122 to port 23 (Telnet blocked)' },
+  { id: 'log-9', timestamp: '18:53:40', level: 'INFO', facility: 'upnp', message: 'UPnP/NAT-PMP: mapped external port 52140 to 192.168.1.115:52140 (Sony PlayStation 5 PSN)' },
+  { id: 'log-10', timestamp: '18:54:01', level: 'INFO', facility: 'system', message: 'System::NTP: clock synchronized with pool.ntp.org (offset -0.002s)' },
+];
 
 let simulatedWifi: WifiInterface[] = [
   {
@@ -879,6 +1002,105 @@ class RouterService {
       simulated: true,
       timestamp: new Date().toISOString(),
       message: 'Command executed successfully in simulation environment.',
+    };
+  }
+
+  // Syslog Methods
+  public async getSyslog(): Promise<SyslogEntry[]> {
+    if (this.config.isDemo) {
+      return [...simulatedSyslog];
+    }
+    try {
+      const res = await this.executeRawRci('/show/log', 'GET');
+      if (Array.isArray(res)) {
+        return res.map((item: any, idx: number) => ({
+          id: `log-${idx}`,
+          timestamp: item.time || new Date().toLocaleTimeString(),
+          level: item.level || 'INFO',
+          facility: item.facility || 'system',
+          message: item.message || JSON.stringify(item),
+        }));
+      }
+      return [...simulatedSyslog];
+    } catch {
+      return [...simulatedSyslog];
+    }
+  }
+
+  public async clearSyslog(): Promise<void> {
+    simulatedSyslog = [];
+  }
+
+  // Port Forwarding Methods
+  public async getPortForwardingRules(): Promise<PortForwardingRule[]> {
+    return [...simulatedPortRules];
+  }
+
+  public async togglePortForwardingRule(id: string, enabled: boolean): Promise<void> {
+    simulatedPortRules = simulatedPortRules.map(r => r.id === id ? { ...r, enabled } : r);
+  }
+
+  public async addPortForwardingRule(rule: Omit<PortForwardingRule, 'id'>): Promise<PortForwardingRule> {
+    const newRule: PortForwardingRule = {
+      ...rule,
+      id: `rule-${Date.now()}`,
+    };
+    simulatedPortRules.push(newRule);
+    return newRule;
+  }
+
+  public async deletePortForwardingRule(id: string): Promise<void> {
+    simulatedPortRules = simulatedPortRules.filter(r => r.id !== id);
+  }
+
+  // DNS Filtration Methods
+  public async getDnsFilterConfig(): Promise<DnsFilterConfig> {
+    return { ...simulatedDnsFilter };
+  }
+
+  public async updateDnsFilterConfig(updates: Partial<DnsFilterConfig>): Promise<DnsFilterConfig> {
+    simulatedDnsFilter = { ...simulatedDnsFilter, ...updates };
+    return { ...simulatedDnsFilter };
+  }
+
+  // VPN Methods
+  public async getVpnConnections(): Promise<VpnConnection[]> {
+    return [...simulatedVpnList];
+  }
+
+  public async toggleVpnConnection(id: string, status: 'connected' | 'disconnected'): Promise<void> {
+    simulatedVpnList = simulatedVpnList.map(v => v.id === id ? { ...v, status } : v);
+  }
+
+  public async addVpnConnection(vpn: Omit<VpnConnection, 'id' | 'txBytes' | 'rxBytes' | 'rxSpeed' | 'txSpeed' | 'uptime'>): Promise<VpnConnection> {
+    const newVpn: VpnConnection = {
+      ...vpn,
+      id: `vpn-${Date.now()}`,
+      txBytes: 0,
+      rxBytes: 0,
+      rxSpeed: 0,
+      txSpeed: 0,
+      uptime: '0m',
+    };
+    simulatedVpnList.push(newVpn);
+    return newVpn;
+  }
+
+  // Run Traceroute Test
+  public async runTraceroute(target: string = '8.8.8.8'): Promise<TracerouteResult> {
+    const hops = [
+      { hop: 1, ip: '192.168.1.1', host: 'keenetic.home', rtt1: 0.6, rtt2: 0.5, rtt3: 0.5, loss: false },
+      { hop: 2, ip: '94.25.180.1', host: 'gw-bras.isp-core.net', rtt1: 2.4, rtt2: 2.1, rtt3: 2.6, loss: false },
+      { hop: 3, ip: '213.59.210.12', host: 'ae3.msk-ix.net', rtt1: 5.8, rtt2: 5.2, rtt3: 5.5, loss: false },
+      { hop: 4, ip: '72.14.215.82', host: 'core-edge-google.net', rtt1: 12.1, rtt2: 11.9, rtt3: 12.4, loss: false },
+      { hop: 5, ip: target.includes('8.8.8.8') ? '8.8.8.8' : '1.1.1.1', host: target, rtt1: 14.2, rtt2: 13.9, rtt3: 14.0, loss: false },
+    ];
+
+    return {
+      target,
+      hops,
+      status: 'completed',
+      timestamp: new Date().toLocaleTimeString(),
     };
   }
 

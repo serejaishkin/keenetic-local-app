@@ -1,10 +1,15 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { Sidebar } from './components/Sidebar';
 import { Header } from './components/Header';
 import { DashboardTab } from './components/DashboardTab';
 import { WifiTab } from './components/WifiTab';
 import { ClientsTab } from './components/ClientsTab';
 import { PortsTab } from './components/PortsTab';
+import { PortForwardingTab } from './components/PortForwardingTab';
+import { DnsFilterTab } from './components/DnsFilterTab';
+import { VpnTab } from './components/VpnTab';
 import { DiagnosticsTab } from './components/DiagnosticsTab';
+import { SystemLogTab } from './components/SystemLogTab';
 import { AiCopilotTab } from './components/AiCopilotTab';
 import { SettingsModal } from './components/SettingsModal';
 import {
@@ -15,6 +20,9 @@ import {
   ClientDevice,
   PortStatus,
   TrafficPoint,
+  PortForwardingRule,
+  DnsFilterConfig,
+  VpnConnection,
   AiDiagnosticResult
 } from './types';
 import { routerService } from './services/routerService';
@@ -24,24 +32,39 @@ export default function App() {
   const [activeTab, setActiveTab] = useState<string>('dashboard');
   const [isSettingsOpen, setIsSettingsOpen] = useState<boolean>(false);
   const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState<boolean>(false);
 
-  // Router State
+  // Router Telemetry & Modules State
   const [system, setSystem] = useState<SystemStatus | null>(null);
   const [wan, setWan] = useState<WanStatus | null>(null);
   const [wifiList, setWifiList] = useState<WifiInterface[]>([]);
   const [clients, setClients] = useState<ClientDevice[]>([]);
   const [ports, setPorts] = useState<PortStatus[]>([]);
   const [trafficHistory, setTrafficHistory] = useState<TrafficPoint[]>([]);
+  const [portRules, setPortRules] = useState<PortForwardingRule[]>([]);
+  const [dnsFilter, setDnsFilter] = useState<DnsFilterConfig>({
+    mode: 'adguard',
+    customDnsPrimary: '94.140.14.14',
+    customDnsSecondary: '94.140.15.15',
+    dohEnabled: true,
+    dohServer: 'https://dns.adguard-dns.com/dns-query',
+    blockedQueriesCount: 3842,
+    totalQueriesCount: 29410,
+  });
+  const [vpnList, setVpnList] = useState<VpnConnection[]>([]);
 
-  // Initial Data Fetch
+  // Initial and Periodic Data Fetch
   const loadAllData = useCallback(async () => {
     try {
-      const [sysData, wanData, wifiData, clientsData, portsData] = await Promise.all([
+      const [sysData, wanData, wifiData, clientsData, portsData, rulesData, dnsData, vpnData] = await Promise.all([
         routerService.getSystemStatus(),
         routerService.getWanStatus(),
         routerService.getWifiInterfaces(),
         routerService.getClients(),
         routerService.getPorts(),
+        routerService.getPortForwardingRules(),
+        routerService.getDnsFilterConfig(),
+        routerService.getVpnConnections(),
       ]);
 
       setSystem(sysData);
@@ -49,6 +72,9 @@ export default function App() {
       setWifiList(wifiData);
       setClients(clientsData);
       setPorts(portsData);
+      setPortRules(rulesData);
+      setDnsFilter(dnsData);
+      setVpnList(vpnData);
 
       // Append traffic point to history
       const nowStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
@@ -128,6 +154,39 @@ export default function App() {
     await loadAllData();
   };
 
+  // Port Forwarding Actions
+  const handleTogglePortRule = async (id: string, enabled: boolean) => {
+    await routerService.togglePortForwardingRule(id, enabled);
+    setPortRules(prev => prev.map(r => r.id === id ? { ...r, enabled } : r));
+  };
+
+  const handleAddPortRule = async (rule: Omit<PortForwardingRule, 'id'>) => {
+    const created = await routerService.addPortForwardingRule(rule);
+    setPortRules(prev => [...prev, created]);
+  };
+
+  const handleDeletePortRule = async (id: string) => {
+    await routerService.deletePortForwardingRule(id);
+    setPortRules(prev => prev.filter(r => r.id !== id));
+  };
+
+  // DNS Actions
+  const handleUpdateDnsConfig = async (updates: Partial<DnsFilterConfig>) => {
+    const updated = await routerService.updateDnsFilterConfig(updates);
+    setDnsFilter(updated);
+  };
+
+  // VPN Actions
+  const handleToggleVpn = async (id: string, status: 'connected' | 'disconnected') => {
+    await routerService.toggleVpnConnection(id, status);
+    setVpnList(prev => prev.map(v => v.id === id ? { ...v, status } : v));
+  };
+
+  const handleAddVpn = async (vpn: Omit<VpnConnection, 'id' | 'txBytes' | 'rxBytes' | 'rxSpeed' | 'txSpeed' | 'uptime'>) => {
+    const created = await routerService.addVpnConnection(vpn);
+    setVpnList(prev => [...prev, created]);
+  };
+
   const handleExecuteRci = async (path: string, method: 'GET' | 'POST', body?: any) => {
     return await routerService.executeRawRci(path, method, body);
   };
@@ -140,6 +199,9 @@ export default function App() {
       clientsCount: clients.length,
       activeClients: clients.filter(c => c.online && !c.blocked),
       ports,
+      portRules,
+      dnsFilter,
+      vpnList,
     };
     return await routerService.runAiDiagnostics(snapshot);
   };
@@ -151,6 +213,9 @@ export default function App() {
       wifi24: wifiList.find(w => w.band === '2.4GHz'),
       wifi5: wifiList.find(w => w.band === '5GHz'),
       clients,
+      portRules,
+      dnsFilter,
+      vpnList,
     };
     return await routerService.askAiCopilot(question, routerState, []);
   };
@@ -162,93 +227,135 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen bg-[#09090b] text-[#fafafa] flex flex-col font-sans selection:bg-blue-500 selection:text-white">
-      {/* Top Fixed Header */}
-      <Header
-        config={config}
-        system={system}
-        wan={wan}
+    <div className="min-h-screen bg-[#09090b] text-[#fafafa] flex font-sans selection:bg-blue-500 selection:text-white">
+      {/* Authentic KeeneticOS Sidebar */}
+      <Sidebar
         activeTab={activeTab}
         setActiveTab={setActiveTab}
-        onOpenSettings={() => setIsSettingsOpen(true)}
-        onRefresh={handleManualRefresh}
-        isRefreshing={isRefreshing}
+        clients={clients}
+        vpnList={vpnList}
+        isMobileOpen={isMobileMenuOpen}
+        setIsMobileOpen={setIsMobileMenuOpen}
       />
 
-      {/* Main Tab Body */}
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">
-        {activeTab === 'dashboard' && (
-          <DashboardTab
-            system={system}
-            wan={wan}
-            wifiList={wifiList}
-            clients={clients}
-            ports={ports}
-            trafficHistory={trafficHistory}
-            onToggleWifi={handleToggleWifi}
-            onReboot={handleRebootRouter}
-            onReconnectWan={handleReconnectWan}
-            onNavigateToTab={setActiveTab}
-          />
-        )}
+      {/* Main Content Area */}
+      <div className="flex-1 flex flex-col min-w-0">
+        {/* Top Header */}
+        <Header
+          config={config}
+          system={system}
+          wan={wan}
+          onOpenSettings={() => setIsSettingsOpen(true)}
+          onRefresh={handleManualRefresh}
+          isRefreshing={isRefreshing}
+          onReboot={handleRebootRouter}
+          onToggleMobileMenu={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+        />
 
-        {activeTab === 'wifi' && (
-          <WifiTab
-            wifiList={wifiList}
-            onToggleWifi={handleToggleWifi}
-            onUpdateWifi={handleUpdateWifi}
-          />
-        )}
+        {/* Tab Body */}
+        <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">
+          {activeTab === 'dashboard' && (
+            <DashboardTab
+              system={system}
+              wan={wan}
+              wifiList={wifiList}
+              clients={clients}
+              ports={ports}
+              trafficHistory={trafficHistory}
+              onToggleWifi={handleToggleWifi}
+              onReboot={handleRebootRouter}
+              onReconnectWan={handleReconnectWan}
+              onNavigateToTab={setActiveTab}
+            />
+          )}
 
-        {activeTab === 'clients' && (
-          <ClientsTab
-            clients={clients}
-            onToggleBlock={handleToggleBlockClient}
-            onSetSpeedLimit={handleSetSpeedLimit}
-            onUpdateClient={handleUpdateClientInfo}
-          />
-        )}
+          {activeTab === 'wifi' && (
+            <WifiTab
+              wifiList={wifiList}
+              onToggleWifi={handleToggleWifi}
+              onUpdateWifi={handleUpdateWifi}
+            />
+          )}
 
-        {activeTab === 'ports' && (
-          <PortsTab
-            ports={ports}
-            wan={wan}
-          />
-        )}
+          {activeTab === 'clients' && (
+            <ClientsTab
+              clients={clients}
+              onToggleBlock={handleToggleBlockClient}
+              onSetSpeedLimit={handleSetSpeedLimit}
+              onUpdateClient={handleUpdateClientInfo}
+            />
+          )}
 
-        {activeTab === 'diagnostics' && (
-          <DiagnosticsTab
-            onExecuteRci={handleExecuteRci}
-          />
-        )}
+          {activeTab === 'ports' && (
+            <PortsTab
+              ports={ports}
+              wan={wan}
+            />
+          )}
 
-        {activeTab === 'ai' && (
-          <AiCopilotTab
-            system={system}
-            wan={wan}
-            wifiList={wifiList}
-            clients={clients}
-            onRunDiagnostics={handleRunAiDiagnostics}
-            onAskCopilot={handleAskAiCopilot}
-          />
-        )}
-      </main>
+          {activeTab === 'nat' && (
+            <PortForwardingTab
+              rules={portRules}
+              clients={clients}
+              onToggleRule={handleTogglePortRule}
+              onAddRule={handleAddPortRule}
+              onDeleteRule={handleDeletePortRule}
+            />
+          )}
 
-      {/* Footer */}
-      <footer className="border-t border-[#27272a] py-4 bg-[#09090b] text-xs text-zinc-500">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-2">
-          <div className="flex items-center space-x-2">
-            <span className="font-semibold text-zinc-300">Keenetic Local</span>
-            <span>•</span>
-            <span>Управление роутерами через REST RCI API</span>
+          {activeTab === 'dns' && (
+            <DnsFilterTab
+              config={dnsFilter}
+              onUpdateConfig={handleUpdateDnsConfig}
+            />
+          )}
+
+          {activeTab === 'vpn' && (
+            <VpnTab
+              vpnList={vpnList}
+              onToggleVpn={handleToggleVpn}
+              onAddVpn={handleAddVpn}
+            />
+          )}
+
+          {activeTab === 'diagnostics' && (
+            <DiagnosticsTab
+              onExecuteRci={handleExecuteRci}
+            />
+          )}
+
+          {activeTab === 'syslog' && (
+            <SystemLogTab />
+          )}
+
+          {activeTab === 'ai' && (
+            <AiCopilotTab
+              system={system}
+              wan={wan}
+              wifiList={wifiList}
+              clients={clients}
+              onRunDiagnostics={handleRunAiDiagnostics}
+              onAskCopilot={handleAskAiCopilot}
+            />
+          )}
+        </main>
+
+        {/* Footer */}
+        <footer className="border-t border-[#27272a] py-4 bg-[#18181b] text-xs text-zinc-500">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-2">
+            <div className="flex items-center space-x-2">
+              <span className="font-semibold text-zinc-300">KeeneticOS Web Manager</span>
+              <span>•</span>
+              <span>RCI REST API Integration</span>
+            </div>
+            <div className="flex items-center space-x-3 text-[11px] font-mono text-zinc-400">
+              <span>{system?.model || 'Keenetic Ultra KN-1811'}</span>
+              <span>•</span>
+              <span>Версия NDM: {system?.version || '4.2.3'}</span>
+            </div>
           </div>
-          <div className="flex items-center space-x-3 text-[11px] font-mono text-zinc-400">
-            <span>Модель: {system?.model || 'Keenetic Ultra'}</span>
-            <span>•</span>
-            <span>KeeneticOS: {system?.version || '4.2.3'}</span>
-          </div>
-        </div>
-      </footer>
+        </footer>
+      </div>
 
       {/* Settings Modal */}
       <SettingsModal
