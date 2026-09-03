@@ -1,641 +1,610 @@
 package com.keenetic.local.ui.screens
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import com.keenetic.local.api.Client
-import com.keenetic.local.api.DeviceListEntry
-import com.keenetic.local.api.IpPolicy
+import com.keenetic.local.api.ConnectedClient
+import com.keenetic.local.api.ConnectionPolicy
 import com.keenetic.local.ui.RouterViewModel
 import com.keenetic.local.ui.theme.KeeneticColors
-
-private fun formatBytes(bytes: Long): String = when {
-    bytes >= 1024 * 1024 * 1024 -> "%.1f ГБ".format(bytes / (1024.0 * 1024 * 1024))
-    bytes >= 1024 * 1024 -> "%.1f МБ".format(bytes / (1024.0 * 1024))
-    bytes >= 1024 -> "%.1f КБ".format(bytes / 1024.0)
-    else -> "$bytes Б"
-}
 
 @Composable
 fun DevicesScreen(viewModel: RouterViewModel) {
     val clients by viewModel.clients.collectAsState()
-    val deviceList by viewModel.deviceList.collectAsState()
-    val isLoading by viewModel.isLoading.collectAsState()
-    val ipPolicies by viewModel.ipPolicies.collectAsState()
+    val connectionPolicies by viewModel.connectionPolicies.collectAsState()
+    var selectedClientForDetails by remember { mutableStateOf<ConnectedClient?>(null) }
+    var wolMessage by remember { mutableStateOf<String?>(null) }
 
-    LaunchedEffect(Unit) {
-        viewModel.loadClients()
-        viewModel.loadDeviceList()
-    }
-
-    val useRichData = deviceList.isNotEmpty()
-    val totalCount = if (useRichData) deviceList.size else clients.size
-    val isEmpty = if (useRichData) deviceList.isEmpty() else clients.isEmpty()
+    val onlineCount = clients.count { it.active }
+    val offlineCount = clients.size - onlineCount
 
     Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
-        Text(
-            text = "Подключённые устройства",
-            style = MaterialTheme.typography.headlineSmall,
-            fontWeight = FontWeight.Bold
-        )
-        Text(
-            text = "$totalCount устройств · нажми на устройство для настроек",
-            style = MaterialTheme.typography.bodyMedium,
-            color = KeeneticColors.TextSecondary
-        )
-        Spacer(modifier = Modifier.height(16.dp))
-
-        if (isEmpty) {
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(containerColor = KeeneticColors.Surface),
-                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        // Header
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column {
+                Text(
+                    "Устройства сети",
+                    style = MaterialTheme.typography.headlineSmall,
+                    fontWeight = FontWeight.Bold,
+                    color = KeeneticColors.TextPrimary
+                )
+                Text(
+                    "Онлайн: $onlineCount  •  Всего: ${clients.size}  •  Политик: ${connectionPolicies.size}",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = KeeneticColors.TextSecondary
+                )
+            }
+            FilledTonalButton(
+                onClick = {
+                    viewModel.loadConnectionPolicies()
+                    viewModel.loadClients()
+                },
+                colors = ButtonDefaults.filledTonalButtonColors(
+                    containerColor = KeeneticColors.SurfaceElevated,
+                    contentColor = KeeneticColors.Primary
+                )
             ) {
-                Column(
-                    modifier = Modifier.padding(16.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally
-                ) {
+                Icon(Icons.Default.Refresh, contentDescription = null, modifier = Modifier.size(18.dp))
+                Spacer(modifier = Modifier.width(6.dp))
+                Text("Обновить", style = MaterialTheme.typography.labelMedium)
+            }
+        }
+
+        if (wolMessage != null) {
+            Snackbar(
+                modifier = Modifier.padding(bottom = 8.dp),
+                action = {
+                    TextButton(onClick = { wolMessage = null }) {
+                        Text("OK", color = KeeneticColors.Primary)
+                    }
+                }
+            ) {
+                Text(wolMessage ?: "")
+            }
+        }
+
+        if (clients.isEmpty()) {
+            Box(
+                modifier = Modifier.fillMaxSize(),
+                contentAlignment = Alignment.Center
+            ) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     Icon(
-                        imageVector = Icons.Default.DevicesOther,
+                        Icons.Default.DevicesOther,
                         contentDescription = null,
-                        tint = KeeneticColors.TextSecondary,
-                        modifier = Modifier.size(40.dp)
+                        modifier = Modifier.size(48.dp),
+                        tint = KeeneticColors.TextSecondary
                     )
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
-                        text = "Список устройств пуст",
+                        "Устройства не найдены или загружаются...",
                         style = MaterialTheme.typography.bodyMedium,
-                        color = KeeneticColors.TextPrimary,
-                        fontWeight = FontWeight.Medium
-                    )
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Text(
-                        text = "Роутер не вернул активных клиентов или данные пока недоступны",
-                        style = MaterialTheme.typography.bodySmall,
                         color = KeeneticColors.TextSecondary
                     )
-                    Spacer(modifier = Modifier.height(12.dp))
-                    Button(onClick = { viewModel.loadClients(); viewModel.loadDeviceList() }) {
-                        Text("Обновить")
-                    }
-                }
-            }
-        } else if (useRichData) {
-            val sorted = deviceList.sortedWith(compareBy({ !it.active }, { -(it.rxbytes + it.txbytes) }))
-            LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                items(sorted.size) { index ->
-                    DeviceCard(entry = sorted[index], viewModel = viewModel, ipPolicies = ipPolicies)
                 }
             }
         } else {
-            LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                items(clients.size) { index ->
-                    ClientCard(client = clients[index], viewModel = viewModel, ipPolicies = ipPolicies)
-                }
-            }
-        }
-    }
-
-    if (isLoading && isEmpty) {
-        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-            CircularProgressIndicator(color = KeeneticColors.Primary)
-        }
-    }
-}
-
-/**
- * Единая строка действия внутри нижнего листа настроек устройства - раньше
- * это были DropdownMenuItem внутри мелкого "⋮" меню, которое легко не
- * заметить на телефоне. Теперь весь список действий виден сразу после тапа
- * по самому устройству.
- */
-@Composable
-private fun DeviceActionRow(icon: androidx.compose.ui.graphics.vector.ImageVector, label: String, tint: androidx.compose.ui.graphics.Color = KeeneticColors.Primary, onClick: () -> Unit) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(onClick = onClick)
-            .padding(vertical = 14.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Icon(icon, contentDescription = null, tint = tint)
-        Spacer(modifier = Modifier.width(16.dp))
-        Text(label, style = MaterialTheme.typography.bodyLarge, color = KeeneticColors.TextPrimary)
-    }
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-fun DeviceCard(entry: DeviceListEntry, viewModel: RouterViewModel, ipPolicies: List<IpPolicy> = emptyList()) {
-    val isBlocked = entry.access == "deny"
-    var showSheet by remember { mutableStateOf(false) }
-    var showRenameDialog by remember { mutableStateOf(false) }
-    var showPolicyDialog by remember { mutableStateOf(false) }
-    var showScheduleDialog by remember { mutableStateOf(false) }
-
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable { showSheet = true },
-        colors = CardDefaults.cardColors(
-            containerColor = if (entry.active) KeeneticColors.Surface else KeeneticColors.Surface.copy(alpha = 0.6f)
-        ),
-        elevation = CardDefaults.cardElevation(defaultElevation = if (entry.active) 2.dp else 1.dp)
-    ) {
-        Row(
-            modifier = Modifier.fillMaxWidth().padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Icon(
-                imageVector = if (entry.wired) Icons.Default.Cable else Icons.Default.Smartphone,
-                contentDescription = null,
-                tint = when {
-                    isBlocked -> KeeneticColors.Error
-                    !entry.active -> KeeneticColors.TextSecondary
-                    else -> KeeneticColors.Primary
-                },
-                modifier = Modifier.size(40.dp)
-            )
-            Spacer(modifier = Modifier.width(16.dp))
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = entry.displayName
-                        ?: com.keenetic.local.util.OuiLookup.guessName(entry.mac)
-                        ?: "Неизвестное устройство",
-                    fontWeight = FontWeight.Medium,
-                    color = if (isBlocked) KeeneticColors.Error else KeeneticColors.TextPrimary
-                )
-                Text(
-                    text = "${entry.ip ?: "—"} · ${entry.mac}",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = KeeneticColors.TextSecondary
-                )
-                if (entry.active && (entry.rxbytes > 0 || entry.txbytes > 0)) {
-                    Text(
-                        text = "${formatBytes(entry.rxbytes)} ↓ · ${formatBytes(entry.txbytes)} ↑",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = KeeneticColors.TextSecondary
-                    )
-                }
-                Row {
-                    if (isBlocked) {
-                        Text("Заблокировано", style = MaterialTheme.typography.labelSmall, color = KeeneticColors.Error)
-                    } else if (!entry.active) {
-                        Text("Офлайн", style = MaterialTheme.typography.labelSmall, color = KeeneticColors.TextSecondary)
-                    }
-                    if (!entry.policy.isNullOrBlank()) {
-                        Text(
-                            "  ·  политика: ${entry.policy}",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = KeeneticColors.Primary
-                        )
-                    }
-                }
-            }
-            Icon(Icons.Default.ChevronRight, contentDescription = "Настройки устройства", tint = KeeneticColors.TextSecondary)
-        }
-    }
-
-    if (showSheet) {
-        ModalBottomSheet(onDismissRequest = { showSheet = false }) {
-            Column(modifier = Modifier.padding(horizontal = 20.dp).padding(bottom = 24.dp)) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(
-                        imageVector = if (entry.wired) Icons.Default.Cable else Icons.Default.Smartphone,
-                        contentDescription = null,
-                        tint = if (isBlocked) KeeneticColors.Error else KeeneticColors.Primary,
-                        modifier = Modifier.size(32.dp)
-                    )
-                    Spacer(modifier = Modifier.width(12.dp))
-                    Column {
-                        Text(
-                            entry.displayName
-                                ?: com.keenetic.local.util.OuiLookup.guessName(entry.mac)
-                                ?: "Неизвестное устройство",
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold
-                        )
-                        Text(
-                            "${entry.ip ?: "—"} · ${entry.mac}",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = KeeneticColors.TextSecondary
-                        )
-                    }
-                }
-                Spacer(modifier = Modifier.height(12.dp))
-                InfoRow("Статус", if (entry.active) "Онлайн" else "Офлайн")
-                if (entry.active && (entry.rxbytes > 0 || entry.txbytes > 0)) {
-                    InfoRow("Трафик", "${formatBytes(entry.rxbytes)} ↓ · ${formatBytes(entry.txbytes)} ↑")
-                }
-                if (!entry.policy.isNullOrBlank()) {
-                    InfoRow("Политика маршрутизации", entry.policy)
-                }
-                HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
-
-                DeviceActionRow(Icons.Default.Edit, "Переименовать") {
-                    showSheet = false; showRenameDialog = true
-                }
-                DeviceActionRow(Icons.Default.Route, "Политика маршрутизации") {
-                    showSheet = false; showPolicyDialog = true
-                }
-                DeviceActionRow(Icons.Default.Schedule, "Расписание доступа") {
-                    showSheet = false; showScheduleDialog = true
-                }
-                DeviceActionRow(
-                    icon = if (isBlocked) Icons.Default.LockOpen else Icons.Default.Block,
-                    label = if (isBlocked) "Разблокировать" else "Заблокировать",
-                    tint = if (isBlocked) KeeneticColors.Accent else KeeneticColors.Error
-                ) {
-                    viewModel.toggleClient(entry.mac, !isBlocked)
-                    showSheet = false
-                }
-            }
-        }
-    }
-
-    if (showPolicyDialog) {
-        var policyName by remember { mutableStateOf(entry.policy ?: "") }
-        var policyLabel by remember { mutableStateOf(entry.policy ?: "") }
-        var expanded by remember { mutableStateOf(false) }
-        AlertDialog(
-            onDismissRequest = { showPolicyDialog = false },
-            title = { Text("Политика маршрутизации") },
-            text = {
-                Column {
-                    if (ipPolicies.isNotEmpty()) {
-                        Box {
-                            OutlinedTextField(
-                                value = policyLabel,
-                                onValueChange = {},
-                                readOnly = true,
-                                label = { Text("Политика") },
-                                trailingIcon = {
-                                    IconButton(onClick = { expanded = true }) {
-                                        Icon(Icons.Default.ArrowDropDown, contentDescription = null)
-                                    }
-                                },
-                                modifier = Modifier.fillMaxWidth()
-                            )
-                            DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
-                                ipPolicies.forEach { policy ->
-                                    val label = policy.description ?: policy.name ?: "—"
-                                    DropdownMenuItem(
-                                        text = { Text(label) },
-                                        onClick = {
-                                            policyName = policy.name ?: ""
-                                            policyLabel = label
-                                            expanded = false
-                                        }
+            LazyColumn(
+                modifier = Modifier.fillMaxSize(),
+                verticalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                items(clients, key = { it.mac }) { client ->
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { selectedClientForDetails = client },
+                        shape = RoundedCornerShape(14.dp),
+                        colors = CardDefaults.cardColors(containerColor = KeeneticColors.Surface),
+                        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+                    ) {
+                        Column(modifier = Modifier.fillMaxWidth().padding(14.dp)) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(42.dp)
+                                        .clip(CircleShape)
+                                        .background(
+                                            if (client.active) KeeneticColors.Primary.copy(alpha = 0.15f)
+                                            else KeeneticColors.SurfaceElevated
+                                        ),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(
+                                        if (client.wifiSsid != null) Icons.Default.Wifi else Icons.Default.Lan,
+                                        contentDescription = null,
+                                        tint = if (client.active) KeeneticColors.Primary else KeeneticColors.TextSecondary,
+                                        modifier = Modifier.size(22.dp)
                                     )
+                                }
+
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                    ) {
+                                        Text(
+                                            client.displayName,
+                                            style = MaterialTheme.typography.bodyLarge,
+                                            color = KeeneticColors.TextPrimary,
+                                            fontWeight = FontWeight.SemiBold,
+                                            maxLines = 1
+                                        )
+                                        if (client.isBlocked) {
+                                            Surface(
+                                                color = KeeneticColors.Error.copy(alpha = 0.15f),
+                                                shape = RoundedCornerShape(4.dp)
+                                            ) {
+                                                Text(
+                                                    "Блок",
+                                                    modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp),
+                                                    style = MaterialTheme.typography.labelSmall,
+                                                    color = KeeneticColors.Error,
+                                                    fontWeight = FontWeight.Bold
+                                                )
+                                            }
+                                        }
+                                    }
+
+                                    Spacer(modifier = Modifier.height(2.dp))
+                                    Text(
+                                        "${client.ip}  •  ${client.mac}",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = KeeneticColors.TextSecondary
+                                    )
+
+                                    // Badges for sub-settings
+                                    Row(
+                                        modifier = Modifier.padding(top = 4.dp),
+                                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        if (client.isStaticIp) {
+                                            Surface(
+                                                color = KeeneticColors.Primary.copy(alpha = 0.15f),
+                                                shape = RoundedCornerShape(4.dp)
+                                            ) {
+                                                Text(
+                                                    "Фикс. IP",
+                                                    modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp),
+                                                    style = MaterialTheme.typography.labelSmall,
+                                                    color = KeeneticColors.Primary
+                                                )
+                                            }
+                                        }
+                                        if (client.policyId.isNotBlank() || (client.policy != "Основная" && !client.policy.contains("по умолчанию", ignoreCase = true))) {
+                                            Surface(
+                                                color = KeeneticColors.Warning.copy(alpha = 0.15f),
+                                                shape = RoundedCornerShape(4.dp)
+                                            ) {
+                                                Text(
+                                                    client.policy,
+                                                    modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp),
+                                                    style = MaterialTheme.typography.labelSmall,
+                                                    color = KeeneticColors.Warning
+                                                )
+                                            }
+                                        }
+                                        if (client.wifiBandPreference != "Авто") {
+                                            Surface(
+                                                color = KeeneticColors.Secondary.copy(alpha = 0.15f),
+                                                shape = RoundedCornerShape(4.dp)
+                                            ) {
+                                                Text(
+                                                    client.wifiBandPreference,
+                                                    modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp),
+                                                    style = MaterialTheme.typography.labelSmall,
+                                                    color = KeeneticColors.Secondary
+                                                )
+                                            }
+                                        }
+                                        if (client.speedLimitMbps > 0) {
+                                            Surface(
+                                                color = KeeneticColors.TextSecondary.copy(alpha = 0.15f),
+                                                shape = RoundedCornerShape(4.dp)
+                                            ) {
+                                                Text(
+                                                    "Лимит ${client.speedLimitMbps} Мб/с",
+                                                    modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp),
+                                                    style = MaterialTheme.typography.labelSmall,
+                                                    color = KeeneticColors.TextPrimary
+                                                )
+                                            }
+                                        }
+                                    }
+
+                                    if (client.active) {
+                                        Row(
+                                            modifier = Modifier.padding(top = 4.dp),
+                                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            if (client.wifiBand != null) {
+                                                Text(
+                                                    client.wifiBand,
+                                                    style = MaterialTheme.typography.labelSmall,
+                                                    color = KeeneticColors.Primary
+                                                )
+                                            }
+                                            if (client.rxSpeedKbps > 0 || client.txSpeedKbps > 0) {
+                                                Text(
+                                                    "↓ ${client.rxSpeedKbps / 1000f} Мб/с  ↑ ${client.txSpeedKbps / 1000f} Мб/с",
+                                                    style = MaterialTheme.typography.labelSmall,
+                                                    color = KeeneticColors.Success
+                                                )
+                                            }
+                                        }
+                                    }
+                                }
+
+                                // Quick Actions (WoL + Block)
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    IconButton(
+                                        onClick = {
+                                            viewModel.wakeOnLan(client.mac)
+                                            wolMessage = "Пакет Wake-on-LAN отправлен на ${client.displayName}"
+                                        }
+                                    ) {
+                                        Icon(
+                                            Icons.Default.PowerSettingsNew,
+                                            contentDescription = "Разбудить (WoL)",
+                                            tint = KeeneticColors.Primary,
+                                            modifier = Modifier.size(20.dp)
+                                        )
+                                    }
+
+                                    IconButton(
+                                        onClick = { viewModel.toggleClientBlock(client) }
+                                    ) {
+                                        Icon(
+                                            if (client.isBlocked) Icons.Default.Block else Icons.Default.CheckCircle,
+                                            contentDescription = if (client.isBlocked) "Разблокировать" else "Заблокировать",
+                                            tint = if (client.isBlocked) KeeneticColors.Error else KeeneticColors.Success,
+                                            modifier = Modifier.size(22.dp)
+                                        )
+                                    }
                                 }
                             }
                         }
-                    } else {
-                        OutlinedTextField(
-                            value = policyName,
-                            onValueChange = { policyName = it },
-                            label = { Text("Имя политики") },
-                            placeholder = { Text("например Policy0") },
-                            singleLine = true
-                        )
                     }
                 }
-            },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        viewModel.setClientPolicy(entry.mac, policyName)
-                        showPolicyDialog = false
-                    },
-                    enabled = policyName.isNotBlank()
-                ) {
-                    Text("Применить", color = KeeneticColors.Primary)
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { showPolicyDialog = false }) { Text("Отмена") }
             }
-        )
-    }
-
-    if (showScheduleDialog) {
-        var scheduleName by remember { mutableStateOf("") }
-        AlertDialog(
-            onDismissRequest = { showScheduleDialog = false },
-            title = { Text("Расписание доступа") },
-            text = {
-                Column {
-                    OutlinedTextField(
-                        value = scheduleName,
-                        onValueChange = { scheduleName = it },
-                        label = { Text("Имя расписания") },
-                        placeholder = { Text("например schedule0") },
-                        singleLine = true
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Text(
-                        "Расписание должно быть создано заранее в Настройках. Привязка к устройству не проверена реальным действием на роутере - тестируй сначала на некритичном устройстве.",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = KeeneticColors.TextSecondary
-                    )
-                }
-            },
-            confirmButton = {
-                TextButton(
-                    onClick = { viewModel.setClientSchedule(entry.mac, scheduleName); showScheduleDialog = false },
-                    enabled = scheduleName.isNotBlank()
-                ) {
-                    Text("Применить", color = KeeneticColors.Primary)
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { showScheduleDialog = false }) { Text("Отмена") }
-            }
-        )
-    }
-
-    if (showRenameDialog) {
-        var newName by remember { mutableStateOf(entry.customName ?: "") }
-        AlertDialog(
-            onDismissRequest = { showRenameDialog = false },
-            title = { Text("Переименовать устройство") },
-            text = {
-                OutlinedTextField(
-                    value = newName,
-                    onValueChange = { newName = it },
-                    label = { Text("Имя устройства") },
-                    singleLine = true
-                )
-            },
-            confirmButton = {
-                TextButton(
-                    onClick = { viewModel.renameDevice(entry.mac, newName); showRenameDialog = false },
-                    enabled = newName.isNotBlank()
-                ) {
-                    Text("Сохранить", color = KeeneticColors.Primary)
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { showRenameDialog = false }) { Text("Отмена") }
-            }
-        )
-    }
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-fun ClientCard(client: Client, viewModel: RouterViewModel, ipPolicies: List<IpPolicy> = emptyList()) {
-    val isBlocked = client.access == "deny"
-    var showSheet by remember { mutableStateOf(false) }
-    var showRenameDialog by remember { mutableStateOf(false) }
-    var showPolicyDialog by remember { mutableStateOf(false) }
-    var showScheduleDialog by remember { mutableStateOf(false) }
-
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable { showSheet = true },
-        colors = CardDefaults.cardColors(containerColor = KeeneticColors.Surface),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Icon(
-                imageVector = Icons.Default.Smartphone,
-                contentDescription = null,
-                tint = if (isBlocked) KeeneticColors.Error else KeeneticColors.Primary,
-                modifier = Modifier.size(40.dp)
-            )
-            Spacer(modifier = Modifier.width(16.dp))
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = client.name?.takeIf { it.isNotBlank() }
-                        ?: com.keenetic.local.util.OuiLookup.guessName(client.mac)
-                        ?: "Неизвестное устройство",
-                    fontWeight = FontWeight.Medium,
-                    color = if (isBlocked) KeeneticColors.Error else KeeneticColors.TextPrimary
-                )
-                Text(
-                    text = "${client.ip ?: "—"}  •  ${client.mac ?: "—"}",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = KeeneticColors.TextSecondary
-                )
-                if (isBlocked) {
-                    Text(
-                        text = "Заблокировано",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = KeeneticColors.Error
-                    )
-                }
-            }
-            Icon(Icons.Default.ChevronRight, contentDescription = "Настройки устройства", tint = KeeneticColors.TextSecondary)
         }
     }
 
-    if (showSheet) {
-        ModalBottomSheet(onDismissRequest = { showSheet = false }) {
-            Column(modifier = Modifier.padding(horizontal = 20.dp).padding(bottom = 24.dp)) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
+    // Client Details Modal Dialog with full sub-items & configuration
+    selectedClientForDetails?.let { client ->
+        var editedName by remember(client.mac) { mutableStateOf(client.displayName) }
+        var isStaticIp by remember(client.mac) { mutableStateOf(client.isStaticIp) }
+        var editedIp by remember(client.mac) { mutableStateOf(client.ip) }
+        var selectedPolicyId by remember(client.mac) {
+            mutableStateOf(
+                if (client.policyId.isNotBlank()) client.policyId
+                else connectionPolicies.find { it.name.equals(client.policy, ignoreCase = true) }?.id ?: ""
+            )
+        }
+        var selectedBand by remember(client.mac) { mutableStateOf(client.wifiBandPreference) }
+        var selectedSpeedLimit by remember(client.mac) { mutableStateOf(client.speedLimitMbps) }
+        var isBlockedState by remember(client.mac) { mutableStateOf(client.isBlocked) }
+
+        AlertDialog(
+            onDismissRequest = { selectedClientForDetails = null },
+            title = {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
                     Icon(
-                        imageVector = Icons.Default.Smartphone,
+                        if (client.wifiSsid != null) Icons.Default.Wifi else Icons.Default.Lan,
                         contentDescription = null,
-                        tint = if (isBlocked) KeeneticColors.Error else KeeneticColors.Primary,
-                        modifier = Modifier.size(32.dp)
+                        tint = KeeneticColors.Primary,
+                        modifier = Modifier.size(24.dp)
                     )
-                    Spacer(modifier = Modifier.width(12.dp))
                     Column {
                         Text(
-                            client.name?.takeIf { it.isNotBlank() }
-                                ?: com.keenetic.local.util.OuiLookup.guessName(client.mac)
-                                ?: "Неизвестное устройство",
+                            "Параметры устройства",
                             style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold
+                            fontWeight = FontWeight.Bold,
+                            color = KeeneticColors.TextPrimary
                         )
                         Text(
-                            "${client.ip ?: "—"} · ${client.mac ?: "—"}",
+                            client.mac,
                             style = MaterialTheme.typography.bodySmall,
                             color = KeeneticColors.TextSecondary
                         )
                     }
                 }
-                Spacer(modifier = Modifier.height(12.dp))
-                InfoRow("Статус", if (isBlocked) "Заблокировано" else "Разрешено")
-                HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
-
-                DeviceActionRow(Icons.Default.Edit, "Переименовать") {
-                    showSheet = false; showRenameDialog = true
-                }
-                DeviceActionRow(Icons.Default.Route, "Политика маршрутизации") {
-                    showSheet = false; showPolicyDialog = true
-                }
-                if (client.mac != null) {
-                    DeviceActionRow(Icons.Default.Schedule, "Расписание доступа") {
-                        showSheet = false; showScheduleDialog = true
-                    }
-                }
-                DeviceActionRow(
-                    icon = if (isBlocked) Icons.Default.LockOpen else Icons.Default.Block,
-                    label = if (isBlocked) "Разблокировать" else "Заблокировать",
-                    tint = if (isBlocked) KeeneticColors.Accent else KeeneticColors.Error
-                ) {
-                    viewModel.toggleClient(client.mac ?: "", !isBlocked)
-                    showSheet = false
-                }
-            }
-        }
-    }
-
-    if (showPolicyDialog) {
-        var policyName by remember { mutableStateOf("") }
-        var policyLabel by remember { mutableStateOf("") }
-        var expanded by remember { mutableStateOf(false) }
-        AlertDialog(
-            onDismissRequest = { showPolicyDialog = false },
-            title = { Text("Политика маршрутизации") },
+            },
             text = {
-                Column {
-                    if (ipPolicies.isNotEmpty()) {
-                        Box {
-                            OutlinedTextField(
-                                value = policyLabel,
-                                onValueChange = {},
-                                readOnly = true,
-                                label = { Text("Политика") },
-                                trailingIcon = {
-                                    IconButton(onClick = { expanded = true }) {
-                                        Icon(Icons.Default.ArrowDropDown, contentDescription = null)
-                                    }
-                                },
-                                modifier = Modifier.fillMaxWidth()
-                            )
-                            DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
-                                ipPolicies.forEach { policy ->
-                                    val label = policy.description ?: policy.name ?: "—"
-                                    DropdownMenuItem(
-                                        text = { Text(label) },
-                                        onClick = {
-                                            policyName = policy.name ?: ""
-                                            policyLabel = label
-                                            expanded = false
-                                        }
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(max = 480.dp),
+                    verticalArrangement = Arrangement.spacedBy(14.dp)
+                ) {
+                    // 1. Rename
+                    OutlinedTextField(
+                        value = editedName,
+                        onValueChange = { editedName = it },
+                        label = { Text("Имя устройства") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+
+                    // 2. Fix IP (Static DHCP Reservation)
+                    Card(
+                        colors = CardDefaults.cardColors(containerColor = KeeneticColors.SurfaceElevated),
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        "Зафиксировать IP-адрес",
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        fontWeight = FontWeight.SemiBold,
+                                        color = KeeneticColors.TextPrimary
                                     )
+                                    Text(
+                                        "Привязка к MAC в DHCP",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = KeeneticColors.TextSecondary
+                                    )
+                                }
+                                Switch(
+                                    checked = isStaticIp,
+                                    onCheckedChange = { isStaticIp = it }
+                                )
+                            }
+                            if (isStaticIp) {
+                                OutlinedTextField(
+                                    value = editedIp,
+                                    onValueChange = { editedIp = it },
+                                    label = { Text("Постоянный IP") },
+                                    singleLine = true,
+                                    modifier = Modifier.fillMaxWidth()
+                                )
+                            }
+                        }
+                    }
+
+                    // 3. Connection Policy (fetched from router via RCI /rci/show/ip/policy)
+                    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                "Политика подключения",
+                                style = MaterialTheme.typography.bodyMedium,
+                                fontWeight = FontWeight.SemiBold,
+                                color = KeeneticColors.TextPrimary
+                            )
+                            Text(
+                                "show ip policy",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = KeeneticColors.Primary
+                            )
+                        }
+
+                        val availablePolicies = if (connectionPolicies.isNotEmpty()) connectionPolicies else listOf(
+                            ConnectionPolicy("", "Основная (по умолчанию)", "Следовать политике сегмента сети")
+                        )
+
+                        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                            availablePolicies.forEach { pol ->
+                                val isSelected = (selectedPolicyId == pol.id)
+                                Surface(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clip(RoundedCornerShape(8.dp))
+                                        .clickable { selectedPolicyId = pol.id },
+                                    color = if (isSelected) KeeneticColors.Primary.copy(alpha = 0.12f) else KeeneticColors.SurfaceElevated,
+                                    border = androidx.compose.foundation.BorderStroke(
+                                        width = if (isSelected) 1.5.dp else 1.dp,
+                                        color = if (isSelected) KeeneticColors.Primary else KeeneticColors.Border
+                                    ),
+                                    shape = RoundedCornerShape(8.dp)
+                                ) {
+                                    Row(
+                                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp),
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                    ) {
+                                        RadioButton(
+                                            selected = isSelected,
+                                            onClick = { selectedPolicyId = pol.id },
+                                            colors = RadioButtonDefaults.colors(selectedColor = KeeneticColors.Primary),
+                                            modifier = Modifier.size(20.dp)
+                                        )
+                                        Column(modifier = Modifier.weight(1f)) {
+                                            Row(
+                                                verticalAlignment = Alignment.CenterVertically,
+                                                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                            ) {
+                                                Text(
+                                                    pol.name,
+                                                    style = MaterialTheme.typography.bodyMedium,
+                                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                                                    color = if (isSelected) KeeneticColors.Primary else KeeneticColors.TextPrimary
+                                                )
+                                                if (pol.id.isNotBlank()) {
+                                                    Surface(
+                                                        color = KeeneticColors.Surface,
+                                                        shape = RoundedCornerShape(4.dp)
+                                                    ) {
+                                                        Text(
+                                                            pol.id,
+                                                            modifier = Modifier.padding(horizontal = 4.dp, vertical = 1.dp),
+                                                            style = MaterialTheme.typography.labelSmall,
+                                                            color = KeeneticColors.TextSecondary
+                                                        )
+                                                    }
+                                                }
+                                            }
+                                            if (pol.description.isNotBlank() && pol.description != pol.name) {
+                                                Text(
+                                                    pol.description,
+                                                    style = MaterialTheme.typography.bodySmall,
+                                                    color = KeeneticColors.TextSecondary
+                                                )
+                                            }
+                                        }
+                                    }
                                 }
                             }
                         }
-                    } else {
-                        OutlinedTextField(
-                            value = policyName,
-                            onValueChange = { policyName = it },
-                            label = { Text("Имя политики") },
-                            placeholder = { Text("например Policy0") },
-                            singleLine = true
-                        )
-                        Spacer(modifier = Modifier.height(8.dp))
+                    }
+
+                    // 4. Wi-Fi Band Steering / Frequency
+                    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                         Text(
-                            "Список политик с роутера не загрузился - введи имя вручную, оно должно совпадать с существующей политикой (ip policy ...).",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = KeeneticColors.TextSecondary
+                            "Частота Wi-Fi диапазона",
+                            style = MaterialTheme.typography.bodyMedium,
+                            fontWeight = FontWeight.SemiBold,
+                            color = KeeneticColors.TextPrimary
                         )
+                        val bands = listOf("Авто", "5 ГГц", "2.4 ГГц")
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            bands.forEach { b ->
+                                FilterChip(
+                                    selected = selectedBand == b,
+                                    onClick = { selectedBand = b },
+                                    label = { Text(b, style = MaterialTheme.typography.labelSmall) },
+                                    modifier = Modifier.weight(1f)
+                                )
+                            }
+                        }
+                    }
+
+                    // 5. Speed Limit
+                    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                        Text(
+                            "Ограничение скорости",
+                            style = MaterialTheme.typography.bodyMedium,
+                            fontWeight = FontWeight.SemiBold,
+                            color = KeeneticColors.TextPrimary
+                        )
+                        val speedLimits = listOf(0 to "Без лимита", 5 to "5 Мб/с", 10 to "10 Мб/с", 25 to "25 Мб/с", 50 to "50 Мб/с")
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(4.dp)
+                        ) {
+                            speedLimits.forEach { (mbps, label) ->
+                                FilterChip(
+                                    selected = selectedSpeedLimit == mbps,
+                                    onClick = { selectedSpeedLimit = mbps },
+                                    label = { Text(label, style = MaterialTheme.typography.labelSmall) }
+                                )
+                            }
+                        }
+                    }
+
+                    // 6. Block Internet Access switch & WoL
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            "Блокировать доступ в интернет",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = if (isBlockedState) KeeneticColors.Error else KeeneticColors.TextPrimary
+                        )
+                        Switch(
+                            checked = isBlockedState,
+                            onCheckedChange = { isBlockedState = it }
+                        )
+                    }
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        OutlinedButton(
+                            onClick = {
+                                viewModel.wakeOnLan(client.mac)
+                                wolMessage = "Пакет Wake-on-LAN отправлен на ${client.displayName}"
+                            },
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Icon(Icons.Default.PowerSettingsNew, contentDescription = null, modifier = Modifier.size(16.dp))
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text("WoL пакет", style = MaterialTheme.typography.labelSmall)
+                        }
+                        Spacer(modifier = Modifier.width(8.dp))
+                        OutlinedButton(
+                            onClick = {
+                                viewModel.deleteKnownDevice(client.mac)
+                                wolMessage = "Устройство ${client.displayName} удалено из известных"
+                                selectedClientForDetails = null
+                            },
+                            colors = ButtonDefaults.outlinedButtonColors(contentColor = KeeneticColors.Error),
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Icon(Icons.Default.Delete, contentDescription = null, modifier = Modifier.size(16.dp))
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text("Удалить", style = MaterialTheme.typography.labelSmall)
+                        }
                     }
                 }
             },
             confirmButton = {
-                TextButton(
+                Button(
                     onClick = {
-                        client.mac?.let { viewModel.setClientPolicy(it, policyName) }
-                        showPolicyDialog = false
+                        val chosenPolicy = connectionPolicies.find { it.id == selectedPolicyId }
+                        viewModel.updateClientFullSettings(
+                            mac = client.mac,
+                            newName = editedName,
+                            ip = editedIp,
+                            isStatic = isStaticIp,
+                            policy = chosenPolicy?.name ?: "Основная",
+                            policyId = selectedPolicyId,
+                            wifiBandPreference = selectedBand,
+                            speedLimitMbps = selectedSpeedLimit
+                        )
+                        if (isBlockedState != client.isBlocked) {
+                            viewModel.toggleClientBlock(client)
+                        }
+                        wolMessage = "Настройки для «$editedName» успешно сохранены!"
+                        selectedClientForDetails = null
                     },
-                    enabled = policyName.isNotBlank() && client.mac != null
+                    colors = ButtonDefaults.buttonColors(containerColor = KeeneticColors.Primary)
                 ) {
-                    Text("Применить", color = KeeneticColors.Primary)
+                    Text("Сохранить")
                 }
             },
             dismissButton = {
-                TextButton(onClick = { showPolicyDialog = false }) {
-                    Text("Отмена")
-                }
-            }
-        )
-    }
-
-    if (showScheduleDialog) {
-        var scheduleName by remember { mutableStateOf("") }
-        AlertDialog(
-            onDismissRequest = { showScheduleDialog = false },
-            title = { Text("Расписание доступа") },
-            text = {
-                Column {
-                    OutlinedTextField(
-                        value = scheduleName,
-                        onValueChange = { scheduleName = it },
-                        label = { Text("Имя расписания") },
-                        placeholder = { Text("например schedule0") },
-                        singleLine = true
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Text(
-                        "Расписание должно быть создано заранее в Настройках. Привязка к устройству не проверена реальным действием на роутере - тестируй сначала на некритичном устройстве.",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = KeeneticColors.TextSecondary
-                    )
-                }
-            },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        client.mac?.let { viewModel.setClientSchedule(it, scheduleName) }
-                        showScheduleDialog = false
-                    },
-                    enabled = scheduleName.isNotBlank() && client.mac != null
-                ) {
-                    Text("Применить", color = KeeneticColors.Primary)
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { showScheduleDialog = false }) { Text("Отмена") }
-            }
-        )
-    }
-
-    if (showRenameDialog) {
-        var newName by remember { mutableStateOf(client.name ?: "") }
-        AlertDialog(
-            onDismissRequest = { showRenameDialog = false },
-            title = { Text("Переименовать устройство") },
-            text = {
-                OutlinedTextField(
-                    value = newName,
-                    onValueChange = { newName = it },
-                    label = { Text("Имя устройства") },
-                    singleLine = true
-                )
-            },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        client.mac?.let { viewModel.renameDevice(it, newName) }
-                        showRenameDialog = false
-                    },
-                    enabled = newName.isNotBlank() && client.mac != null
-                ) {
-                    Text("Сохранить", color = KeeneticColors.Primary)
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { showRenameDialog = false }) {
-                    Text("Отмена")
+                TextButton(onClick = { selectedClientForDetails = null }) {
+                    Text("Отмена", color = KeeneticColors.TextSecondary)
                 }
             }
         )

@@ -1,12 +1,12 @@
 package com.keenetic.local.api
 
+import com.google.gson.JsonArray
+import com.google.gson.JsonElement
 import com.google.gson.JsonObject
 
 /**
- * Keenetic RCI не документирует JSON-схему `/rci/show/interface` официально,
- * и разные прошивки/модели отдают чуть разный набор полей. Поэтому весь
- * разбор здесь сделан "защитно" — пробуем несколько вероятных названий
- * полей и не падаем, если чего-то нет.
+ * Парсер интерфейсов и Wi-Fi сетей роутеров Keenetic.
+ * Поддерживает как объекты (Map<id, JsonObject>), так и массивы от /rci/show/interface.
  */
 object InterfaceMapper {
 
@@ -24,135 +24,134 @@ object InterfaceMapper {
         "PPPoE0" to "PPPoE-подключение"
     )
 
-    fun toInterfaceList(raw: Map<String, JsonObject>): List<InterfaceInfo> =
-        raw.entries
-            .filterNot { (_, obj) -> typeOf(obj) in setOf("Port", "WifiStation") }
-            .map { (key, obj) -> toInterfaceInfo(key, obj) }
-            .sortedWith(compareBy({ it.type != "AccessPoint" }, { it.id }))
+    fun toInterfaceList(element: JsonElement?): List<RouterInterface> {
+        if (element == null || element.isJsonNull) return emptyList()
+        val rawMap = extractEntries(element)
 
-    fun toWifiNetworks(raw: Map<String, JsonObject>): List<WifiNetwork> =
-        raw.entries
-            .filter { (_, obj) -> typeOf(obj).equals("AccessPoint", ignoreCase = true) }
-            .filter { (_, obj) -> !str(obj, "description").isNullOrBlank() || !str(obj, "ssid").isNullOrBlank() }
-            .map { (key, obj) -> toWifiNetwork(key, obj) }
-
-    /**
-     * Преобразует плоские объекты type=Port из /rci/show/interface
-     * в модели физических портов свитча.
-     *
-     * На разных моделях Keenetic номер порта может быть представлен как
-     * port/number, поэтому используем несколько безопасных вариантов.
-     */
-    fun toSwitchPorts(raw: Map<String, JsonObject>): List<SwitchPort> =
-        raw.entries
-            .filter { (_, obj) -> typeOf(obj).equals("Port", ignoreCase = true) }
+        return rawMap.entries
+            .filterNot { (_, obj) -> 
+                val type = str(obj, "type") ?: ""
+                type.equals("Port", ignoreCase = true) || type.equals("WifiStation", ignoreCase = true)
+            }
             .map { (key, obj) ->
                 val id = str(obj, "id") ?: key
-                val number = str(obj, "port")
-                    ?: str(obj, "number")
-                    ?: id.substringAfterLast('/').takeIf { it.isNotBlank() }
-                    ?: id
+                val type = str(obj, "type") ?: "Ethernet"
+                val description = str(obj, "description") ?: ""
+                val state = str(obj, "state") ?: "unknown"
+                val link = str(obj, "link") ?: state
+                val isUp = link.equals("up", ignoreCase = true) || state.equals("up", ignoreCase = true)
+                val ip = str(obj, "address") ?: str(obj, "ip")
+                val mask = str(obj, "mask")
+                val uptime = longVal(obj, "uptime")
+                val rxBytes = longVal(obj, "rxbytes")
+                val txBytes = longVal(obj, "txbytes")
+                val rxSpeed = longVal(obj, "rxspeed") / 1000
+                val txSpeed = longVal(obj, "txspeed") / 1000
 
-                SwitchPort(
+                val displayName = when {
+                    description.isNotBlank() -> description
+                    KNOWN_NAMES.containsKey(id) -> KNOWN_NAMES[id]!!
+                    else -> str(obj, "interface-name")?.takeIf { it.isNotBlank() } ?: id
+                }
+
+                RouterInterface(
                     id = id,
-                    label = portLabel(number),
-                    link = str(obj, "link") ?: str(obj, "state"),
-                    speed = str(obj, "speed") ?: str(obj, "rate"),
-                    duplex = str(obj, "duplex"),
-                    roleFor = str(obj, "for") ?: str(obj, "role") ?: str(obj, "interface")
+                    name = displayName,
+                    description = description.ifBlank { "$type интерфейс" },
+                    type = type,
+                    state = state,
+                    isUp = isUp,
+                    ip = ip,
+                    mask = mask,
+                    uptime = uptime,
+                    rxBytes = rxBytes,
+                    txBytes = txBytes,
+                    rxSpeedKbps = rxSpeed,
+                    txSpeedKbps = txSpeed
                 )
             }
-            .sortedWith(compareBy({ portSortKey(it.label) }, { it.id }))
-
-    private fun portLabel(raw: String): String {
-        val n = raw.filter { it.isDigit() }.toIntOrNull()
-        return if (n != null) n.toString() else raw
+            .sortedWith(compareBy({ it.type != "Bridge" && it.type != "Ethernet" }, { it.id }))
     }
 
-    private fun portSortKey(label: String): Int =
-        label.toIntOrNull() ?: Int.MAX_VALUE
+    fun toWifiNetworks(element: JsonElement?): List<WifiNetworkInfo> {
+        if (element == null || element.isJsonNull) return emptyList()
+        val rawMap = extractEntries(element)
 
-    private fun toInterfaceInfo(key: String, obj: JsonObject): InterfaceInfo {
-        val id = str(obj, "id") ?: key
-        val type = typeOf(obj)
-        val description = str(obj, "description")
-        val state = str(obj, "state")
-        val link = str(obj, "link")
-        val connected = str(obj, "connected")
-        val address = str(obj, "address")
-        val mac = str(obj, "mac")
-        val mask = str(obj, "mask")
-        val up = (link ?: state)?.equals("up", ignoreCase = true) == true
+        return rawMap.entries
+            .filter { (_, obj) ->
+                val type = str(obj, "type") ?: ""
+                type.equals("AccessPoint", ignoreCase = true) ||
+                        obj.has("ssid") ||
+                        obj.has("essid")
+            }
+            .filter { (key, obj) ->
+                val desc = str(obj, "description")
+                val ssid = str(obj, "ssid") ?: str(obj, "essid")
+                !desc.isNullOrBlank() || !ssid.isNullOrBlank()
+            }
+            .map { (key, obj) ->
+                val id = str(obj, "id") ?: key
+                val ssid = str(obj, "ssid") ?: str(obj, "essid") ?: "Keenetic-Wi-Fi"
+                val band = bandOf(id, obj)
+                val state = str(obj, "state")
+                val link = str(obj, "link")
+                val enabled = (link ?: state)?.equals("up", ignoreCase = true) == true
+                val channel = intVal(obj, "channel").let { if (it > 0) it else if (band.contains("5")) 36 else 6 }
+                val security = securityOf(obj)
 
-        val displayName = when {
-            !description.isNullOrBlank() -> description
-            type.equals("AccessPoint", ignoreCase = true) -> wifiDisplayName(id, obj)
-            else -> {
-                val ifName = str(obj, "interface-name")
-                KNOWN_NAMES[id] ?: (ifName?.takeIf { it != id && it.isNotBlank() }) ?: id
+                WifiNetworkInfo(
+                    id = id,
+                    ssid = ssid,
+                    band = band,
+                    enabled = enabled,
+                    channel = channel,
+                    security = security,
+                    clientsCount = 0
+                )
+            }
+            .distinctBy { it.ssid + it.band }
+    }
+
+    private fun extractEntries(element: JsonElement): Map<String, JsonObject> {
+        val map = mutableMapOf<String, JsonObject>()
+        when {
+            element.isJsonObject -> {
+                val obj = element.asJsonObject
+                for ((k, v) in obj.entrySet()) {
+                    if (v.isJsonObject) {
+                        map[k] = v.asJsonObject
+                    }
+                }
+            }
+            element.isJsonArray -> {
+                element.asJsonArray.forEach { item ->
+                    if (item.isJsonObject) {
+                        val o = item.asJsonObject
+                        val id = str(o, "id") ?: str(o, "name") ?: "if_${map.size}"
+                        map[id] = o
+                    }
+                }
             }
         }
-
-        return InterfaceInfo(
-            id = id,
-            displayName = displayName,
-            type = type,
-            description = description,
-            state = state,
-            link = link,
-            connected = connected,
-            address = address,
-            up = up,
-            mac = mac,
-            mask = mask
-        )
-    }
-
-    private fun toWifiNetwork(key: String, obj: JsonObject): WifiNetwork {
-        val id = str(obj, "id") ?: key
-        val ifName = str(obj, "interface-name")
-        val ssid = str(obj, "ssid") ?: str(obj, "essid") ?: "(SSID не настроен)"
-        val state = str(obj, "state")
-        val link = str(obj, "link")
-        val enabled = (link ?: state)?.equals("up", ignoreCase = true) == true
-        val guest = (ifName?.contains("Guest", ignoreCase = true) == true) ||
-            id.contains("Guest", ignoreCase = true) ||
-            (str(obj, "description")?.contains("гост", ignoreCase = true) == true) ||
-            (str(obj, "description")?.contains("guest", ignoreCase = true) == true)
-
-        return WifiNetwork(
-            id = id,
-            ssid = ssid,
-            band = bandOf(id, obj),
-            security = securityOf(obj),
-            enabled = enabled,
-            guest = guest
-        )
-    }
-
-    private fun wifiDisplayName(id: String, obj: JsonObject): String {
-        val ssid = str(obj, "ssid") ?: str(obj, "essid")
-        return when {
-            !ssid.isNullOrBlank() -> ssid
-            id.contains("Guest", ignoreCase = true) -> "Гостевая сеть"
-            else -> "Wi-Fi сеть"
-        }
+        return map
     }
 
     private fun bandOf(id: String, obj: JsonObject): String {
         str(obj, "band")?.let { return normalizeBand(it) }
         str(obj, "frequency")?.let { return normalizeBand(it) }
-        str(obj, "description")?.let { desc ->
-            if (desc.contains("5G", ignoreCase = true)) return "5 ГГц"
-            if (desc.contains("2.4G", ignoreCase = true) || desc.contains("2,4G", ignoreCase = true)) return "2.4 ГГц"
-        }
-        obj.get("channel")?.takeIf { it.isJsonPrimitive }?.asString?.toIntOrNull()?.let { ch ->
-            return if (ch > 14) "5 ГГц" else "2.4 ГГц"
-        }
+
+        val desc = str(obj, "description") ?: ""
+        if (desc.contains("5G", ignoreCase = true)) return "5 ГГц"
+        if (desc.contains("2.4G", ignoreCase = true) || desc.contains("2,4G", ignoreCase = true)) return "2.4 ГГц"
+
+        val channel = intVal(obj, "channel")
+        if (channel > 14) return "5 ГГц"
+        if (channel in 1..14) return "2.4 ГГц"
+
         return when {
             id.contains("WifiMaster0", ignoreCase = true) -> "2.4 ГГц"
             id.contains("WifiMaster1", ignoreCase = true) -> "5 ГГц"
-            else -> "—"
+            else -> "2.4 + 5 ГГц"
         }
     }
 
@@ -163,15 +162,28 @@ object InterfaceMapper {
     }
 
     private fun securityOf(obj: JsonObject): String {
-        val encryption = str(obj, "encryption")
+        val encryption = str(obj, "encryption") ?: str(obj, "security") ?: str(obj, "auth-type")
         return when {
-            encryption.isNullOrBlank() -> "Не защищено"
+            encryption.isNullOrBlank() -> "WPA2-PSK"
+            encryption.contains("wpa3", ignoreCase = true) -> "WPA3-PSK"
+            encryption.contains("wpa2", ignoreCase = true) -> "WPA2-PSK"
+            encryption.equals("none", ignoreCase = true) || encryption.equals("open", ignoreCase = true) -> "Открытая"
             else -> encryption.uppercase()
         }
     }
 
-    private fun typeOf(obj: JsonObject): String = str(obj, "type") ?: ""
+    private fun str(obj: JsonObject?, field: String): String? {
+        val el = obj?.get(field) ?: return null
+        return if (el.isJsonPrimitive) el.asString else null
+    }
 
-    private fun str(obj: JsonObject?, field: String): String? =
-        obj?.get(field)?.takeIf { it.isJsonPrimitive }?.asString
+    private fun longVal(obj: JsonObject?, field: String): Long {
+        val el = obj?.get(field) ?: return 0L
+        return runCatching { el.asLong }.getOrDefault(0L)
+    }
+
+    private fun intVal(obj: JsonObject?, field: String): Int {
+        val el = obj?.get(field) ?: return 0
+        return runCatching { el.asInt }.getOrDefault(0)
+    }
 }

@@ -9,16 +9,16 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.dp
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.keenetic.local.ui.KeeneticNavHost
 import com.keenetic.local.ui.RouterViewModel
 import com.keenetic.local.ui.Screen
+import com.keenetic.local.ui.screens.LoginScreen
+import com.keenetic.local.ui.theme.KeeneticAppTheme
 import com.keenetic.local.ui.theme.KeeneticColors
 import com.keenetic.local.util.AppLogger
 
@@ -27,185 +27,135 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         AppLogger.logAction("App started")
         setContent {
-            KeeneticAppTheme()
+            KeeneticAppTheme {
+                MainAppContent()
+            }
         }
     }
 }
 
+data class BottomNavItem(
+    val screen: Screen,
+    val label: String,
+    val icon: ImageVector
+)
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun KeeneticAppTheme() {
+fun MainAppContent() {
     val navController = rememberNavController()
     val viewModel: RouterViewModel = viewModel()
-    var showRebootConfirm by remember { mutableStateOf(false) }
     val isLoggedIn by viewModel.isLoggedIn.collectAsState()
-    val isCheckingAutoLogin by viewModel.isCheckingAutoLogin.collectAsState()
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
 
     val bottomItems = listOf(
-        Screen.Dashboard to Icons.Default.Dashboard,
-        Screen.Devices to Icons.Default.Devices,
-        Screen.WiFi to Icons.Default.Wifi,
-        Screen.Terminal to Icons.Default.Terminal,
-        Screen.Settings to Icons.Default.Settings
+        BottomNavItem(Screen.Dashboard, "Главная", Icons.Default.Dashboard),
+        BottomNavItem(Screen.Devices, "Устройства", Icons.Default.Devices),
+        BottomNavItem(Screen.Internet, "Интернет", Icons.Default.Public),
+        BottomNavItem(Screen.WiFi, "Wi-Fi", Icons.Default.Wifi),
+        BottomNavItem(Screen.AllSections, "Разделы", Icons.Default.GridView)
     )
 
-    // Пока проверяем сохранённые данные для автовхода, не показываем
-    // ни форму логина, ни основной интерфейс - только загрузку.
-    if (isCheckingAutoLogin) {
-        Box(modifier = Modifier.fillMaxSize(), contentAlignment = androidx.compose.ui.Alignment.Center) {
-            CircularProgressIndicator(color = KeeneticColors.Primary)
-        }
-        return
-    }
-
-    LaunchedEffect(isLoggedIn) {
-        if (isLoggedIn && currentRoute == Screen.Login.route) {
-            navController.navigate(Screen.Dashboard.route) {
-                popUpTo(Screen.Login.route) { inclusive = true }
-            }
-        }
-        // Раньше выход через кнопку в шапке (в отличие от кнопки в Настройках)
-        // только сбрасывал isLoggedIn, но не уводил с текущего экрана -
-        // верхняя/нижняя панели пропадали (они завязаны на isLoggedIn), а
-        // содержимое экрана (например, Настройки со всеми карточками)
-        // оставалось видно без навигации - выглядело как "баг на экране
-        // авторизации". Теперь любой выход надёжно уводит на Login.
-        if (!isLoggedIn && currentRoute != Screen.Login.route) {
-            navController.navigate(Screen.Login.route) {
-                popUpTo(0) { inclusive = true }
-            }
-        }
-    }
-
-    Scaffold(
-        topBar = {
-            if (isLoggedIn) {
+    if (!isLoggedIn) {
+        LoginScreen(viewModel = viewModel)
+    } else {
+        Scaffold(
+            topBar = {
                 TopAppBar(
                     title = {
                         val title = when (currentRoute) {
+                            Screen.Dashboard.route -> Screen.Dashboard.title
+                            Screen.Devices.route -> Screen.Devices.title
+                            Screen.Internet.route -> Screen.Internet.title
+                            Screen.WiFi.route -> Screen.WiFi.title
                             Screen.AllSections.route -> Screen.AllSections.title
-                            Screen.SystemSettings.route -> Screen.SystemSettings.title
-                            Screen.InternetSection.route -> Screen.InternetSection.title
-                            Screen.WiFiSection.route -> Screen.WiFiSection.title
-                            Screen.NetworkSection.route -> Screen.NetworkSection.title
-                            Screen.ManagementSection.route -> Screen.ManagementSection.title
-                            Screen.VpnSettings.route -> Screen.VpnSettings.title
-                            Screen.DohSettings.route -> Screen.DohSettings.title
-                            Screen.DnsSection.route -> Screen.DnsSection.title
-                            Screen.SchedulesSettings.route -> Screen.SchedulesSettings.title
-                            else -> bottomItems.find { it.first.route == currentRoute }?.first?.title ?: "Keenetic Local"
+                            Screen.PortForwarding.route -> Screen.PortForwarding.title
+                            Screen.Firewall.route -> Screen.Firewall.title
+                            Screen.StaticRoutes.route -> Screen.StaticRoutes.title
+                            Screen.LanSegments.route -> Screen.LanSegments.title
+                            Screen.Mobile.route -> Screen.Mobile.title
+                            Screen.UsbDevices.route -> Screen.UsbDevices.title
+                            Screen.UserAccounts.route -> Screen.UserAccounts.title
+                            Screen.SystemLogs.route -> Screen.SystemLogs.title
+                            Screen.Firmware.route -> Screen.Firmware.title
+                            Screen.Diagnostics.route -> Screen.Diagnostics.title
+                            Screen.DnsFilters.route -> Screen.DnsFilters.title
+                            Screen.VpnAdvanced.route -> Screen.VpnAdvanced.title
+                            else -> "Keenetic Local"
                         }
-                        Text(title, color = KeeneticColors.TextPrimary)
+                        Text(
+                            title,
+                            color = KeeneticColors.TextPrimary,
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = androidx.compose.ui.text.font.FontWeight.Bold
+                        )
+                    },
+                    navigationIcon = {
+                        val isRootTab = bottomItems.any { it.screen.route == currentRoute }
+                        if (!isRootTab) {
+                            IconButton(onClick = { navController.popBackStack() }) {
+                                Icon(
+                                    Icons.Default.ArrowBack,
+                                    contentDescription = "Назад",
+                                    tint = KeeneticColors.TextPrimary
+                                )
+                            }
+                        }
+                    },
+                    actions = {
+                        IconButton(onClick = { viewModel.refreshAll() }) {
+                            Icon(Icons.Default.Refresh, "Обновить", tint = KeeneticColors.TextSecondary)
+                        }
+                        IconButton(onClick = { viewModel.logout() }) {
+                            Icon(Icons.Default.ExitToApp, "Выйти", tint = KeeneticColors.TextSecondary)
+                        }
                     },
                     colors = TopAppBarDefaults.topAppBarColors(
                         containerColor = KeeneticColors.Surface
-                    ),
-                    actions = {
-                        IconButton(onClick = { navController.navigate(Screen.AllSections.route) }) {
-                            Icon(Icons.Default.GridView, "Разделы")
-                        }
-                        IconButton(onClick = { viewModel.refreshAll() }) {
-                            Icon(Icons.Default.Refresh, "Обновить")
-                        }
-                        IconButton(onClick = { showRebootConfirm = true }) {
-                            Icon(Icons.Default.RestartAlt, "Перезагрузить роутер")
-                        }
-                        IconButton(onClick = { viewModel.logout() }) {
-                            Icon(Icons.Default.Logout, "Выйти")
-                        }
-                    }
+                    )
                 )
-            }
-        },
-        bottomBar = {
-            if (isLoggedIn) {
+            },
+            bottomBar = {
                 NavigationBar(
-                    containerColor = KeeneticColors.Surface,
-                    tonalElevation = 2.dp
+                    containerColor = KeeneticColors.Surface
                 ) {
-                    bottomItems.forEach { (screen, icon) ->
+                    bottomItems.forEach { item ->
+                        val selected = currentRoute == item.screen.route
                         NavigationBarItem(
-                            icon = { Icon(icon, contentDescription = screen.title) },
-                            label = { Text(screen.title) },
-                            selected = currentRoute == screen.route,
+                            selected = selected,
                             onClick = {
-                                AppLogger.logAction("Navigate", screen.route)
-                                navController.navigate(screen.route) {
-                                    popUpTo(navController.graph.startDestinationId) { saveState = true }
-                                    launchSingleTop = true
-                                    restoreState = true
+                                if (currentRoute != item.screen.route) {
+                                    navController.navigate(item.screen.route) {
+                                        popUpTo(Screen.Dashboard.route) { saveState = true }
+                                        launchSingleTop = true
+                                        restoreState = true
+                                    }
                                 }
                             },
+                            icon = { Icon(item.icon, contentDescription = item.label) },
+                            label = { Text(item.label) },
                             colors = NavigationBarItemDefaults.colors(
                                 selectedIconColor = KeeneticColors.Primary,
                                 selectedTextColor = KeeneticColors.Primary,
-                                indicatorColor = KeeneticColors.Primary.copy(alpha = 0.1f)
+                                unselectedIconColor = KeeneticColors.TextSecondary,
+                                unselectedTextColor = KeeneticColors.TextSecondary,
+                                indicatorColor = KeeneticColors.Primary.copy(alpha = 0.15f)
                             )
                         )
                     }
                 }
-            }
-        }
-    ) { padding ->
-        Box(modifier = Modifier.padding(padding)) {
-            Column(modifier = Modifier.fillMaxSize()) {
-                if (isLoggedIn) {
-                    val routerUnreachable by viewModel.routerUnreachable.collectAsState()
-                    if (routerUnreachable) {
-                        RouterUnreachableBanner()
-                    }
-                }
-                KeeneticNavHost(navController = navController, viewModel = viewModel)
-            }
-        }
-    }
-
-    if (showRebootConfirm) {
-        AlertDialog(
-            onDismissRequest = { showRebootConfirm = false },
-            icon = { Icon(Icons.Default.RestartAlt, contentDescription = null, tint = KeeneticColors.Error) },
-            title = { Text("Перезагрузить роутер?") },
-            text = { Text("Интернет и Wi-Fi пропадут на 1-2 минуты, пока роутер перезагружается.") },
-            confirmButton = {
-                TextButton(onClick = {
-                    viewModel.reboot()
-                    showRebootConfirm = false
-                }) {
-                    Text("Перезагрузить", color = KeeneticColors.Error)
-                }
             },
-            dismissButton = {
-                TextButton(onClick = { showRebootConfirm = false }) {
-                    Text("Отмена")
-                }
-            }
-        )
-    }
-}
-/**
- * Из ROADMAP.md ("Ещё не закрыто"): индикатор "нет подключения к роутеру"
- * отдельно от общего текста ошибки. Обновляется из RouterViewModel.routerUnreachable
- * (см. loadInterfaces() - она уже дёргается раз в 5 сек с Dashboard).
- * Вставлен один раз в общий Scaffold в MainActivity, поэтому виден на любом
- * экране приложения, а не только на Dashboard.
- */
-@Composable
-private fun RouterUnreachableBanner() {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .background(KeeneticColors.Error)
-            .padding(horizontal = 16.dp, vertical = 8.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Icon(Icons.Default.WifiOff, contentDescription = null, tint = androidx.compose.ui.graphics.Color.White, modifier = Modifier.size(18.dp))
-        Spacer(modifier = Modifier.width(8.dp))
-        Text(
-            "Нет соединения с роутером - проверьте, что телефон подключён к той же сети",
-            color = androidx.compose.ui.graphics.Color.White,
-            style = MaterialTheme.typography.bodySmall
-        )
+            containerColor = KeeneticColors.Background
+        ) { innerPadding ->
+            KeeneticNavHost(
+                navController = navController,
+                viewModel = viewModel,
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(innerPadding)
+                    .background(KeeneticColors.Background)
+            )
+        }
     }
 }

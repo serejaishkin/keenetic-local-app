@@ -1,0 +1,6 @@
+{
+  "name": "Keenetic Local",
+  "description": "Локальное управление роутерами Keenetic без облака через RCI API и SSH",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

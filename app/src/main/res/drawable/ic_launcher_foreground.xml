@@ -4,37 +4,10 @@
     android:height="108dp"
     android:viewportWidth="108"
     android:viewportHeight="108">
-
-    <!-- Router box -->
     <path
-        android:fillColor="#FFFFFFFF"
-        android:pathData="M34,58 L74,58 A6,6 0 0 1 80,64 L80,74 A6,6 0 0 1 74,80 L34,80 A6,6 0 0 1 28,74 L28,64 A6,6 0 0 1 34,58 Z" />
-
-    <!-- Status dots -->
+        android:fillColor="#06B6D4"
+        android:pathData="M54,30 C40.75,30 30,40.75 30,54 C30,67.25 40.75,78 54,78 C67.25,78 78,67.25 78,54 C78,40.75 67.25,30 54,30 Z M54,70 C45.16,70 38,62.84 38,54 C38,45.16 45.16,38 54,38 C62.84,38 70,45.16 70,54 C70,62.84 62.84,70 54,70 Z" />
     <path
-        android:fillColor="#FF00AA66"
-        android:pathData="M40,69 m-3,0 a3,3 0 1,0 6,0 a3,3 0 1,0 -6,0" />
-    <path
-        android:fillColor="#FF00AA66"
-        android:pathData="M52,69 m-3,0 a3,3 0 1,0 6,0 a3,3 0 1,0 -6,0" />
-
-    <!-- Antennas -->
-    <path
-        android:fillColor="#FFFFFFFF"
-        android:pathData="M46,58 L46,46 A2,2 0 0 1 50,46 L50,58 Z" />
-    <path
-        android:fillColor="#FFFFFFFF"
-        android:pathData="M62,58 L62,46 A2,2 0 0 1 66,46 L66,58 Z" />
-
-    <!-- Wi-Fi signal arcs above the router -->
-    <path
-        android:fillColor="#00000000"
-        android:strokeColor="#FFFFFFFF"
-        android:strokeWidth="3"
-        android:pathData="M40,40 A14,14 0 0 1 68,40" />
-    <path
-        android:fillColor="#00000000"
-        android:strokeColor="#FFFFFFFF"
-        android:strokeWidth="3"
-        android:pathData="M46,34 A8,8 0 0 1 62,34" />
+        android:fillColor="#22D3EE"
+        android:pathData="M54,44 C48.48,44 44,48.48 44,54 C44,59.52 48.48,64 54,64 C59.52,64 64,59.52 64,54 C64,48.48 59.52,44 54,44 Z" />
 </vector>

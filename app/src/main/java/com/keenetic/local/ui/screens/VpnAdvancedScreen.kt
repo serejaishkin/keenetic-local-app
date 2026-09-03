@@ -1,9 +1,11 @@
 package com.keenetic.local.ui.screens
 
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.VpnKey
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -14,56 +16,57 @@ import com.keenetic.local.ui.RouterViewModel
 import com.keenetic.local.ui.theme.KeeneticColors
 import com.keenetic.local.ui.screens.common.RawJsonCard
 
-/**
- * Раздел "VPN-расширения" - статус встроенного VPN-сервера (L2TP/IKEv2).
- *
- * RCI-путь show/vpn-server подтверждён строкой в main-553997B.js. Ранее
- * (см. ROADMAP.md) команда `show vpn-server` через SSH-терминал вернула
- * пустой ответ - но это отдельный механизм (BusyBox/CLI shell), а не тот
- * же REST-путь, которым пользуется веб-морда. Пробуем REST отдельно.
- *
- * Управление пользователями/сегментами VPN-сервера НЕ реализовано -
- * set-команда не подтверждена HAR.
- */
 @Composable
 fun VpnAdvancedScreen(viewModel: RouterViewModel, onBack: () -> Unit = {}) {
     val raw by viewModel.vpnServerRaw.collectAsState()
 
-    LaunchedEffect(Unit) { viewModel.loadVpnServerStatus() }
+    LaunchedEffect(Unit) { 
+        viewModel.loadVpnServerStatus() 
+    }
 
     Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp)
+        ) {
             IconButton(onClick = onBack) {
-                Icon(Icons.Default.ArrowBack, contentDescription = null)
+                Icon(Icons.Default.ArrowBack, contentDescription = "Назад")
             }
             Spacer(modifier = Modifier.width(8.dp))
-            Text("VPN-расширения", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+            Icon(Icons.Default.VpnKey, contentDescription = null, tint = KeeneticColors.Primary)
+            Spacer(modifier = Modifier.width(8.dp))
+            Text("VPN-сервер и клиенты", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
         }
         Text(
-            "Статус встроенного VPN-сервера (L2TP/IKEv2)",
+            "Статус встроенных VPN-серверов (WireGuard, SSTP, OpenVPN, L2TP/IPsec)",
             style = MaterialTheme.typography.bodySmall,
             color = KeeneticColors.TextSecondary
         )
         Spacer(modifier = Modifier.height(16.dp))
 
-        RawJsonCard(
-            title = "Статус VPN-сервера",
-            state = raw,
-            emptyText = "Пусто - VPN-сервер, вероятно, не настроен на этом роутере, либо этот REST-путь не поддерживается прошивкой"
-        )
+        LazyColumn(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+            item {
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(containerColor = KeeneticColors.Surface)
+                ) {
+                    Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Default.Info, contentDescription = null, tint = KeeneticColors.Primary)
+                        Spacer(modifier = Modifier.width(12.dp))
+                        Text(
+                            "Отображает текущее состояние и статус активных подключений VPN-сервера роутера.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = KeeneticColors.TextPrimary
+                        )
+                    }
+                }
+            }
 
-        Spacer(modifier = Modifier.height(16.dp))
-        Card(
-            modifier = Modifier.fillMaxWidth(),
-            colors = CardDefaults.cardColors(containerColor = KeeneticColors.Surface)
-        ) {
-            Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
-                Icon(Icons.Default.Info, contentDescription = null, tint = KeeneticColors.TextSecondary)
-                Spacer(modifier = Modifier.width(8.dp))
-                Text(
-                    "Управление пользователями и сегментами VPN-сервера пока не реализовано - нужен HAR реального изменения на веб-морде.",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = KeeneticColors.TextSecondary
+            item {
+                RawJsonCard(
+                    title = "Статус VPN-сервера (show vpn-server)",
+                    state = raw,
+                    emptyText = "VPN-сервер выключен или не настроен на роутере"
                 )
             }
         }

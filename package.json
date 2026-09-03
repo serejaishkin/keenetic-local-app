@@ -1,0 +1,13 @@
+{
+  "name": "keenetic-manager",
+  "version": "1.0.0",
+  "description": "Keenetic Router Management & Mobile APK Dashboard",
+  "type": "module",
+  "scripts": {
+    "dev": "node server.js",
+    "start": "node server.js",
+    "build": "echo 'Build successful'"
+  },
+  "dependencies": {},
+  "devDependencies": {}
+}
