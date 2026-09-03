@@ -1,0 +1,23 @@
+{
+	"LANGUAGES_ORDER": [
+		"en",
+		"de",
+		"fr",
+		"es",
+		"it",
+		"da",
+		"fi",
+		"pl",
+		"pt",
+		"ru",
+		"sv",
+		"tr",
+		"uk"
+	],
+	"profile": {
+		"languages": {
+			"en": true,
+			"ru": true
+		}
+	}
+}

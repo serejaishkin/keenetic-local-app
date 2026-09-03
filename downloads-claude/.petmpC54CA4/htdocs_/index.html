@@ -1,0 +1,72 @@
+<!doctype html>
+<html data-beasties-container>
+
+<head>
+  <meta charset="utf-8">
+  <title>KeeneticOS Web Panel</title>
+  <base href="/">
+
+  <!-- cdn-script /-->
+
+  <meta name="apple-mobile-web-app-title" content="KeeneticOS Web Panel">
+  <meta name="application-name" content="KeeneticOS Web Panel">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=1.0">
+  <meta name="MobileOptimized" content="320">
+  <meta name="HandheldFriendly" content="true">
+
+  <link rel="shortcut icon" type="image/x-icon" href="/assets/images/favicon/favicon.ico">
+  <link rel="apple-touch-icon" sizes="180x180" href="/assets/images/favicon/apple-touch-icon.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/assets/images/favicon/favicon-32x32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/assets/images/favicon/favicon-16x16.png">
+  <link rel="mask-icon" color="#0097dc" href="/assets/images/favicon/safari-pinned-tab.svg">
+  <meta name="msapplication-TileColor" content="#2d405c">
+  <meta name="msapplication-TileImage" content="/assets/images/favicon/ms-icon-144x144.png">
+  <meta name="theme-color" content="#ffffff">
+  <link rel="manifest" href="/assets/images/favicon/manifest.json">
+  <meta name="msapplication-config" content="/assets/images/favicon/browserconfig.xml">
+  <noscript>
+    <style>
+      @font-face {
+        font-family: Roboto;
+        font-weight: 400;
+        font-style: normal;
+        src: local("Roboto"), local("Roboto-Regular"), url("/assets/fonts/roboto/Roboto-Regular.woff2") format("woff2");
+      }
+
+      .noscript-warn {
+        font-family: "Roboto", sans-serif;
+        font-size: 24px;
+        width: 100%;
+        height: 100%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+    </style>
+  </noscript>
+  <!-- sso-script /-->
+
+  <!-- cors-meta /-->
+
+  <script>
+    const skipUnsupportedBrowserCheck = window.localStorage.getItem('skipUnsupportedBrowserCheck');
+
+    if (!JSON.parse(skipUnsupportedBrowserCheck)) {
+      (function redirectIfOldBrowser() {
+        if (!/Edge?\/(10[3-9]|1[1-9]\d|[2-9]\d{2}|\d{4,})\.\d+(\.\d+|)|Firefox\/(10[2-9]|1[1-9]\d|[2-9]\d{2}|\d{4,})\.\d+(\.\d+|)|Chrom(ium|e)\/(10[3-9]|1[1-9]\d|[2-9]\d{2}|\d{4,})\.\d+(\.\d+|)|(Maci|X1{2}).+ Version\/(15\.([5-9]|\d{2,})|(1[6-9]|[2-9]\d|\d{3,})\.\d+)([,.]\d+|)( \(\w+\)|)( Mobile\/\w+|) Safari\/|Chrome.+OPR\/(89|9\d|\d{3,})\.\d+\.\d+|(CPU[ +]OS|iPhone[ +]OS|CPU[ +]iPhone|CPU IPhone OS|CPU iPad OS)[ +]+(15[._]([5-9]|\d{2,})|(1[6-9]|[2-9]\d|\d{3,})[._]\d+)([._]\d+|)|Android:?[ /-](13[1-9]|1[4-9]\d|[2-9]\d{2}|\d{4,})(\.\d+|)(\.\d+|)|Mobile Safari.+OPR\/([89]\d|\d{3,})\.\d+\.\d+|Android.+Firefox\/(13[2-9]|1[4-9]\d|[2-9]\d{2}|\d{4,})\.\d+(\.\d+|)|Android.+Chrom(ium|e)\/(13[1-9]|1[4-9]\d|[2-9]\d{2}|\d{4,})\.\d+(\.\d+|)|Android.+(UC? ?Browser|UCWEB|U3)[ /]?(15\.([5-9]|\d{2,})|(1[6-9]|[2-9]\d|\d{3,})\.\d+)\.\d+|SamsungBrowser\/(2[4-9]|[3-9]\d|\d{3,})\.\d+|Android.+MQ{2}Browser\/(14(\.(9|\d{2,})|)|(1[5-9]|[2-9]\d|\d{3,})(\.\d+|))(\.\d+|)/.test(window.navigator.userAgent)) {
+          window.location.href = '/unsupported-browser.html';
+        }
+      })();
+    }
+  </script>
+<style>@font-face{font-family:Roboto;font-weight:300;font-style:normal;src:local("Roboto Italic"),local("Roboto-Italic"),url(/assets/fonts/roboto/Roboto-Italic.woff2) format("woff2")}@font-face{font-family:Roboto;font-weight:400;font-style:normal;src:local("Roboto"),local("Roboto-Regular"),url(/assets/fonts/roboto/Roboto-Regular.woff2) format("woff2")}@font-face{font-family:Roboto;font-weight:700;font-style:normal;src:local("Roboto Bold"),local("Roboto-Bold"),url(/assets/fonts/roboto/Roboto-Bold.woff2) format("woff2")}:root{--animation-speed:.05s;--transition-time:.05s;--save-pattern-min-height:64px;--z-index-save-pattern:20;--z-index-help:30;--z-index-search:40;--z-index-dialog:50;--z-index-save-pattern-dialog:60;--z-index-select-dialog:80;--z-index-dialog-top:70;--z-index-tooltip:90;--z-index-global-spinner:110;--z-index-layout-overlay:120;--z-index-layout-header:130;--z-index-layout-content-on-top:140;--z-index-navigation-menu:150}html,body{width:100%;height:100%;box-sizing:border-box;color:var(--primary-text)}body{position:relative;margin:0;overflow:hidden;background:var(--background);font-family:Roboto,sans-serif;font-size:14px;line-height:22px}*,*:before,*:after{box-sizing:inherit}</style><link rel="stylesheet" href="styles-553997B.css" media="print" onload="this.media='all'"><noscript><link rel="stylesheet" href="styles-553997B.css"></noscript></head>
+<body>
+  <ndw-root></ndw-root>
+
+  <noscript>
+    <div class="noscript-warn">
+      KeeneticOS Web Panel requires JavaScript. Please enable it for full functionality.
+    </div>
+  </noscript>
+<script src="polyfills-553997B.js" type="module"></script><script src="main-553997B.js" type="module"></script></body>
+</html>

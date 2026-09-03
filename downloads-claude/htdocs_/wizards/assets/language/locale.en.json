@@ -1,0 +1,1527 @@
+{
+  "isw": {
+    "dsl-ipvc": {
+      "field": {
+        "vpi": {
+          "label": "VPI"
+        },
+        "vci": {
+          "label": "VCI"
+        },
+        "encapsulation": {
+          "label": "Encapsulation"
+        },
+        "vlan": {
+          "label": "VLAN"
+        }
+      }
+    },
+    "extended-modem-form": {
+      "field": {
+        "network-type": {
+          "label": "Mobile Network Type",
+          "option": {
+            "auto": "Auto",
+            "umts": "3G only",
+            "lte": "4G only"
+          }
+        },
+        "roaming": {
+          "label": "Mobile Data Roaming",
+          "option": {
+            "enabled": "Enabled",
+            "disabled": "Disabled"
+          }
+        },
+        "apn": {
+          "label": "APN"
+        },
+        "auth-type": {
+          "label": "Authentication",
+          "option": {
+            "auto": "None",
+            "pap": "PAP",
+            "chap": "CHAP"
+          }
+        },
+        "identity": {
+          "label": "Username"
+        },
+        "password": {
+          "label": "Password"
+        }
+      }
+    },
+    "isp-auth-form": {
+      "field": {
+        "easy-login": {
+          "label": "Easy Login"
+        },
+        "username": {
+          "label": "Username",
+          "placeholder": "username@isp",
+          "hint": "Please type in your full user name and password, exactly as supplied by your service provider"
+        },
+        "password": {
+          "label": "Password",
+          "placeholder": "isp password"
+        }
+      }
+    },
+    "mac-address-form": {
+      "field": {
+        "mode": {
+          "label": "MAC address options",
+          "option": {
+            "default": {
+              "label": "Use the Keenetic device’s default",
+              "description": "MAC address: {{address}}"
+            },
+            "manual": {
+              "label": "Substitute with",
+              "description": "Required when a different device is registered with the ISP"
+            },
+            "clone": {
+              "label": "Clone from this device",
+              "description": "May be required if your ISP has already registered the MAC address of this PC"
+            }
+          }
+        },
+        "address": {
+          "label": "MAC address"
+        }
+      }
+    },
+    "static-ipv4-form": {
+      "field": {
+        "ip-address": {
+          "label": "IP address"
+        },
+        "mask": {
+          "label": "Subnet mask"
+        },
+        "gateway": {
+          "label": "Default gateway"
+        },
+        "dns": {
+          "label": "DNS address"
+        }
+      }
+    },
+    "time-range-form": {
+      "field": {
+        "from": {
+          "label": "From"
+        },
+        "to": {
+          "label": "To",
+          "next-day-description": "Next day"
+        }
+      }
+    },
+    "usbmodem-form": {
+      "field": {
+        "country": {
+          "label": "Country",
+          "option": {
+            "other": "Other"
+          }
+        },
+        "profile": {
+          "label": "Mobile operator",
+          "option": {
+            "other": "Other"
+          }
+        },
+        "apn": {
+          "label": "Access point (APN)"
+        },
+        "identity": {
+          "label": "Username"
+        },
+        "password": {
+          "label": "Password"
+        },
+        "phone": {
+          "label": "Phone number"
+        }
+      }
+    },
+    "manifest": {
+      "eula": {
+        "title": "License Agreement",
+        "description": "Please read the following information carefully before continuing."
+      },
+      "dpn": {
+        "title": "Device Privacy Notice",
+        "description": "Please read the following information carefully before continuing."
+      }
+    },
+    "dsl": {
+      "mode-auto": "Auto"
+    },
+    "button": {
+      "share": "Join",
+      "previous": "Previous",
+      "do-not-share": "Not now",
+      "next-step": "Next step",
+      "next": "Next",
+      "back": "Back",
+      "skip": "Skip",
+      "finish": "Finish",
+      "exit-wizard": "Exit setup",
+      "try-again": "Try again",
+      "no-modem": "I have no modem",
+      "accept": "Accept",
+      "run-wizard": "Start setup",
+      "copy": "Copy",
+      "send-to-email": "E-mail",
+      "print": "Print",
+      "manual": "Exit setup",
+      "download": "Download",
+      "share-via": "Share",
+      "apply-settings": "Apply settings",
+      "close": "Close",
+      "hidden-ssid": "I have a hidden SSID",
+      "ok": "Ok"
+    },
+    "layout": {
+      "on-close-alert": "Keenetic device setup is not complete.<br/><br/>You cannot return to the Initial Setup Wizard, but all the functions and settings of your Keenetic device are available for manual configuration via the web interface."
+    },
+    "isp-description": {
+      "ethernet": "Ethernet ISP",
+      "ethernet-via-sfp": "Fibre SFP",
+      "dsl": "DSL ISP",
+      "mobile": "Mobile ISP"
+    },
+    "extra-segment-description": {
+      "guest": "Guests Wi-Fi",
+      "kids": "Kids Wi-Fi",
+      "teens": "Teens Wi-Fi",
+      "iot": "IoT Wi-Fi"
+    },
+    "segment-interface-description": {
+      "home": "Primary",
+      "guest": "Guests",
+      "iot": "IoT",
+      "kids": "Kids",
+      "teens": "Teens"
+    },
+    "search-link": {
+      "title": "Initial Setup Wizard",
+      "description": "Initial Setup Wizard is a step-by-step helper in setting up the Internet connection, suitable for most available ISPs.",
+      "keywords": {
+        "wizard": "Wizard",
+        "initial-setup": "Initial setup"
+      }
+    },
+    "auth-field": {
+      "placeholders": {
+        "username": "username@isp",
+        "password": "isp password"
+      },
+      "hint": "Please type in your full username and password, exactly as supplied by your service provider."
+    },
+    "switch-to-extender": {
+      "title": "Switching to Extender Operating Mode",
+      "description": "Follow the instructions to set up your Keenetic device as a Wi-Fi System Extender.",
+      "software-switch-info": "Click <b>Switch</b> to change the operating mode of your device to <b>Extender</b>.",
+      "hardware-switch-info": "Manually switch the device to <b>Extender Mode</b>. Set the selector switch to position <b>B</b>.",
+      "rebooting-progress-label": "Restarting the device",
+      "rebooted-label": "The operating mode has been successfully changed to <b>Extender</b>.",
+      "switch-button": "Switch",
+      "after-switch-info": "<p>After changing the operating mode, the web interface of your Keenetic device will be available at a new IP address:<ul><li>When connecting to your home network this address is set by the main Keenetic router, and shown on its web interface;</li><li>When disconnected from your home network, you must use the temporary IP address: 192.168.1.3. Before you can access this temporary IP you must set your computer IP address somewhere between 192.168.1.4 and 192.168.1.254.</li><li>Please note that the Keenetic device has a separate independent configuration file for each operating mode. The administrator password is empty by default, and if set, it is saved independently for each mode.</li></ul></p>"
+    },
+    "waiting-for-reboot": {
+      "wi-fi-client": "Please reconnect to {{ ssid }} Wi-Fi network",
+      "wired-client": "Please reconnect to your Keenetic {{model}} device",
+      "detailed-description-wi-fi": "After the Keenetic device restarts, wait until both the <b>Status LED</b> {{statusLed}} and the <b>Wi-Fi LED</b> {{wifiLed}} are illuminated and not blinking and then reconnect to the device’s Wi-Fi network ('{{ssid}}') and resume the setup process.",
+      "detailed-description-wired": "After the Keenetic device restarts, wait until the {{statusLed}} LED is illuminated and not blinking and then resume the setup process.",
+      "detailed-description-wi-fi-single-led-device": "After the Keenetic device restarts, wait until the <b>Status LED</b> is illuminated and not blinking, and then reconnect to the device’s Wi-Fi network ('{{ssid}}') and resume the setup process.",
+      "detailed-description-wired-single-led-device": "After the Keenetic device restarts, wait until the Status LED is illuminated and not blinking, and then resume the setup process."
+    },
+    "mobile-app-dialog": {
+      "description": "We have detected our mobile app on your mobile device. You can proceed with the setup using the mobile application for added convenience.",
+      "confirm": "Go to mobile app",
+      "cancel": "Continue here"
+    },
+    "warning": {
+      "isw-instance-is-out-of-sync": "The current setup step of this Initial Setup Wizard instance is different from the one saved in device configuration.<br/>Loading the corresponding step...",
+      "service-tag-mismatch": {
+        "title": "Service tag mismatch",
+        "description": "Please reconnect to the {{modelName}}"
+      }
+    },
+    "login-modal": {
+      "title": "Web Interface Login",
+      "form": {
+        "login": "Username",
+        "password": "Password"
+      },
+      "login-button": "Log in"
+    },
+    "double-check-credentials": {
+      "title": "Double-Check Your Credentials",
+      "description": "Your Keenetic device has detected a problem, please check the documentation provided by your ISP, ensuring that your Username and Password for Internet access as entered are correct. If you no longer have this information, you can contact your ISP, and they'll be able to assist you. Please note: Keenetic support doesn't have access to these credentials, and the Username and Password asked for in this section are different to the ones used to log into your Keenetic web interface.",
+      "form": {
+        "username": {
+          "label": "Username"
+        },
+        "password": {
+          "label": "Password"
+        }
+      }
+    },
+    "internet-connection-check": {
+      "title": "Internet Connection Check",
+      "description": "Your Keenetic device is now configured for Internet access using the settings you provided. It is trying to connect to the Internet now. This process might take several minutes."
+    },
+    "ip-conflict": {
+      "title": "Wait for Your Keenetic Device to Restart",
+      "new-ip-message": "Your Keenetic device has detected an IP address conflict with your Internet Service Provider. Your Keenetic device will restart, and the IP address will be updated to {{ip}} to avoid this conflict.",
+      "description": "The Initial Setup Wizard will resume automatically. However, if you are connecting by Wi-Fi, you may need to reconnect. After the Keenetic device restarts, wait until both the <b>Status LED</b> {{statusLed}} and the <b>Wi-Fi LED</b> {{wifiLed}} are illuminated and not blinking and then reconnect to the device’s Wi-Fi network and resume the setup process."
+    },
+    "review-isp-settings": {
+      "title": "Review Your Settings With Your ISP",
+      "description": "Your Keenetic device was unable to connect to the Internet. Below is the summary of your Internet access settings. Please review the settings to make sure that you have selected and entered the correct options. You can also contact your Internet Service Provider (ISP) to check the configuration information.",
+      "settings-titles": {
+        "connection-type": "Internet connection type",
+        "mac-address": "MAC address",
+        "server": "Server address",
+        "username": "Username",
+        "password": "Password",
+        "ip": "IP address",
+        "subnet-mask": "Subnet mask",
+        "default-gateway": "Default gateway",
+        "dns": "DNS address",
+        "dsl-iptv-vpi": "IPTV VPI",
+        "dsl-iptv-vci": "IPTV VCI",
+        "dsl-iptv-vlan": "IPTV VLAN ID",
+        "dsl-iptv-encapsulation": "IPTV Encapsulation"
+      },
+      "connection-types": {
+        "dhcp": "DHCP",
+        "pppoe": "PPPoE",
+        "pptp": "PPTP",
+        "l2tp": "L2TP",
+        "static-ip": "Static IP",
+        "internal-lte": "Internal mobile broadband modem",
+        "usb-modem": "USB mobile broadband modem"
+      }
+    },
+    "apply-settings": {
+      "title": "Apply Your Settings",
+      "access-point": {
+        "description-os-update-with-date": "Click the <b>Apply Settings</b> button below to activate the configuration options you have selected. Your {{model}} will also install the latest KeeneticOS version {{osVersion}}, dated {{osReleaseDate}}. Once the device has restarted, wait until the <b>Wi-Fi LED</b> {{wifiLed}} is solid green. Then unplug the Keenetic Extender, move it to the target location and connect it to the main router using an Ethernet cable.",
+        "description-os-update-without-date": "Click the <b>Apply Settings</b> button below to activate the configuration options you have selected. Your {{model}} will also install the latest KeeneticOS version {{osVersion}}. Once the device has restarted, wait until the <b>Wi-Fi LED</b> {{wifiLed}} is solid green. Then unplug the Keenetic Extender, move it to the target location and connect it to the main router using an Ethernet cable.",
+        "description-no-os-update": "Click the <b>Apply Settings</b> button below to activate the configuration options you have selected. Once the device has restarted, wait until the <b>Wi-Fi LED</b> {{wifiLed}} is solid green. Then unplug the Keenetic Extender, move it to the target location and connect it to the main router using an Ethernet cable."
+      },
+      "extender": {
+        "description-os-update-with-date": "Click the <b>Apply Settings</b> button below to activate the configuration options you have selected. Your {{model}} will also install the latest KeeneticOS version {{osVersion}}, dated {{osReleaseDate}}. Once the device has restarted, wait until the <b>Wi-Fi LED</b> {{wifiLed}} is solid green. Then unplug the Range Extender and place it within range of your router, about halfway between your router and the Wi-Fi dead zone, to extend your Wi-Fi network.<br/><br/>If you have any questions or need help, please visit <b>{{kbLink}}</b>. We are here to help!",
+        "description-os-update-without-date": "Click the <b>Apply Settings</b> button below to activate the configuration options you have selected. Your {{model}} will also install the latest KeeneticOS version {{osVersion}}. Once the device has restarted, wait until the <b>Wi-Fi LED</b> {{wifiLed}} is solid green. Then unplug the Range Extender and place it within range of your router, about halfway between your router and the Wi-Fi dead zone, to extend your Wi-Fi network.<br/><br/>If you have any questions or need help, please visit <b>{{kbLink}}</b>. We are here to help!",
+        "description-no-os-update": "Click the <b>Apply Settings</b> button below to activate the configuration options you have selected. Once the device has restarted, wait until the <b>Wi-Fi LED</b> {{wifiLed}} is solid green. Then unplug the Range Extender and place it within range of your router, about halfway between your router and the Wi-Fi dead zone, to extend your Wi-Fi network.<br/><br/>If you have any questions or need help, please visit <b>{{kbLink}}</b>. We are here to help!",
+        "text-part-1": "<b>Tip: Connect a wired-only device to your Keenetic Extender</b><br><br>\nBesides extending wireless coverage, you can use the Ethernet port on your Keenetic Extender for wired-only devices, such as desktop computers, media players, or game consoles, to connect to your wireless network.",
+        "text-part-2": "You can also leverage existing Ethernet wiring to connect an extender to your main router. This setup will ensure the best possible performance of your extended network."
+      },
+      "bridge": {
+        "description-os-update-with-date": "Click the <b>Apply Settings</b> button below to activate the configuration options you have selected. Your {{model}} will also install the latest KeeneticOS version {{osVersion}}, dated {{osReleaseDate}}. Once the device has restarted, wait until the <b>Wi-Fi LED</b> {{wifiLed}} is solid green. Then unplug the Range Extender and move it within range of your router. Connect your wired device to the Extender using an Ethernet cable.",
+        "description-os-update-without-date": "Click the <b>Apply Settings</b> button below to activate the configuration options you have selected. Your {{model}} will also install the latest KeeneticOS version {{osVersion}}. Once the device has restarted, wait until the <b>Wi-Fi LED</b> {{wifiLed}} is solid green. Then unplug the Range Extender and move it within range of your router. Connect your wired device to the Extender using an Ethernet cable.",
+        "description-no-os-update": "Click the <b>Apply Settings</b> button below to activate the configuration options you have selected. Once the device has restarted, wait until the <b>Wi-Fi LED</b> {{wifiLed}} is solid green. Then unplug the Keenetic Extender and move it within range of your router. Connect your wired device to the Extender using an Ethernet cable."
+      },
+      "footer": {
+        "part-1": "If you have any questions or need help, please visit <b>{{kbLink}}</b>. We are here to help!",
+        "part-2": "On your mobile phone, download our app, available on Google Play and the Apple App Store."
+      }
+    },
+    "auto-update-schedule": {
+      "title": "Schedule Automatic Software Updates",
+      "description": "Choose the days and time interval for software updates. You can adjust this schedule at any time through the System Settings.\nDuring the update, your device will restart and stay offline for about one minute. In a Mesh Wi-Fi System, the Controller manages updates for the Extenders.",
+      "schedule-description": "Auto-update schedule",
+      "select-days": "Days",
+      "select-time": "Interval",
+      "all-day": "All day"
+    },
+    "digital-certificates": {
+      "title": "Installing Trusted Digital Certificates",
+      "description": "For safe operation right out of the box, Keenetic deploys individual bank-grade digital encryption certificates to enable protected HTTPS connections to your device. You can continue the initial setup while your Keenetic device obtains a trusted certificate from the Let’s Encrypt certification authority in the background.",
+      "success": "From now on, whenever you access the Keenetic web interface, your connection will automatically be protected from eavesdropping and unauthorized access.",
+      "failure": "The certificate installation process is initiated. Your Keenetic device will be obtaining a trusted certificate from the Let’s Encrypt certification authority. Please press <b>Next</b>."
+    },
+    "finish": {
+      "title": "Finishing the Setup",
+      "description": {
+        "os-update-available": "The Initial Setup Wizard is almost complete. After pressing the <b>Finish</b> button, the device will update the operating system, restart, and apply the new settings.",
+        "no-os-update": "The Initial Setup Wizard is almost complete. After pressing the <b>Finish</b> button, the device will restart and apply the new settings."
+      },
+      "progress": {
+        "update-in-progress": "Updating KeeneticOS...",
+        "update-fail": "Please update the device operating system later. The device will now restart with your settings applied.",
+        "update-success": "The operating system update is successful. Please wait while the device restarts with your settings applied.",
+        "reboot-in-progress": "Please wait while the device restarts with your settings applied."
+      }
+    },
+    "product-improvement": {
+      "title": "Join the Product Improvement Programme",
+      "description": "By sharing anonymous diagnostic and usage data, you help us detect issues more quickly, thereby improving the stability and performance of your device.\n\nWe collect crash reports and performance metrics, as well as configuration details specific to KeeneticOS. Rest assured, we do not collect your traffic content, browsing history, account names, or passwords.\n\nBy clicking <b>Join</b>, you consent to the collection and periodic transmission of diagnostic and usage data to Keenetic for product improvement purposes. You can withdraw your consent at any time through the System Settings.",
+      "dpn-link-text": "See the <a href=\"#\">Device Privacy Notice</a> for more information."
+    },
+    "verify-iptv": {
+      "title": "Verify IPTV Service Operation",
+      "title-alternate": "Verify Alternative IPTV Configuration",
+      "title-mvr": "Verify IPTV Service Operation",
+      "description": "Connect your operator-branded set-top box (STB) to the port <b>{{port}}</b>, power it up and check if the IPTV service is available and operating correctly.",
+      "description-alternate": "Because the IPTV service was not available, alternative settings have been initiated in your Keenetic device. Please remove your set-top box (STB) from the power source for 10 seconds, then plug it in. Make sure your STB is connected to the port <b>{{port}}</b> and check if the IPTV service is available and operating correctly. If the IPTV service is still not operating correctly, contact your ISP for the necessary settings to manually configure the IPTV service on your Keenetic device. Manual configuration can be performed after completing the Initial Setup Wizard.",
+      "description-mvr": "Connect your operator-branded set-top box (STB) to the port <b>{{port}}</b>, power it up and check if the IPTV service is available and operating correctly. If the IPTV service is not operating correctly, contact your ISP for the necessary settings to manually configure the IPTV service on your Keenetic device. Manual configuration can be performed after completing the Initial Setup Wizard.",
+      "description-no-free-port": "Select a port on the device where you connect the operator-branded set-top box (STB). You can check if the IPTV service is available and operating correctly or skip the IPTV service test for now.",
+      "choices": {
+        "success": "IPTV service is available, STB operating correctly",
+        "failure": "IPTV service is not available or STB operating incorrectly",
+        "failure-alternate": "IPTV service is still not available or STB operating incorrectly",
+        "skip": "To skip the IPTV service test"
+      },
+      "selected-port": "Set-top box connection port",
+      "port-x": "Port {{port}}",
+      "use-port": "Please connect the STB device to the specified port"
+    },
+    "wifi-performance-settings": {
+      "title": "Optimize Wi-Fi Network Performance",
+      "options": {
+        "balanced": {
+          "title": "Balanced performance mode",
+          "description": "<ul><li>Speeds up to {{maxSpeed}} Mbit/s. Ideal for most homes and small offices.</li><li>Less interference. More stable in areas with multiple Wi-Fi networks.</li></ul>"
+        },
+        "max": {
+          "title": "Maximum performance mode",
+          "description": "<ul><li>Speeds up to {{maxSpeed}} Mbit/s. Best for VR gaming, large file transfers, and ultra-high-definition streaming.</li><li>Higher interference. May face more interference in crowded environments.</li></ul>"
+        }
+      }
+    },
+    "wifi-settings": {
+      "title": "Wi-Fi Network Settings",
+      "description": "Each Keenetic device has a unique network name and password printed on the factory label of the device. You can keep these or change them.<br><br>If you are replacing an older wireless device with a device from Keenetic, you can use the same network name and password, so you do not need to reconfigure connected devices.",
+      "ssid": "Network name (SSID)",
+      "psk": "Password"
+    },
+    "your-device-credentials": {
+      "title": "Store Your Keenetic Device Credentials",
+      "description": "Use one of the options below to create a copy of the following important data. This vital system information and configuration options will be useful for future reference.",
+      "buddy": {
+        "title": "Store Your Keenetic Extender Credentials"
+      },
+      "your-device": {
+        "title": "Your Device",
+        "model": "Model:",
+        "system-mode": "Operating mode:",
+        "service-code": "Service tag:",
+        "os-version": "KeeneticOS version:",
+        "auto-update": {
+          "label": "Auto-update:",
+          "enabled": "Enabled",
+          "disabled": "Disabled"
+        },
+        "support": "Support:",
+        "special-value": {
+          "extender-default-system-mode": "Access point"
+        }
+      },
+      "web-interface": {
+        "title": "Web Interface",
+        "username": "Username:",
+        "password": "Password:",
+        "get-buddy-ip-from-router": "Open the user interface of the Main Router to determine the IP address assigned to your Keenetic Buddy."
+      },
+      "wi-fi": {
+        "title": "Wi-Fi Network",
+        "title-2ghz": "Wi-Fi Network (2.4 GHz)",
+        "title-5ghz": "Wi-Fi Network (5 GHz)",
+        "title-with-extra-segments": "Primary Wi-Fi",
+        "network-name": "Name:",
+        "password": "Password:"
+      },
+      "internet-connection": {
+        "title": "Internet Connection",
+        "type": "Internet connection type:",
+        "ip-protocol": {
+          "label": "IP protocol:",
+          "option": {
+            "ipv4": "IPv4",
+            "ipv6": "IPv6",
+            "dual-stack": "IPv6/IPv4 Dual-Stack",
+            "ip46-mapt": "IPv6/IPv4 (MAP-T)",
+            "ip46-dslite": "IPv6/IPv4 (DS-Lite)"
+          }
+        },
+        "mac-address": "MAC address:",
+        "server-address": "Server address:",
+        "username": "Username:",
+        "password": "Password:",
+        "ip-address": "IP address:",
+        "subnet-mask": "Subnet mask:",
+        "default-gateway": "Default gateway:",
+        "dns-address": "DNS address:",
+        "internet-vlan": "Internet VLAN ID:",
+        "iptv-vlan": "IPTV VLAN ID:",
+        "voip-vlan": "Telephony VLAN ID:",
+        "multicast-vlan": "Multicast VLAN ID (MVR):",
+        "dedicated-port-message": "The Ethernet port {{port}} on your Keenetic device is dedicated to connecting an IPTV STB. There is no access to the Internet from this port.",
+        "imei": "IMEI:",
+        "apn": "Access point (APN):",
+        "apn-not-set": "Not set",
+        "authentication-type": "Authentication type:",
+        "authentication-type-option": {
+          "auto": "Disabled",
+          "pap": "PAP",
+          "chap": "CHAP"
+        },
+        "mobile-network-type": "Mobile network type:",
+        "mobile-network-type-option": {
+          "auto": "Auto",
+          "umts": "3G only",
+          "lte": "4G only"
+        },
+        "modem-name": "Modem name:",
+        "operator-name": "Operator:",
+        "dsl-technology": "DSL technology:",
+        "internet-pvc": "Internet PVC:",
+        "iptv-pvc": "IPTV PVC:",
+        "voip-pvc": "Telephony / additional services:",
+        "vlan": "VLAN:",
+        "wan-port": "Internet connection port:",
+        "wan-port-type": {
+          "sfp": "SFP",
+          "ethernet": "Ethernet"
+        }
+      },
+      "extra-segment-info": {
+        "wifi-schedule-header": "Active hours:",
+        "label": {
+          "ssid": "Name:",
+          "psk": "Password:"
+        }
+      },
+      "email-subject": "Keenetic Wi-Fi connection settings"
+    },
+    "create-password": {
+      "title": "Secure Your Device",
+      "description": "Create an admin password for the router settings. This is not your Wi-Fi password.",
+      "buddy": {
+        "description": "Create an admin password for the device settings. This is not your Wi-Fi password."
+      },
+      "field": {
+        "username": {
+          "label": "Username"
+        },
+        "password": {
+          "label": "Admin password",
+          "hint": {
+            "default": "Use uppercase and lowercase letters, numbers, and symbols.",
+            "low": "At least {{minPasswordLength}} characters.",
+            "fair": "Fair. Add upper/lower case, numbers, and symbols to make it stronger.",
+            "good": "Strong password."
+          },
+          "error": {
+            "too-short": "At least {{minPasswordLength}} characters.",
+            "blocklist": "This password is well-known; please choose a different one.",
+            "user-name": "The password cannot be the same as the username."
+          }
+        }
+      },
+      "button": {
+        "generate-password": "Suggest a password"
+      }
+    },
+    "reset": {
+      "stage": {
+        "initial": {
+          "header": "Reset the Device",
+          "description": "This Device has a custom configuration. The Wizard will restore the device to factory settings with any custom settings being lost. Please confirm to continue."
+        },
+        "reset-in-progress": {
+          "header": "Wait for Your Device to Restart",
+          "description": "The Initial Setup Wizard will resume automatically. However, if you are connecting by Wi-Fi, you may need to reconnect. After the Keenetic device restarts, wait until both the <b>Status LED</b> {{statusLed}} and the <b>Wi-Fi LED</b> {{wifiLed}} are illuminated and not blinking and then reconnect to the device’s Wi-Fi network and resume the setup process."
+        }
+      },
+      "header-default": "Reset the Device",
+      "header-process": "Restarting the router",
+      "description": "After the restart, the Initial Setup Wizard will launch. Please do not close the page.",
+      "question": "This Device has a custom configuration. The Wizard will restore the device to factory settings with any custom settings being lost. Please confirm to continue.",
+      "confirm-description": "Reset the Device",
+      "skip-description": "Exit setup",
+      "warning": "After router restart, please reconnect to this Wi-Fi network:<br>{{ssid}}",
+      "status": {
+        "resetting": "Restoring the factory configuration",
+        "rebooting": "Restarting the router",
+        "rebooting-extender": "Restarting the extender",
+        "finished": "Finished"
+      }
+    },
+    "scenario-schematic": {
+      "title": "Confirm Your Internet Connection",
+      "custom-title": {
+        "restore-from-backup": "Confirm Restore from Backup"
+      },
+      "description": {
+        "via-internal-cellular-modem": "Your router will connect to the Internet over mobile data network using the SIM in the built-in slot.",
+        "via-external-cellular-modem": "This device will connect to the Internet using a SIM card in a 3G&nbsp;/&nbsp;4G&nbsp;LTE&nbsp;/&nbsp;5G USB modem plugged into the device's USB port.",
+        "via-dsl": "This device will connect to the Internet via a fixed telephone line through a telephone or DSL socket. A telephone cable is contained in your product box.",
+        "via-sfp-module": "This device will connect to the Internet via optical fibre using a market-available SFP module.",
+        "via-ethernet": "Your router will connect to the Internet via Ethernet cable from your provider or Ethernet wall socket.",
+        "via-ethernet-modem": "Your router will connect to the Internet via your provider’s modem/router. Use an Ethernet cable and a spare Ethernet port on the modem.",
+        "via-wifi": "This device will connect to the Internet via a third-party Wi-Fi network.",
+        "wireless-mws-extender": "This device will connect wirelessly to the Keenetic router as part of Keenetic Mesh Wi-Fi System (Keenetic Mesh Extender Mode).",
+        "wired-mws-extender": "This device will connect to the Keenetic router over an Ethernet cable as part of Keenetic Mesh Wi-Fi System (Keenetic Mesh Extender Mode).",
+        "wireless-range-extender": "This device will connect wirelessly to the existing router (regardless of brand) to extend its Wi-Fi network (Range Extender Mode).",
+        "wired-range-extender": "This device will connect to the existing router (regardless of brand) over an Ethernet cable to extend its Wi-Fi network (Range Extender Mode).",
+        "access-point": "This device will connect to the existing router (regardless of brand) via an Ethernet cable to enable wireless access to its network (Access Point Mode).",
+        "wifi-adapter": "This device will operate as an adapter connecting a wired client to a wireless network (Adapter Mode).",
+        "restore-from-backup": "Set up this device by restoring the configuration from a backup file.",
+        "restore-from-backup-extender": "Set up this extender by restoring the configuration from a backup file."
+      },
+      "schematic": {
+        "mobile": {
+          "this-device": "<b>Your<br/>Keenetic<br/>Device</b>",
+          "mws-controller": "<b>Your<br/>Keenetic<br/>Main&nbsp;Router</b>",
+          "wired-host": "<b>Your<br/>Wired<br/>Device</b>",
+          "internet": "<b>Internet</b>",
+          "existing-isp-modem": "<b>Provider's<br/>Modem<br/>or Router</b>",
+          "existing-router": "<b>Your<br/>Existing<br/>Router</b>",
+          "existing-modem-ethernet-port": "Free<br/>Ethernet<br/>Port",
+          "sim-card": "SIM Card",
+          "cellular-base-station": "Mobile<br/>Tower",
+          "cellular-signal-level": "Mobile<br/>Signal",
+          "external-cellular-modem": "Cellular<br/>USB&nbsp;Modem",
+          "ethernet-cable": "Ethernet<br/>Cable",
+          "ethernet-socket": "Ethernet<br/>Wall<br/>Socket",
+          "wifi": "Wi-Fi",
+          "wifi-hotspot": "Wi-Fi&nbsp;/&nbsp;WISP<br/>Hotspot",
+          "rj11-cable": "Telephone<br/>Cable",
+          "rj11-tae-adapter": "TAE to RJ-11<br/>Adapter",
+          "rj11-socket": "Telephone<br/>Socket",
+          "tae-socket": "Telephone<br/>Socket",
+          "sfp-module": "SFP Module",
+          "fibre-optic-cable": "Optical<br/>Fibre<br/>Cable",
+          "fibre-optic-socket": "Optical<br/>Fibre<br/>Wall<br/>Socket",
+          "backup-config-file": "<b>Backup<br/>Configuration<br/>File</b>"
+        },
+        "desktop": {
+          "this-device": "<b>Your Keenetic<br/>Device</b>",
+          "mws-controller": "<b>Your Keenetic<br/>Main Router</b>",
+          "wired-host": "<b>Your Wired<br/>Device</b>",
+          "internet": "<b>Internet</b>",
+          "existing-isp-modem": "<b>Provider's<br/>Modem/Router</b>",
+          "existing-router": "<b>Your Existing<br/>Router</b>",
+          "existing-modem-ethernet-port": "Free Ethernet Port",
+          "sim-card": "SIM Card",
+          "cellular-base-station": "Mobile<br/>Tower",
+          "cellular-signal-level": "Mobile<br/>Signal",
+          "external-cellular-modem": "Cellular<br/>USB Modem",
+          "ethernet-cable": "Ethernet<br/>Cable",
+          "ethernet-socket": "Ethernet<br/>Wall Socket",
+          "wifi": "Wi-Fi",
+          "wifi-hotspot": "Wi-Fi / WISP<br/>Hotspot",
+          "rj11-cable": "Telephone<br/>Cable",
+          "rj11-tae-adapter": "TAE to RJ-11<br/>Adapter",
+          "rj11-socket": "Telephone<br/>Socket",
+          "tae-socket": "Telephone<br/>Socket",
+          "sfp-module": "SFP Module",
+          "fibre-optic-cable": "Optical Fibre<br/>Cable",
+          "fibre-optic-socket": "Optical Fibre<br/>Wall Socket",
+          "backup-config-file": "<b>Backup<br/>Configuration File</b>"
+        }
+      },
+      "button": {
+        "confirm": "Confirm"
+      }
+    },
+    "select-configuration-option": {
+      "title": "Select the Desired Installation Scenario",
+      "description": "Please select a use for this Keenetic device:",
+      "buddy": {
+        "description": "Please select a use for this Keenetic Wi-Fi Range Extender:"
+      },
+      "extender-default": {
+        "description": "Please select a use for this Keenetic Access Point:"
+      },
+      "choices": {
+        "via-ethernet": {
+          "label": "To set up Internet access via an Ethernet cable supplied directly by your ISP",
+          "description": "Internet access via a modem, optical terminal or ethernet wall outlet"
+        },
+        "via-ethernet-sfp-combo": {
+          "label": "To set up Internet access via an Ethernet or fibre optic cable supplied directly by your ISP"
+        },
+        "via-ethernet-modem": {
+          "label": "To set up Internet access via an external fibre optic, cable, satellite or DSL modem"
+        },
+        "via-sfp": {
+          "label": "To set up Internet access via an SFP module for a fibre optic connection",
+          "description": "Internet access via a modem, optical terminal or ethernet wall outlet"
+        },
+        "via-mobile-network": {
+          "label": "To set up Internet access via a mobile broadband network",
+          "description": "Internet access via mobile broadband network"
+        },
+        "via-usb-modem": {
+          "label": "To set up Internet access via mobile broadband USB modem",
+          "description": "Internet access via external mobile broadband USB modem"
+        },
+        "via-dsl": {
+          "label": "To set up Internet access via a DSL line/telephone wall outlet",
+          "description": "Internet access via VDSL/ADSL wall outlet"
+        },
+        "restore-configuration": {
+          "label": "To install with previously saved settings (Restore from file)",
+          "description": "Boot with the configuration that was stored in a file"
+        },
+        "setup-extender": {
+          "label": "To set up your device in Wi-Fi Extender Mode; or",
+          "description": "Set up your device in Wi-Fi Extender Mode"
+        },
+        "setup-buddy-extender": {
+          "label": "To extend your existing Wi-Fi network, regardless of router brand (Extender role)"
+        },
+        "setup-buddy-mesh": {
+          "label": "To extend your existing Keenetic Mesh Wi-Fi System (Mesh Extender role)"
+        },
+        "setup-buddy-bridge": {
+          "label": "To connect a wired client device to your existing Wi-Fi network (Bridge role)"
+        },
+        "setup-buddy-access-point": {
+          "label": "To set up a new Wi-Fi network (Access Point role)"
+        },
+        "switch-to-extender": {
+          "label": "To switch to Wi-Fi Range Extender Mode",
+          "description": "Switch this device to Extender Mode to further add it to your Wi-Fi System"
+        },
+        "switch-to-router": {
+          "label": "To switch to Wi-Fi Router Mode; or",
+          "description": "Switch this device to Router Mode"
+        },
+        "setup-access-point": {
+          "label": "To set up your device in Access Point Mode"
+        }
+      }
+    },
+    "select-country-or-region": {
+      "title": "Choose Your Location",
+      "description": "Select your country/region and time zone. This helps find local providers and sets the right time.",
+      "country": "Country or region",
+      "timezone": "Time zone"
+    },
+    "select-scenario-group": {
+      "title": "What Would You Like to Do?",
+      "description": "Pick the setup that suits you.",
+      "scenario-group": {
+        "router": "Create a new network and connect it to the Internet (Router Mode)",
+        "wifi-extender": "Extend an existing Wi-Fi network (Range Extender mode)",
+        "wifi-adapter": "To connect a wired device to an existing Wi-Fi network (Adapter Mode)",
+        "restore-backup": "Restore settings from a backup file"
+      }
+    },
+    "select-scenario": {
+      "router": {
+        "title": "Choose Your Internet Connection",
+        "description": "Pick the option that matches your setup.",
+        "option": {
+          "via-ethernet": "Ethernet cable from your provider",
+          "via-ethernet-modem": "Modem/router from your provider (use existing unit)",
+          "via-sfp": "Fibre cable from your provider (SFP module)",
+          "via-internal-cellular-modem": "Mobile data (SIM card)",
+          "via-external-cellular-modem": "USB mobile modem (3G/4G/5G)",
+          "via-dsl": "DSL (phone line or DSL wall socket)",
+          "via-wifi": "Wi-Fi Hotspot (WISP)"
+        }
+      },
+      "backup-scenario": {
+        "restore-configuration": "Restore the Keenetic device configuration from a previously saved file."
+      },
+      "buddy-scenarios": {
+        "mws-extender": "To extend your existing Keenetic Mesh Wi-Fi System (Mesh Extender role)",
+        "wifi-extender": "To extend your existing Wi-Fi network, regardless of the main router's brand (Extender role)",
+        "bridge": "To connect a wired client device to your existing Wi-Fi network (Bridge role)",
+        "access-point": "To set up a new Wi-Fi network (Access Point role)"
+      }
+    },
+    "welcome": {
+      "title": "Welcome to the Initial Setup Wizard",
+      "description": {
+        "router": "Thank you for choosing Keenetic. This quick wizard will help you set up your router and Wi-Fi.",
+        "extender": "Thank you for choosing Keenetic. This quick wizard will help you set up your Wi-Fi extender.",
+        "access-point": "Thank you for choosing Keenetic. This quick wizard will help you set up your Access Point."
+      },
+      "agreement-acceptance": {
+        "eula-dpn": "By continuing, you agree to the <a name=\"eula\">Keenetic End User Licence Agreement</a> and <a name=\"dpn\">Device Privacy Notice</a>.",
+        "eula": "By continuing, you agree to the <a name=\"eula\">Keenetic End User Licence Agreement</a>."
+      },
+      "select": {
+        "header": "Select your preferred language",
+        "label": "Detected automatically",
+        "description": "Saved for the next time.",
+        "language": "Language"
+      }
+    },
+    "dsl-connect-device": {
+      "title": "Connect Your Keenetic Device to the DSL Splitter",
+      "description": "Use the long telephone cable provided to connect the DSL splitter to your Keenetic device. Ensure that cable connects DSL ports marked <b>DSL</b> on your Keenetic device and the DSL splitter.",
+      "schematic": {
+        "mobile": {
+          "dsl-port-on-device": "DSL Port<br/>on This<br/>Keenetic<br/>Device",
+          "rj11-cable": "Provided<br/>Telephone<br/>Cable",
+          "dsl-port-on-splitter": "DSL Port<br/>on the<br/>DSL Splitter"
+        },
+        "desktop": {
+          "dsl-port-on-device": "DSL Port on<br/>This Keenetic Device",
+          "rj11-cable": "Provided<br/>Telephone Cable",
+          "dsl-port-on-splitter": "DSL Port on<br/>the DSL Splitter"
+        }
+      }
+    },
+    "dsl-connect-phone": {
+      "title": "Optionally Connect Your Regular Telephone to the DSL Splitter",
+      "description": "The <b>PHONE</b> port of your DSL splitter allows you to connect your regular phone using a standard telephone cable. Skip this step if you do not require landline telephony.",
+      "schematic": {
+        "mobile": {
+          "line-port-on-phone": "Line Port<br/>on<br/>Regular<br/>Phone",
+          "rj11-cable": "Your<br/>Telephone<br/>Cable",
+          "phone-port-on-splitter": "PHONE Port<br/>on the<br/>DSL Splitter"
+        },
+        "desktop": {
+          "line-port-on-phone": "Line Port on<br/>Regular Phone",
+          "rj11-cable": "Your Telephone<br/>Cable",
+          "phone-port-on-splitter": "PHONE Port on<br/>the DSL Splitter"
+        }
+      }
+    },
+    "dsl-connect-splitter": {
+      "title": "Connect the DSL Splitter to the Telephone Line",
+      "description": "Verify that your DSL service is active. Connect the DSL splitter to the Telephone/DSL wall socket using the short telephone cable provided. Ensure the cable connects to your splitter's <b>LINE</b> port.",
+      "schematic": {
+        "mobile": {
+          "line-port-on-splitter": "LINE<br/>Port<br/>on the<br/>DSL Splitter",
+          "rj11-cable": "Provided<br/>Short<br/>Telephone<br/>Cable",
+          "rj11-tae-adapter": "TAE to RJ-11<br/>Adapter",
+          "rj11-wall-socket": "Telephone&nbsp;/&nbsp;DSL<br/>Wall Socket"
+        },
+        "desktop": {
+          "line-port-on-splitter": "LINE Port on<br/>the DSL Splitter",
+          "rj11-cable": "Provided Short<br/>Telephone Cable",
+          "rj11-tae-adapter": "TAE to RJ-11<br/>Adapter",
+          "rj11-wall-socket": "Telephone / DSL<br/>Wall Socket"
+        }
+      }
+    },
+    "dsl-manual-setup": {
+      "title": "Set Up an Internet Connection",
+      "description": "When your Internet service starts, your Internet Service Provider typically gives you all the information that you need to connect to the Internet. Enter the following information to connect to the Internet, or contact your service provider for assistance.",
+      "field": {
+        "dsl-technology": "DSL technology",
+        "vpi": "VPI",
+        "vci": "VCI",
+        "encapsulation": "Encapsulation",
+        "vlan": "VLAN (optional)",
+        "connection-type": "Internet Connection Type",
+        "username": "Username",
+        "password": "Password",
+        "ip-address": "IP address",
+        "subnet-mask": "Subnet mask",
+        "gateway": "Default gateway",
+        "dns": "DNS address"
+      },
+      "connection-type": {
+        "dhcp": "Dynamic IP Address Connection (DHCP)",
+        "pppoe": "Username/Password Connection (PPPoE)",
+        "static-ip": "Static IP Address Connection"
+      }
+    },
+    "dsl-provider": {
+      "title": "Select Your Internet Service Provider",
+      "description": "Please select the country and service provider to which you are connecting. In case you have specific settings provided by your service provider, select <b>Other</b> from the list.",
+      "fields": {
+        "other-option": "Other",
+        "country": "Country",
+        "country-placeholder": "Please select a country",
+        "preset": "Service provider",
+        "preset-placeholder": "Please select your ISP",
+        "username": "Username",
+        "password": "Password",
+        "easy-login": "Easy Login",
+        "access-number": "Access number",
+        "personal-password": "Personal password",
+        "manual-setup": "Enter login and password manually",
+        "dt-login": "Fill in data provided by ISP",
+        "connection-identifier": "Connection identifier",
+        "co-user-number": "Co-user number"
+      }
+    },
+    "dsl-setup-iptv": {
+      "title": "Set Up an IPTV Service",
+      "description": "In addition to Internet service, many operators provide an IPTV service with operator-branded set-top box (STB) devices. In order for such service to work, your new Keenetic device must be properly configured. Check with your Internet Service Provider to configure any additional parameters for the IPTV service. This step is optional, and you can configure IPTV service later if you prefer.",
+      "field": {
+        "vpi": "VPI",
+        "vci": "VCI",
+        "encapsulation": "Encapsulation",
+        "vlan": "VLAN"
+      },
+      "skip-iptv-setup": "To Skip IPTV Service Setup"
+    },
+    "connect-modem": {
+      "title": "Connect This Router to Your Modem",
+      "description": {
+        "blue-port": "Place the router in an open spot for better Wi-Fi. Keep the modem unplugged for now. Connect the modem to the blue port (<b>{{port}}</b>) on this router using an Ethernet cable.",
+        "grey-port": "Place the router in an open spot for better Wi-Fi. Keep the modem unplugged for now. Connect the modem to the grey port (<b>{{port}}</b>) on this router using an Ethernet cable.",
+        "red-port": "Place the router in an open spot for better Wi-Fi. Keep the modem unplugged for now. Connect the modem to the red port (<b>{{port}}</b>) on this router using an Ethernet cable."
+      },
+      "schematic": {
+        "mobile": {
+          "blue-port": "Blue<br/>Port (<b>{{port}}</b>)<br/>on This<br/>Router",
+          "grey-port": "Grey<br/>Port (<b>{{port}}</b>)<br/>on This<br/>Router",
+          "red-port": "Red<br/>Port (<b>{{port}}</b>)<br/>on This<br/>Router",
+          "ethernet-cable": "Ethernet<br/>Cable",
+          "port-in-existing-router": "Free<br/>Ethernet Port<br/>on Modem"
+        },
+        "desktop": {
+          "blue-port": "Blue Port (<b>{{port}}</b>)<br/>on This Router",
+          "grey-port": "Grey Port (<b>{{port}}</b>)<br/>on This Router",
+          "red-port": "Red Port (<b>{{port}}</b>)<br/>on This Router",
+          "ethernet-cable": "Ethernet<br/>Cable",
+          "port-in-existing-router": "Free Ethernet<br/>Port on Modem"
+        }
+      }
+    },
+    "connection-type": {
+      "title": "Select Your Internet Connection Type",
+      "description": "Please specify the type of your Internet connection as follows, for the automatic default Internet access configuration method did not succeed.",
+      "type": {
+        "dhcp": "Dynamic IP Address Connection (DHCP)",
+        "pppoe": "Username/Password Connection (PPPoE)",
+        "pptp-l2tp": "Username/Password/Server Connection (L2TP or PPTP)",
+        "static-ip": "Static IP Address Connection"
+      },
+      "type-description": {
+        "dhcp": "Choose this option if your Internet Service Provider did not provide any connection details. Most connections directly from an Ethernet Wall Outlet and Cable modems use this type of connection.",
+        "pppoe": "Choose this option if your Internet connection requires Username and Password to get online. Most DSL modems use this type of connection.",
+        "pptp-l2tp": "Choose this option if your Internet connection requires Username, Password and Server Address to get online. Some connections directly from an Ethernet Wall Outlet use this type of connection.",
+        "static-ip": "Choose this option if your Internet Service Provider provided you with IP Address information that has to be manually entered."
+      }
+    },
+    "ethernet-provider": {
+      "title": "Select Your Internet Service Provider",
+      "description": "Please select the country and service provider to which you are connecting. In case you have specific settings provided by your service provider, select <b>Other</b> from the list.",
+      "fields": {
+        "preset": "Service provider",
+        "country": "Country",
+        "country-placeholder": "Please select a country",
+        "preset-placeholder": "Please select your ISP",
+        "other-option": "Other",
+        "easy-login": "Easy Login",
+        "username": "Username",
+        "password": "Password"
+      }
+    },
+    "import-pppoe-settings": {
+      "title": "Import PPPoE connection settings",
+      "description": "Connect the WAN port of the previous router to the indicated port <b>{{port}}</b>, and power it up; your Keenetic device will configure the ISP connection according to the gathered information.",
+      "status": {
+        "connect-to-port": "Please connect the WAN port of the previous router to the specified port",
+        "in-progress": "Connection detected, please wait",
+        "success": "PPPoE connection settings successfully imported.<br>Please disconnect the previous router.",
+        "failure": "Import of PPPoE configuration failed"
+      }
+    },
+    "ip-config": {
+      "title": "Enter Your IP Address Information",
+      "description": "To setup Static IP address connection type you need to have a complete list of IP information from your Internet Service Provider. If you have a Static IP connection but any of this information is missing, please contact your ISP."
+    },
+    "mac-address": {
+      "title": "Choose Which MAC Address to Use",
+      "description": "A MAC address is a unique hardware identification number that lists each device on a network. Some Internet Service Providers use MAC addresses to identify or authenticate your Internet connection. So changing the MAC address of your new Keenetic device to the MAC address of your old router could be a quicker fix than telling your ISP to register the MAC of your new Keenetic device."
+    },
+    "select-wan-port": {
+      "title": "Choose the Internet Port",
+      "title-modem": "Choose the Port for Modem Connection",
+      "description": "Pick the Ethernet port that will connect to your provider's modem or Ethernet cable.\nDo not plug the cable in yet — you will do this shortly.",
+      "description-default-blue-fast-orange": "Pick the Ethernet port that will connect to your provider's modem or Ethernet cable. If your service is faster than {{defaultPortMaxSpeed}}, choose the <b>orange {{fastPortMaxSpeed}} port ({{fastPortLabel}})</b>. In this case, the <b>blue port {{defaultPortLabel}}</b> becomes a home network port.\nDo not plug the cable in yet — you will do this shortly.",
+      "max-speed": {
+        "1gbps": "1 Gbit/s",
+        "2_5gbps": "2.5 Gbit/s",
+        "10gbps": "10 Gbit/s"
+      },
+      "description-2_5G-Sfp": "Pick the port that will connect to your provider's optical or Ethernet cable. If your service is faster than 1 Gbit/s, or if you want to use an SFP transceiver for a fibre connection, choose the <b>orange port {{orangePort}}</b>. In this case, the <b>blue port {{bluePort}}</b> becomes a home network port.\nDo not plug the cable in yet — you will do this shortly.",
+      "description-2_5G-Sfp-modem": "Pick the Ethernet port that will connect to your provider's modem. If the Ethernet port on your modem is faster than 1 Gbit/s, choose the <b>orange 2.5 Gbit/s port {{orangePort}}</b>. In this case, the <b>blue port {{bluePort}}</b> becomes a home network port.\nDo not plug the cable in yet — you will do this shortly.",
+      "selected-port": "Internet connection port",
+      "switch-user-port-warning": "Please select any <b>grey</b> Ethernet port to connect your computer to the Keenetic device. The current port will be configured for Internet connection.",
+      "port-x": "Port {{port}}"
+    },
+    "enter-your-credentials": {
+      "pppoe": {
+        "title": "Enter Your Credentials",
+        "description": "To setup PPPoE Internet connection type you need to know your Username and Password from your Internet Service Provider (ISP). If you do not have this information, please contact your ISP.",
+        "button": {
+          "import-pppoe-settings": "Import settings from previous router"
+        }
+      },
+      "pptp-l2tp": {
+        "title": "Enter Your Credentials",
+        "description": "To setup the PPTP or L2TP Internet connection type, you need to know your Username, Password, and Authentication Server Address from your Internet Service Provider (ISP). If you do not have this information, please contact your ISP."
+      },
+      "form": {
+        "authentication-type": "Authentication type",
+        "server-address": "Server address",
+        "username": "Username",
+        "password": "Password"
+      }
+    },
+    "unplug-modem": {
+      "title": "Unplug Your Modem",
+      "desc_begin": "Unplug your DSL, fibre, cable or satellite modem from the mains. If it has a backup battery, remove it. If other wireless equipment is connected to the modem, unplug that too. Keep it unplugged until further instructions.",
+      "desc_end": "If you have no modem and your Internet connection is through a direct Ethernet cable and/or your Internet connection involves VLAN settings, choose <b>I have no modem</b>.",
+      "schematic": {
+        "mobile": {
+          "existing-modem": "Provider's<br/>Modem<br/>or Router",
+          "power-adapter": "Power<br/>Adapter",
+          "wall-socket": "Mains<br/>Socket"
+        },
+        "desktop": {
+          "existing-modem": "Provider's<br/>Modem/Router",
+          "power-adapter": "Power<br/>Adapter",
+          "wall-socket": "Mains<br/>Socket"
+        }
+      }
+    },
+    "vlan-setup": {
+      "title": "Manual Internet Setup",
+      "description": "Automatic setup did not detect your connection. Some providers use VLAN IDs for Internet and IPTV/set-top boxes (STBs). If your provider has provided VLAN details, enter them below. Otherwise, select <b>Next</b> to continue.",
+      "without-vlan": "Without VLAN",
+      "form": {
+        "inet-vlan": "Internet VLAN ID",
+        "iptv-vlan": "IPTV VLAN ID",
+        "voip-vlan": "VoIP VLAN ID",
+        "extra-vlan": "Multicast VLAN ID (MVR)"
+      }
+    },
+    "vlan-information": {
+      "title": "Enter VLAN Information",
+      "description": "Check with your Internet Service Provider if it is necessary to configure a VLAN number for the Internet in your Keenetic device. If not, proceed without VLAN number.",
+      "form": {
+        "internet-vlan-id": "Internet VLAN ID"
+      }
+    },
+    "wait-for-wan-link": {
+      "wan-via-sfp": {
+        "title": "Plug an SFP Transceiver Into Your Keenetic Device",
+        "description": "Connect the fibre optic cable from your ISP to the SFP transceiver. Insert the SFP transceiver into an <b>SFP</b> slot on your Keenetic device. For the list of known compatible SFP transceivers, please visit <b>{{supportSite}}</b>. Consult your Internet Service Provider to make sure that your line is ready and that the service is available."
+      },
+      "wan-via-modem": {
+        "title": "Power On Your Modem",
+        "description": "Reconnect any backup battery first, then plug the modem into the mains. Wait about two minutes for it to restart and for the lights to become steady."
+      },
+      "wan-via-wall-outlet": {
+        "title": "Connect to Your Provider’s Ethernet",
+        "title-sfp-port-4": "Connect the Cable from Your ISP",
+        "description": {
+          "blue-port": "<ul><li>If there’s a loose Ethernet cable from your provider, plug it into the blue port (<b>{{port}}</b>) on this router.</li>\n<li>If you have a wall socket installed by your provider, connect it to the blue port (<b>{{port}}</b>) with an Ethernet cable.</li>\n<li>If the line isn’t active, contact your provider.</li></ul>",
+          "grey-port": "<ul><li>If there’s a loose Ethernet cable from your provider, plug it into the grey port (<b>{{port}}</b>) on this router.</li>\n<li>If you have a wall socket installed by your provider, connect it to the grey port (<b>{{port}}</b>) with an Ethernet cable.</li>\n<li>If the line isn’t active, contact your provider.</li></ul>",
+          "red-port": "<ul><li>If there’s a loose Ethernet cable from your provider, plug it into the red port (<b>{{port}}</b>) on this router.</li>\n<li>If you have a wall socket installed by your provider, connect it to the red port (<b>{{port}}</b>) with an Ethernet cable.</li>\n<li>If the line isn’t active, contact your provider.</li></ul>",
+          "sfp-port-4": "Connect the Ethernet cable from your ISP to the red port marked <b>4</b>. Or connect the fibre optic cable from your ISP to the SFP transceiver and insert it into the <b>SFP</b> slot on your Keenetic device. Consult with your provider to make sure that your line is ready and that the service is available."
+        }
+      },
+      "schematic": {
+        "mobile": {
+          "sfp-module": "SFP Module<br/>(Available Separately)",
+          "sfp-port": "SFP Port<br/>on This<br/>Keenetic Device",
+          "blue-port": "Blue<br/>Port (<b>{{port}}</b>)<br/>on This<br/>Router",
+          "grey-port": "Grey<br/>Port (<b>{{port}}</b>)<br/>on This<br/>Router",
+          "red-port": "Red<br/>Port (<b>{{port}}</b>)<br/>on This<br/>Router",
+          "ethernet-cable": "Ethernet<br/>Cable",
+          "ethernet-wall-socket": "Ethernet<br/>Wall Socket",
+          "existing-modem": "Provider's<br/>Modem<br/>or Router",
+          "power-adapter": "Power<br/>Adapter",
+          "electric-wall-socket": "Mains<br/>Socket"
+        },
+        "desktop": {
+          "sfp-module": "SFP Module<br/>(Available Separately)",
+          "sfp-port": "SFP Port on<br/>This Keenetic Device",
+          "blue-port": "Blue Port (<b>{{port}}</b>)<br/>on This Router",
+          "grey-port": "Grey Port (<b>{{port}}</b>)<br/>on This Router",
+          "red-port": "Red Port (<b>{{port}}</b>)<br/>on This Router",
+          "ethernet-cable": "Ethernet<br/>Cable",
+          "ethernet-wall-socket": "Ethernet<br/>Wall Socket",
+          "existing-modem": "Provider's<br/>Modem/Router",
+          "power-adapter": "Power<br/>Adapter",
+          "electric-wall-socket": "Mains<br/>Socket"
+        }
+      }
+    },
+    "extender-with-switch-mode": {
+      "title": "Switch to Extender Mode",
+      "description": {
+        "generic": "Use this device as a Wi-Fi extender. Follow these steps.\n\n1. Choose mode — Set the <b>Operating Mode Switch</b> on the side of this device to position <b>B</b> to switch to the <b>Extender</b> mode.\n\n2. Connect by cable — After the device restarts and the <b>Status LED</b> {{statusLed}} and <b>Wi-Fi LED</b> {{wifiLed}} are solid (not flashing), connect it to your Main Router with the supplied Ethernet cable. Make sure both are powered. The <b>Internet LED</b> {{internetLed}} on the extender should be solid.\n\n3. Join the Main Router’s network — Reconnect your phone/computer to the Main Router via Wi-Fi or Ethernet.\n\n4. Add the extender — Open <b>Wi-Fi System</b> on the Main Router, find this device, and select <b>Acquire</b>.\n\n5. Place the extender — Extender mode supports wired or wireless backhaul links. After setup, you can unplug the cable and place the extender where you need better coverage.",
+        "pro-series": "Use this device as a Wi-Fi extender. Follow these steps.\n\n1. Choose mode — Set the <b>Operating Mode Switch</b> on the side of this device to position <b>B</b> to switch to the <b>Extender</b> mode.\n\n2. Connect by cable — After the device restarts and the <b>Status LED</b> {{statusLed}} is solid (not flashing) orange or green, connect it to your Main Router with the supplied Ethernet cable. Make sure both are powered. The <b>Status LED</b> {{statusLed}} on the extender should be solid green.\n\n3. Join the Main Router’s network — Reconnect your phone/computer to the Main Router via Wi-Fi or Ethernet.\n\n4. Add the extender — Open <b>Wi-Fi System</b> on the Main Router, find this device, and select <b>Acquire</b>.\n\n5. Place the extender — Extender mode supports wired or wireless backhaul links. After setup, you can unplug the cable and place the extender where you need better coverage."
+      }
+    },
+    "extender-without-switch-mode": {
+      "title": "Switch to Extender Mode",
+      "description": "Use this device as a Wi-Fi extender. Follow these steps.\n\n1. Choose mode — Tap <b>Next</b> to switch to the <b>Extender</b> mode.\n\n2. Connect by cable — After the device restarts and the <b>Status LED</b> {{statusLed}} and <b>Wi-Fi LED</b> {{wifiLed}} are solid (not flashing), connect it to your Main Router with the supplied Ethernet cable. Make sure both are powered. The <b>Internet LED</b> {{internetLed}} on the extender should be solid.\n\n3. Join the Main Router’s network — Reconnect your phone/computer to the Main Router via Wi-Fi or Ethernet.\n\n4. Add the extender — Open <b>Wi-Fi System</b> on the Main Router, find this device, and select <b>Acquire</b>.\n\n5. Place the extender — Extender mode supports wired or wireless backhaul links. After setup, you can unplug the cable and place the extender where you need better coverage.",
+      "description-single-led-device": "Use this device as a Wi-Fi extender. Follow these steps.\n\n1. Choose mode — Tap <b>Next</b> to switch to the <b>Extender</b> mode.\n\n2. Connect by cable — After the device restarts and the <b>Status LED</b> {{statusLed}} is solid (not flashing) orange or green, connect it to your Main Router with the supplied Ethernet cable. Make sure both are powered. The <b>Status LED</b> {{statusLed}} on the extender should be solid green.\n\n3. Join the Main Router’s network — Reconnect your phone/computer to the Main Router via Wi-Fi or Ethernet.\n\n4. Add the extender — Open <b>Wi-Fi System</b> on the Main Router, find this device, and select <b>Acquire</b>.\n\n5. Place the extender — Extender mode supports wired or wireless backhaul links. After setup, you can unplug the cable and place the extender where you need better coverage."
+    },
+    "select-extra-segments": {
+      "title": "Create Additional Wi-Fi Networks",
+      "description": "Clients on separate networks will be isolated from each other. Each network will have a unique name (SSID) and password. You may customize these settings now if you wish.",
+      "field": {
+        "extra-segments": {
+          "custom-segment-description": "Custom network configuration.",
+          "option": {
+            "guest": {
+              "label": "Guests Network",
+              "description": "Allow visitors to access the Internet without letting them into your primary network."
+            },
+            "iot": {
+              "label": "IoT Network",
+              "description": "A network for your smart devices."
+            },
+            "kids": {
+              "label": "Kids Network",
+              "description": "A network for your children that is active from 10 to 19 hours and filters unsafe content."
+            },
+            "teens": {
+              "label": "Teens Network",
+              "description": "A network for your older children that is active from 8 to 21 hours."
+            }
+          }
+        }
+      },
+      "link": {
+        "change-settings": "Customize settings"
+      },
+      "schedule-description": {
+        "guest": "Guests Wi-Fi schedule",
+        "iot": "IoT Wi-Fi schedule",
+        "kids": "Kids Wi-Fi schedule",
+        "teens": "Teens Wi-Fi schedule"
+      },
+      "settings-dialog": {
+        "title": "Customize the {{segment}}",
+        "button": {
+          "save": "Save",
+          "cancel": "Cancel"
+        },
+        "field": {
+          "ssid": {
+            "label": "Network name (SSID)",
+            "error": {
+              "not-unique": "This name is already in use"
+            }
+          },
+          "encryption": {
+            "label": "Network protection",
+            "hint": "Select the WPA2-PSK protocol for broad compatibility with legacy client devices while assuring optimal connection security.\n\nUsing WPA2-PSK + WPA3-PSK allows for enhanced security with modern clients.\n\nFor maximum protection of a modern-only clients' network, choose WPA3-PSK instead."
+          },
+          "psk": {
+            "label": "Password"
+          },
+          "wifi-bands": {
+            "label": "Wi-Fi bands",
+            "hint": "Your dual-band Keenetic device uses two carrier frequencies (bands) for Wi-Fi: 2.4 GHz and 5 GHz.\n\nThe 2.4 GHz band has longer reach, but lower speed. The 5 GHz band offers faster speeds, but shorter reach.\n\nFor an IoT network it is recommended to enable only the 2.4 GHz Wi-Fi for greater compatibility. For all other Wi-Fi networks it is recommended to use both bands."
+          },
+          "is-active-on-schedule": {
+            "label": "Active on a schedule",
+            "hint": "Adjust these time intervals according to your family's daily routine.\n\nImportant: This feature helps to develop healthy habits, but is only an additional precautionary measure and does not replace parental supervision.\n\nFor the latest information, please refer to the recommendations of specialist institutions in your area."
+          }
+        }
+      }
+    },
+    "lte-double-check-sim": {
+      "title": "Check Your SIM Card",
+      "description": "Unable to connect to the mobile network. Make sure the settings match your provider’s advice and the SIM is active and undamaged. If possible, test the SIM in another device in the same location."
+    },
+    "lte-external-antenna": {
+      "title": "Optional External Antenna",
+      "description": "For a stronger mobile signal, you can add a third-party external high-gain antenna (not included). It screws onto the same connectors as the supplied antennas.",
+      "schematic": {
+        "mobile": {
+          "external-antenna-connector": "External<br/>Antenna<br/>Connector",
+          "antenna-connector-on-device": "Antenna<br/>Connector<br/>on This<br/>Router"
+        },
+        "desktop": {
+          "external-antenna-connector": "External Antenna<br/>Connector",
+          "antenna-connector-on-device": "Antenna Connector<br/>on This Router"
+        }
+      }
+    },
+    "lte-install-antennas": {
+      "title": "Attach the Mobile Antennas",
+      "description": "Screw on the supplied antennas as shown. Hand-tighten only, and position them vertically.",
+      "schematic": {
+        "mobile": {
+          "antenna-connector": "Supplied<br/>Antennas",
+          "antenna-connector-on-device": "Antenna<br/>Connectors<br/>on This<br/>Router"
+        },
+        "desktop": {
+          "antenna-connector": "Supplied<br/>Antennas",
+          "antenna-connector-on-device": "Antenna Connectors<br/>on This Router"
+        }
+      }
+    },
+    "lte-network-connection": {
+      "title": "Connecting to the Mobile Network",
+      "description": "Your router is searching for your mobile network. This can take a few minutes.",
+      "status": {
+        "connected": "Connected",
+        "connecting": "Connecting",
+        "requesting": "Requesting",
+        "waiting-for-network": "Waiting for network",
+        "scanning": "Scanning",
+        "initializing": "Initializing",
+        "disconnected": "Disconnected"
+      }
+    },
+    "lte-pin-code": {
+      "title": "Enter the SIM PIN Code",
+      "description": "Enter the PIN code for this SIM card. You have three tries, after which it locks and needs a PUK code from your mobile provider.",
+      "field": {
+        "pin-code": "PIN code"
+      },
+      "pin-state": {
+        "PIN_WRONG": "Incorrect PIN code",
+        "NOT_INSERTED": "Please insert the SIM card",
+        "INVALID": "PIN code invalid",
+        "UNKNOWN": "Waiting...",
+        "PIN_BLOCK": "Blocked",
+        "PIN_CODE_CHECKING": "PIN code checking"
+      },
+      "sim-pin": {
+        "last-pin-attempt-confirm": "This is your last attempt to enter a valid PIN. The SIM card will be locked immediately when you enter an incorrect PIN code this time.",
+        "send-pin-code": "Send PIN code",
+        "set-pin-code": "Enter the SIM PIN.",
+        "pin-attempts-left": "{{num}} attempts left to enter the PIN code."
+      }
+    },
+    "lte-review-params": {
+      "title": "Review Settings and Try Again",
+      "description": "Update these if your mobile provider gave different details, then try again."
+    },
+    "lte-signal-level": {
+      "title": "You Are Online",
+      "legend": {
+        "signal-level-indicator": {
+          "default": "Connected via {{operatorName}} {{networkType}} network. Signal is {{signalLevelLabel}}.",
+          "no-mobile-operator": "Mobile connection established, signal strength is {{signalLevelLabel}}.",
+          "no-signal-level": "Connected via {{operatorName}} network.",
+          "no-extra-data": "Mobile connection established."
+        },
+        "internet-led": "The <b>Internet LED</b> {{internetLed}} shows the network type.",
+        "mobile-network-led": "The <b>Mobile Network LED</b> {{baseStationLed}} indicates signal strength."
+      },
+      "description": "Connected via {{operatorName}} {{networkType}} network. Signal is {{signalLevelLabel}}.",
+      "short-description": "Connected via {{operatorName}} network.",
+      "no-mobile-operator-description": "Mobile connection established, signal strength is {{signalLevelLabel}}.",
+      "no-operator-signal-level-description": "Mobile connection established.",
+      "hint": "For a stronger signal, try moving the router closer to a window or placing it higher up.",
+      "color-legend": "The <b>Internet LED</b> {{internetLed}} shows the network type. The <b>Mobile Network LED</b> {{baseStationLed}} colour shows the signal strength.",
+      "signal-strength": "Signal strength",
+      "network-type": "Network type",
+      "network-type-3g": "3G",
+      "network-type-4g": "4G",
+      "network-type-4g-3g": "4G / 3G",
+      "network-type-5g": "5G",
+      "strength": {
+        "strong": "Strong",
+        "weak": "Weak",
+        "none": "Unattainable",
+        "poor": "Poor",
+        "medium": "Medium",
+        "good": "Good",
+        "excellent": "Excellent"
+      }
+    },
+    "lte-sim-card": {
+      "title": "Insert Your SIM Card",
+      "description": "Insert a SIM card with the gold contacts facing down into the <b>SIM</b> slot on the back of your Keenetic device until you hear a click. To obtain an activated SIM card, contact your mobile broadband service provider.",
+      "description-2-sim-slots": "Insert a SIM card with the gold contacts facing down into the <b>SIM 1</b> slot on the side of your Keenetic device until you hear a click. To obtain an activated SIM card, contact your mobile broadband service provider.",
+      "schematic": {
+        "mobile": {
+          "sim-card": "SIM Card",
+          "sim-slot": "SIM Card<br/>Slot<br/>on This<br/>Keenetic<br/>Device"
+        },
+        "desktop": {
+          "sim-card": "SIM Card",
+          "sim-slot": "SIM Card Slot on<br/>This Keenetic Device"
+        }
+      }
+    },
+    "lte-verify-operator": {
+      "title": "Check with Your Mobile Provider",
+      "description": "Unable to connect to the mobile network. Please check:\n<ul>\n<li>The SIM is active and supports data.</li>\n<li>Mobile data is enabled on your account.</li>\n<li>You’re in coverage, or data roaming is on (if needed).</li>\n<li>You have enough credit/data.</li>\n<li>The APN settings for this SIM are correct (APN/username/password).</li>\n</ul>"
+    },
+    "upload-configuration": {
+      "title": "Choose a Backup File",
+      "description": "Select the previously saved backup, then continue.",
+      "select-file": "Select a file:",
+      "select-on-drag-file": "Drag the backup file here, or browse",
+      "browse": "Browse",
+      "configuration-looks-invalid": "This file does not contain a valid configuration for your Keenetic device.",
+      "btn": {
+        "ok": "Ok",
+        "confirm-choice": "Continue",
+        "confirm": "Confirm"
+      },
+      "buddy": {
+        "description": "Select the previously saved backup, then continue."
+      }
+    }
+  },
+  "country": {
+    "other": "Other",
+    "AT": "Austria",
+    "BE": "Belgium",
+    "BG": "Bulgaria",
+    "BY": "Belarus",
+    "CY": "Cyprus",
+    "CZ": "Czech Republic",
+    "DE": "Germany",
+    "DK": "Denmark",
+    "EE": "Estonia",
+    "ES": "Spain",
+    "FI": "Finland",
+    "FR": "France",
+    "GB": "United Kingdom",
+    "GR": "Greece",
+    "HR": "Croatia",
+    "HU": "Hungary",
+    "IE": "Ireland",
+    "IT": "Italy",
+    "KZ": "Kazakhstan",
+    "LT": "Lithuania",
+    "LU": "Luxembourg",
+    "LV": "Latvia",
+    "MT": "Malta",
+    "NL": "Netherlands",
+    "PL": "Poland",
+    "PT": "Portugal",
+    "RO": "Romania",
+    "RU": "Russia",
+    "SE": "Sweden",
+    "SI": "Slovenia",
+    "SK": "Slovakia",
+    "UA": "Ukraine",
+    "AM": "Armenia",
+    "AR": "Argentina",
+    "AU": "Australia",
+    "AZ": "Azerbaijan",
+    "BH": "Bahrain",
+    "BN": "Brunei Darussalam",
+    "BR": "Brazil",
+    "CA": "Canada",
+    "CH": "Switzerland",
+    "CO": "Colombia",
+    "EG": "Egypt",
+    "FO": "Faroe Islands",
+    "GG": "Guernsey",
+    "HK": "Hong Kong",
+    "ID": "Indonesia",
+    "IL": "Israel",
+    "IM": "Isle of Man",
+    "IN": "India",
+    "IR": "Iran",
+    "IS": "Iceland",
+    "JO": "Jordan",
+    "KH": "Cambodia",
+    "LB": "Lebanon",
+    "MX": "Mexico",
+    "MY": "Malaysia",
+    "NO": "Norway",
+    "NP": "Nepal",
+    "NZ": "New Zealand",
+    "PE": "Peru",
+    "PH": "Philippines",
+    "PK": "Pakistan",
+    "PS": "Palestinian Authority",
+    "QA": "Qatar",
+    "RS": "Serbia",
+    "SA": "Saudi Arabia",
+    "SG": "Singapore",
+    "SY": "Syria",
+    "TH": "Thailand",
+    "TR": "Turkey",
+    "TW": "Taiwan",
+    "US": "United States",
+    "VE": "Venezuela",
+    "VN": "Vietnam",
+    "ZA": "South Africa",
+    "AE": "United Arab Emirates",
+    "DZ": "Algeria",
+    "KW": "Kuwait",
+    "MA": "Morocco",
+    "NC": "New Caledonia",
+    "OM": "Oman",
+    "SM": "San Marino",
+    "KG": "Kyrgyzstan",
+    "UZ": "Uzbekistan",
+    "AL": "Albania",
+    "GE": "Georgia",
+    "MD": "Moldova",
+    "ME": "Montenegro",
+    "MK": "North Macedonia",
+    "LI": "Liechtenstein",
+    "BA": "Bosnia and Herzegovina",
+    "TJ": "Tajikistan"
+  },
+  "weekday": {
+    "day-0": "Sunday",
+    "day-1": "Monday",
+    "day-2": "Tuesday",
+    "day-3": "Wednesday",
+    "day-4": "Thursday",
+    "day-5": "Friday",
+    "day-6": "Saturday",
+    "day-7": "Sunday"
+  },
+  "weekday-short": {
+    "day-0": "Su",
+    "day-1": "Mo",
+    "day-2": "Tu",
+    "day-3": "Wd",
+    "day-4": "Th",
+    "day-5": "Fr",
+    "day-6": "St",
+    "day-7": "Su"
+  },
+  "error": {
+    "vpi-vci-pair-used": "This VPI/VCI pair is already in use",
+    "integer-only": "Only integer values are allowed",
+    "port-used-by-service": "The port is already used by the '{{service}}' service",
+    "too-long": "The value is too long",
+    "too-long-named": "The '{{name}}' value is too long",
+    "invalid-dect-parallel-sequence": "Valid characters: *#R1234567890<br>The first character must be R, * or #",
+    "invalid-pin": "Enter 4–8 digits",
+    "invalid-phone": "Invalid phone number",
+    "dect-invalid-phone-number": "Invalid phone number",
+    "invalid-sip-id": "Invalid SIP ID",
+    "invalid-digitmap": "Valid characters: .*+>#|[]()-PTx01234567890",
+    "invalid-prefix-substitution-rule": "Valid characters: .*+>#|[]()-Tx01234567890ABCD",
+    "max-length": "The maximum length is {{length}}",
+    "max-length-in-bytes": "The value must not exceed {{length}} bytes",
+    "min-length": "Minimum length — {{length}} characters",
+    "ip-or-domain-required": "Enter IP or domain name",
+    "ipv6-or-domain-required": "Enter IPv6 address or domain name",
+    "ip-not-in-range": "The IP address does not belong to the selected IP pool",
+    "ipv6": "Wrong IPv6 address format",
+    "ipv6-prefix": "Invalid IPv6 prefix format",
+    "is-host": "This is the IP address of the subnet",
+    "is-net": "Invalid subnet IP address",
+    "in-net": "IP address from another subnet",
+    "in-nets": "IP address from another subnet",
+    "invalid-subnet": "Invalid IPv4 subnet",
+    "invalid-dns-ip": "Invalid DNS server address",
+    "reserved-ip": "IPv4 address from a reserved block",
+    "reserved-ipv6": "IPv6 address from a reserved block",
+    "reserved-ipv6-prefix": "IPv6 prefix from a reserved block",
+    "ipv6-gateway-outside-block": "The IPv6 gateway is outside the specified IPv6 address block",
+    "ip-is-assigned-to-interface": "This IP address is assigned to the '{{interface}}' interface",
+    "not-in-nets": "IP address is in conflict with the existing connection",
+    "not-in-nets-named": "IP address is in conflict with the '{{connection}}'",
+    "host-ip-equals-gateway-ip": "The IP address must not match the gateway address",
+    "not-in-array": "Not in array",
+    "zero": "Number must be greater than zero",
+    "status-problem": "Check that the data were entered correctly",
+    "ports": {
+      "required-port": "Enter a port number (1…65535)",
+      "not-number": "Must be a number from 1 to 65535",
+      "port-range": "Must be a number from {{from}} to {{to}}",
+      "port-used": "The port is taken",
+      "notInKbRange": "Must be a number from 64 to 1000000 ",
+      "notInMbRange": "Must be a number from 1 to 976"
+    },
+    "value-allowed": "Valid values: ",
+    "system": {
+      "date": "Invalid date format",
+      "time": "Invalid time format",
+      "date-min-year": "Enter year equal or greater than",
+      "swap-size": "Must be a number from 1 to 2047"
+    },
+    "required-field": "This is a required field",
+    "wep-key-error": "5/13 ASCII characters or 10/26 hexadecimal digits",
+    "ascii-only": "Only numbers and characters from Latin alphabet are allowed",
+    "base64-only": "Only Base64 characters are allowed",
+    "invalid-length": "The field must be of length",
+    "invalid-exact-length": "The field must be of length {{length}}",
+    "hex-only": "Only hexadecimal digits are allowed",
+    "less-chars-or-only-hex": "Use less than {{maxLength}} characters or hexadecimal digits only",
+    "name-exists": "Name already exists",
+    "reserved-user-name": "Reserved user name",
+    "vlan-used": "This number is already in use",
+    "invalid-ip": "Enter a valid IP address",
+    "zero-ip": "Enter a valid non-zero IP address",
+    "same-ip": "Please enter different IP address",
+    "unique-ip": "Interface and gateway or DNS server must not have the same IP address",
+    "vlan-allowed": "A number between 2 and 4094 is required",
+    "number-length": "Enter a valid {{numberLength}} digit number",
+    "digits-only": "Only digits are allowed",
+    "numeric": "Enter number",
+    "required": "Fill in this field",
+    "not-in-range": "Enter a number in the range",
+    "number-range": "Enter a number in the range {{minValue}}…{{maxValue}}",
+    "invalid-characters": "Invalid characters",
+    "password-format": "Invalid characters",
+    "login-format": "Invalid characters",
+    "invalid-domain-name": "Incorrect domain name",
+    "dydns-url-format": "URL should start with 'http://' or 'https://'",
+    "mac-address-invalid": "Invalid MAC address",
+    "mac-address-used": "A client with this MAC address is already registered",
+    "transfercode-format": "Enter the code in the following format: klmn:opqr:stuv:wxyz",
+    "foldername-format": "Input folder name",
+    "invalid-domain-and-port": "'domain' or 'domain:port'",
+    "auth-failed": "Incorrect username or password"
+  },
+  "interface-translation": {
+    "ISP": "Ethernet connection",
+    "DSL-ISP": "DSL provider",
+    "LTE-ISP": "Mobile operator",
+    "Home": "Primary",
+    "Guest": "Guests",
+    "UsbDsl": "Keenetic Plus DSL",
+    "WISP": "WISP {{band}}",
+    "segment": "Network",
+    "ipoe": "IPoE",
+    "chilli": "Captive portal"
+  },
+  "language": {
+    "ru": "Русский",
+    "uk": "Українська",
+    "en": "English",
+    "tr": "Türkçe",
+    "es": "Español",
+    "de": "Deutsch",
+    "fr": "Français",
+    "it": "Italiano",
+    "pl": "Polski",
+    "pt": "Português",
+    "sv": "Svenska",
+    "da": "Dansk",
+    "fi": "Suomi",
+    "zz": "Crowdin-editor"
+  },
+  "role": {
+    "inet": "Internet",
+    "iptv": "TV",
+    "iptv2": "IPTV (additional)",
+    "voip": "Telephony",
+    "misc": "Miscellaneous"
+  },
+  "system-mode": {
+    "ap": "Access point/Extender",
+    "client": "Adapter",
+    "repeater": "Repeater/Extender",
+    "extender": "Extender",
+    "router": "Router"
+  },
+  "wifi": {
+    "encryption": {
+      "disabled": "Unsecured"
+    },
+    "band": {
+      "2": "2.4 GHz Wi-Fi",
+      "5": "5 GHz Wi-Fi"
+    }
+  }
+}

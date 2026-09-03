@@ -1,0 +1,134 @@
+window.NDM = {
+	"FW_FLASHING_SPEED": 2500000,
+	"FW_BOOT_TIME": 90000,
+	"FW_SHUTDOWN_TIME": 7000,
+	"DSL": "Dsl0",
+	"DSL_ALWAYS_PRESENT": false,
+	"LAN": "Home",
+	"LAN_DESCRIPTION": "Home network",
+	"GUEST": "Guest",
+	"GUEST_DESCRIPTION": "Guest network",
+	"WAN": "ISP",
+	"WAN_DESCRIPTION": "Broadband connection",
+	"MASTER": "WifiMaster0",
+	"MASTER_5G": "WifiMaster1",
+	"AP": [
+		"WifiMaster0/AccessPoint0",
+		"WifiMaster0/AccessPoint1",
+		"WifiMaster0/AccessPoint2",
+		"WifiMaster0/AccessPoint3"
+	],
+	"AP_5G": [
+		"WifiMaster1/AccessPoint0",
+		"WifiMaster1/AccessPoint1",
+		"WifiMaster1/AccessPoint2",
+		"WifiMaster1/AccessPoint3"
+	],
+	"STA": "WifiMaster0/WifiStation0",
+	"STA_5G": "WifiMaster1/WifiStation0",
+	"WAN_SWITCH": "GigabitEthernet1",
+	"LAN_SWITCH": "GigabitEthernet0",
+	"WAN_PORT": "WAN",
+	"ETHER_WAN_PORT": "WAN",
+	"WAN_PORTS": {
+		"WAN": 1
+	},
+	"HAS_TWO_SWITCHES": true,
+	"LED_OPTIONS": [
+		"ENABLED",
+		"DISABLED_ALL"
+	],
+	"USB_PORTS_NUMBER": 2,
+	"LANGUAGES_ORDER": [
+		"en",
+		"de",
+		"fr",
+		"es",
+		"it",
+		"da",
+		"fi",
+		"pl",
+		"pt",
+		"ru",
+		"sv",
+		"tr",
+		"uk"
+	],
+	"PORTS_MAP": {
+        "LAN4": {
+            "index": 4,
+            "port": "4",
+            "color": "blue",
+            "type": "ethernet",
+            "name": "4",
+            "iface": "GigabitEthernet0",
+            "interfaceId": "GigabitEthernet0/3",
+            "group": "LAN",
+            "maxSpeed": 1000
+        },
+        "LAN3": {
+            "index": 3,
+            "port": "3",
+            "color": "gray",
+            "type": "ethernet",
+            "name": "3",
+            "iface": "GigabitEthernet0",
+            "interfaceId": "GigabitEthernet0/2",
+            "group": "LAN",
+            "maxSpeed": 1000
+        },
+        "LAN2": {
+            "index": 2,
+            "port": "2",
+            "color": "gray",
+            "type": "ethernet",
+            "name": "2",
+            "iface": "GigabitEthernet0",
+            "interfaceId": "GigabitEthernet0/1",
+            "group": "LAN",
+            "maxSpeed": 1000
+        },
+        "LAN1": {
+            "index": 1,
+            "port": "1",
+            "color": "gray",
+            "type": "ethernet",
+            "name": "1",
+            "iface": "GigabitEthernet0",
+            "interfaceId": "GigabitEthernet0/0",
+            "group": "LAN",
+            "maxSpeed": 1000
+        },
+        "WAN": {
+            "index": 0,
+            "port": "0",
+            "color": "gray",
+            "type": "ethernet",
+            "name": "0",
+            "iface": "GigabitEthernet1",
+            "interfaceId": "GigabitEthernet1/0",
+            "group": "WAN",
+            "maxSpeed": 1000
+        }
+	},
+	"PORTS_LAYOUT": [
+        [
+            "4",
+            "3",
+            "2",
+            "1",
+            "0"
+        ]
+	],
+	"HAS_PORTS_STAT": true,
+	"profile": {
+		"config": {},
+		"components": {},
+		"languages": {
+			"en": true,
+			"ru": true
+		}
+	},
+	"WIFI_SPEED_160_OFF": 0,
+	"WIFI_SPEED_160_ON": 0
+};

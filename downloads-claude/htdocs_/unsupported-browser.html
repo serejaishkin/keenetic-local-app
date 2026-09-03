@@ -1,0 +1,255 @@
+<html>
+  <head>
+    <title>KeeneticOS Web Panel</title>
+    <style>
+      @font-face {
+        font-family: "Vendor Logo";
+        font-weight: bold;
+        font-style: normal;
+        src: url("/assets/fonts/logo/logo.otf") format("opentype");
+      }
+
+      @font-face {
+        font-family: Roboto;
+        font-weight: 400;
+        font-style: normal;
+        src: local("Roboto"), local("Roboto-Regular"), url("/assets/fonts/roboto/Roboto-Regular.woff2") format("woff2");
+      }
+
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      body {
+        display: flex;
+        width: 100vw;
+        height: 100vh;
+        justify-content: center;
+        align-items: center;
+        flex-direction: column;
+        gap: 16px;
+        font-family: "Roboto", sans-serif;
+      }
+
+      #header {
+        color: #0097dc;
+        text-transform: uppercase;
+        font-family: "Vendor Logo", Roboto, sans-serif;
+        font-size: 3vh;
+      }
+
+      #description {
+        display: none;
+        text-align: center;
+        font-size: 2vh;
+        padding: 16px 32px;
+      }
+
+      #wrapper {
+        display: none;
+        gap: 24px;
+        align-items: center;
+        padding: 16px;
+      }
+
+      #help {
+        --help-color: #bdb7b7;
+
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border: 1px solid var(--help-color);
+        padding: 4px 10px;
+        border-radius: 50%;
+        color: var(--help-color);
+        width: 3vh;
+        height: 3vh;
+        font-size: 2vh;
+
+        &:hover {
+          cursor: pointer;
+          background-color: #0097dc;
+          color: white;
+          border-color: white;
+        }
+      }
+
+      #language {
+        font-size: 2vh;
+      }
+
+      #browsers {
+        display: none;
+        column-gap: 40px;
+      }
+
+      .browsers-item {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        font-size: 2vh;
+        text-align: center;
+      }
+
+      svg {
+        width: 150px;
+        height: 150px;
+      }
+
+      #spinner {
+        width: 100px;
+        height: 100px;
+
+        path {
+          --delay: 0;
+          animation: ndw-spinner 1s linear infinite;
+          stroke: #0097dc;
+          animation-delay: calc(-0.125s * var(--delay));
+        }
+
+        path:nth-child(1) { --delay: 1; }
+        path:nth-child(2) { --delay: 2; }
+        path:nth-child(3) { --delay: 3; }
+        path:nth-child(4) { --delay: 4; }
+        path:nth-child(5) { --delay: 5; }
+        path:nth-child(6) { --delay: 6; }
+        path:nth-child(7) { --delay: 7; }
+        path:nth-child(8) { --delay: 8; }
+      }
+
+      @keyframes ndw-spinner {
+        0% {
+          opacity: 1;
+        }
+
+        100% {
+          opacity: 0;
+        }
+      }
+    </style>
+
+    <script>
+      const browsers = [
+        {
+          title: 'Google Chrome',
+          svg: 'assets/images/browser-icons/chrome.svg',
+          link: 'https://www.google.com/chrome/'
+        },
+        {
+          title: 'Mozilla Firefox',
+          svg: 'assets/images/browser-icons/firefox.svg',
+          link: 'https://www.firefox.com/'
+        },
+        {
+          title: 'Microsoft Edge',
+          svg: 'assets/images/browser-icons/edge.svg',
+          link: 'https://www.microsoft.com/edge/download'
+        },
+      ];
+
+      (async () => {
+        const languagesFile = await fetch('./ndmLanguages.json');
+        const contactsFile = await fetch('./ndmContacts.json');
+        const languages = (await languagesFile.json());
+        const supportUrl = (await contactsFile.json())['contacts']['support-url'];
+        const browsersIcons = await Promise.all(
+          browsers.map(async browser => {
+            const res = await fetch(browser.svg);
+
+            return await res.text();
+          })
+        );
+
+        const orderedLanguages = languages['LANGUAGES_ORDER']
+          .filter(language => Object.keys(languages['profile']['languages']).includes(language))
+
+        const translations = {};
+
+        const helpElement = document.getElementById('help');
+        const descriptionElement = document.getElementById('description');
+        const selectElement = document.getElementById('language');
+        const browsersElement = document.getElementById('browsers');
+        const wrapperElement = document.getElementById('wrapper');
+
+        for (const language of orderedLanguages) {
+          const translationFile = await fetch(`./assets/language/locale.${language}.json`);
+          const localizeTranslation = (await translationFile.json());
+
+          translations[language] = localizeTranslation['unsupported-browser'];
+
+          selectElement.appendChild(new Option(localizeTranslation['languages'][language], language));
+        }
+
+        selectElement.addEventListener('change', () => {
+          descriptionElement.innerHTML = translations[selectElement.value];
+        });
+
+        helpElement.addEventListener('click', () => {
+          window.open(supportUrl, '_blank');
+        });
+
+        descriptionElement.innerHTML = translations['en'];
+
+        descriptionElement.addEventListener('click', event => {
+          if (event.target.closest('a')) {
+            window.localStorage.setItem('skipUnsupportedBrowserCheck', JSON.stringify(true));
+          }
+        });
+
+        browsers.forEach((browser, index) => {
+          const element = document.createElement('div');
+          const link = document.createElement('a');
+
+          link.href = browser.link;
+          link.innerText = browser.title;
+          element.insertAdjacentHTML('beforeend', browsersIcons[index]);
+          element.insertAdjacentElement('beforeend', link);
+          element.classList.add('browsers-item');
+
+          browsersElement.appendChild(element);
+        });
+
+        const spinner = document.getElementById('spinner');
+
+        spinner.style.display = 'none';
+        descriptionElement.style.display = 'block';
+        wrapperElement.style.display = 'flex';
+        browsersElement.style.display = 'flex';
+      })();
+    </script>
+  </head>
+
+  <body>
+    <h1 id="header">
+      Keenetic
+    </h1>
+
+    <svg
+      id="spinner"
+      viewBox="0 0 18 18"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+    >
+      <path d="M9 1.21289V4.41289" stroke="#0097dc" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+      <path d="M12.3926 5.82113L14.6566 3.55713" stroke="#0097dc" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+      <path d="M13.7998 9.21289H16.9998" stroke="#0097dc" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+      <path d="M12.3926 12.605L14.6566 14.869" stroke="#0097dc" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+      <path d="M9 14.0127V17.2127" stroke="#0097dc" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+      <path d="M3.34375 14.869L5.60775 12.605" stroke="#0097dc" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+      <path d="M1 9.21289H4.2" stroke="#0097dc" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+      <path d="M3.34375 3.55713L5.60775 5.82113" stroke="#0097dc" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>
+
+    <div id="description"></div>
+
+    <div id="wrapper">
+      <div id="help">?</div>
+      <select id="language"></select>
+    </div>
+
+    <div id="browsers">
+    </div>
+  </body>
+</html>
