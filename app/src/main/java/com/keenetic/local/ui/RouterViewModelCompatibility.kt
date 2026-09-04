@@ -1,5 +1,6 @@
 package com.keenetic.local.ui
 
+import androidx.lifecycle.viewModelScope
 import com.google.gson.JsonElement
 import com.keenetic.local.KeeneticApp
 import com.keenetic.local.api.DnsServerInfo
