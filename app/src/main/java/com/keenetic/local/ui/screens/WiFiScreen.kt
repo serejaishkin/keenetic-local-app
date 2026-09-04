@@ -65,10 +65,11 @@ fun WiFiScreen(
     }
 
     // Identify primary 2.4 GHz and 5 GHz networks
-    val net24 = networks.firstOrNull { it.band.contains("2.4") || it.id.contains("WifiMaster1") }
-        ?: WifiNetworkInfo("WifiMaster1/AccessPoint0", "Keenetic-Home-2.4G", "2.4 GHz", true, 6, "WPA2-PSK", wirelessClients.count { it.band.contains("2.4") })
-    val net5 = networks.firstOrNull { it.band.contains("5") || it.id.contains("WifiMaster0") }
-        ?: WifiNetworkInfo("WifiMaster0/AccessPoint0", "Keenetic-Home-5G", "5 GHz", true, 36, "WPA2/WPA3-PSK", wirelessClients.count { it.band.contains("5") })
+    // NOTE: WifiMaster0 = 2.4 GHz, WifiMaster1 = 5 GHz on Keenetic routers
+    val net24 = networks.firstOrNull { it.band.contains("2.4") || it.id.contains("WifiMaster0") }
+        ?: WifiNetworkInfo("WifiMaster0/AccessPoint0", "Keenetic-Home-2.4G", "2.4 GHz", true, 6, "WPA2-PSK", wirelessClients.count { it.band.contains("2.4") })
+    val net5 = networks.firstOrNull { it.band.contains("5") || it.id.contains("WifiMaster1") }
+        ?: WifiNetworkInfo("WifiMaster1/AccessPoint0", "Keenetic-Home-5G", "5 GHz", true, 36, "WPA2/WPA3-PSK", wirelessClients.count { it.band.contains("5") })
 
     val clients24Count = wirelessClients.count { it.band.contains("2.4") }
     val clients5Count = wirelessClients.count { it.band.contains("5") }
@@ -1076,6 +1077,7 @@ private fun WifiStationCard(
                     )
 
                     // Radio band selector (2.4 GHz vs 5 GHz)
+                    // NOTE: WifiMaster0 = 2.4 GHz, WifiMaster1 = 5 GHz on Keenetic routers
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
@@ -1083,19 +1085,19 @@ private fun WifiStationCard(
                         FilterChip(
                             selected = selectedRadio == "WifiMaster0",
                             onClick = { onRadioSelected("WifiMaster0") },
-                            label = { Text("5 ГГц (Master0)") },
+                            label = { Text("2.4 ГГц (Master0)") },
                             colors = FilterChipDefaults.filterChipColors(
-                                selectedContainerColor = KeeneticColors.Primary.copy(alpha = 0.25f),
-                                selectedLabelColor = KeeneticColors.Primary
+                                selectedContainerColor = Color(0xFFF59E0B).copy(alpha = 0.25f),
+                                selectedLabelColor = Color(0xFFF59E0B)
                             )
                         )
                         FilterChip(
                             selected = selectedRadio == "WifiMaster1",
                             onClick = { onRadioSelected("WifiMaster1") },
-                            label = { Text("2.4 ГГц (Master1)") },
+                            label = { Text("5 ГГц (Master1)") },
                             colors = FilterChipDefaults.filterChipColors(
-                                selectedContainerColor = Color(0xFFF59E0B).copy(alpha = 0.25f),
-                                selectedLabelColor = Color(0xFFF59E0B)
+                                selectedContainerColor = KeeneticColors.Primary.copy(alpha = 0.25f),
+                                selectedLabelColor = KeeneticColors.Primary
                             )
                         )
                     }

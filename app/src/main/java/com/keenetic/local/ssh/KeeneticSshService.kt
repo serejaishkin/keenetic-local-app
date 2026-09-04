@@ -233,6 +233,86 @@ class KeeneticSshService {
     }
 
     /**
+     * Executes a real ping from the Keenetic router via SSH CLI.
+     * Sends "ping <host> -c <count>" and captures the output.
+     */
+    suspend fun pingViaSsh(
+        host: String,
+        port: Int = 22,
+        username: String,
+        password: String,
+        target: String,
+        count: Int = 4,
+        timeoutMs: Int = 15000
+    ): SshExecutionResult = executeCommand(
+        host = host, port = port, username = username, password = password,
+        command = "ping $target -c $count -W 3",
+        timeoutMs = timeoutMs
+    )
+
+    /**
+     * Executes a real traceroute from the Keenetic router via SSH CLI.
+     * Sends "traceroute <target>" and captures the output.
+     */
+    suspend fun tracerouteViaSsh(
+        host: String,
+        port: Int = 22,
+        username: String,
+        password: String,
+        target: String,
+        timeoutMs: Int = 30000
+    ): SshExecutionResult = executeCommand(
+        host = host, port = port, username = username, password = password,
+        command = "traceroute $target -m 30",
+        timeoutMs = timeoutMs
+    )
+
+    /**
+     * Executes a DNS lookup from the Keenetic router via SSH CLI.
+     * Uses "show ip name-server" to see configured DNS, then "ping <host>" for resolution.
+     */
+    suspend fun dnsLookupViaSsh(
+        host: String,
+        port: Int = 22,
+        username: String,
+        password: String,
+        target: String,
+        timeoutMs: Int = 10000
+    ): SshExecutionResult {
+        // First try to resolve via the router's DNS proxy
+        val nsResult = executeCommand(
+            host = host, port = port, username = username, password = password,
+            command = "ping $target -c 1 -W 2",
+            timeoutMs = timeoutMs
+        )
+        // Also get configured DNS servers
+        val dnsResult = executeCommand(
+            host = host, port = port, username = username, password = password,
+            command = "show ip name-server",
+            timeoutMs = 5000
+        )
+        val combinedOutput = buildString {
+            appendLine("=== DNS Resolution for: $target ===")
+            appendLine()
+            if (nsResult.output.isNotBlank()) {
+                appendLine(nsResult.output)
+            }
+            appendLine()
+            appendLine("=== Configured DNS Servers ===")
+            if (dnsResult.output.isNotBlank()) {
+                appendLine(dnsResult.output)
+            } else {
+                appendLine("(не удалось получить список DNS-серверов)")
+            }
+        }
+        return SshExecutionResult(
+            success = nsResult.success,
+            output = combinedOutput.trim(),
+            exitCode = nsResult.exitCode
+        )
+    }
+
+    /**
      * Executes `show ip policy` via SSH CLI and parses configured KeeneticOS connection policies.
      */
     suspend fun fetchPoliciesViaSsh(

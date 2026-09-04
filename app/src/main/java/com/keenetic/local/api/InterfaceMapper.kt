@@ -186,4 +186,22 @@ object InterfaceMapper {
         val el = obj?.get(field) ?: return 0
         return runCatching { el.asInt }.getOrDefault(0)
     }
+
+    fun toSwitchPorts(element: JsonElement?): List<SwitchPort> {
+        if (element == null || element.isJsonNull) return emptyList()
+        val rawMap = extractEntries(element)
+        return rawMap.entries
+            .filter { (_, obj) ->
+                val type = str(obj, "type") ?: ""
+                type.equals("Port", ignoreCase = true) || type.equals("SwitchPort", ignoreCase = true)
+            }
+            .map { (key, obj) ->
+                SwitchPort(
+                    id = str(obj, "id") ?: key,
+                    name = str(obj, "description") ?: key,
+                    state = str(obj, "state") ?: str(obj, "link") ?: "down",
+                    speed = str(obj, "speed") ?: ""
+                )
+            }
+    }
 }

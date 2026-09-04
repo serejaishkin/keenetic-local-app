@@ -1,1 +1,0 @@
-var n,t;addEventListener("message",({data:{action:r,payload:e}})=>{switch(r){case"init":i(e.date,e.interval);break;case"stop":s();break}});function i(r,e=1e3){let a=r.valueOf();(!t||t<a)&&(t=a),n||(n=setInterval(()=>{t+=e,postMessage(t)},e))}function s(){o()}function o(){n&&clearInterval(n)}

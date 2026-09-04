@@ -53,6 +53,122 @@ object DnsAndScheduleParser {
         }
     }
 
+    fun parseDnsFilterPresets(root: JsonElement?): List<DnsFilterPreset> {
+        if (root == null) return emptyList()
+        val list = mutableListOf<DnsFilterPreset>()
+
+        fun extractPresets(obj: JsonObject) {
+            for ((key, value) in obj.entrySet()) {
+                if (value.isJsonObject) {
+                    val o = value.asJsonObject
+                    val name = o.get("name")?.takeIf { it.isJsonPrimitive }?.asString
+                        ?: o.get("title")?.takeIf { it.isJsonPrimitive }?.asString
+                        ?: key
+                    val desc = o.get("description")?.takeIf { it.isJsonPrimitive }?.asString ?: ""
+                    val provider = o.get("provider")?.takeIf { it.isJsonPrimitive }?.asString ?: ""
+                    val enabled = o.get("enable")?.takeIf { it.isJsonPrimitive }?.runCatching { asBoolean }?.getOrDefault(false)
+                        ?: o.get("active")?.takeIf { it.isJsonPrimitive }?.runCatching { asBoolean }?.getOrDefault(false) ?: false
+
+                    // Determine provider type from key/name
+                    val type = when {
+                        key.contains("adguard", ignoreCase = true) || name.contains("AdGuard", ignoreCase = true) -> "adguard"
+                        key.contains("nextdns", ignoreCase = true) || name.contains("NextDNS", ignoreCase = true) -> "nextdns"
+                        key.contains("cloudflare", ignoreCase = true) || name.contains("Cloudflare", ignoreCase = true) -> "cloudflare"
+                        key.contains("safe", ignoreCase = true) || name.contains("SafeDNS", ignoreCase = true) -> "safe"
+                        else -> "custom"
+                    }
+
+                    list.add(DnsFilterPreset(
+                        id = key,
+                        name = name,
+                        provider = provider,
+                        description = desc,
+                        type = type,
+                        enabled = enabled
+                    ))
+                } else if (value.isJsonArray) {
+                    value.asJsonArray.forEach { el ->
+                        if (el.isJsonObject) extractPresets(el.asJsonObject)
+                    }
+                }
+            }
+        }
+
+        when {
+            root.isJsonObject -> {
+                val obj = root.asJsonObject
+                // Try common response structures
+                obj.get("preset")?.takeIf { it.isJsonObject }?.let { extractPresets(it.asJsonObject) }
+                obj.get("presets")?.takeIf { it.isJsonObject }?.let { extractPresets(it.asJsonObject) }
+                if (list.isEmpty()) extractPresets(obj)
+            }
+            root.isJsonArray -> {
+                root.asJsonArray.forEach { el ->
+                    if (el.isJsonObject) extractPresets(el.asJsonObject)
+                }
+            }
+        }
+
+        return list
+    }
+
+    fun parseDnsFilterProfiles(root: JsonElement?): List<DnsFilterProfile> {
+        if (root == null) return emptyList()
+        val list = mutableListOf<DnsFilterProfile>()
+
+        fun extractProfiles(obj: JsonObject) {
+            for ((key, value) in obj.entrySet()) {
+                if (value.isJsonObject) {
+                    val o = value.asJsonObject
+                    val name = o.get("name")?.takeIf { it.isJsonPrimitive }?.asString
+                        ?: o.get("title")?.takeIf { it.isJsonPrimitive }?.asString ?: key
+                    val desc = o.get("description")?.takeIf { it.isJsonPrimitive }?.asString ?: ""
+                    val preset = o.get("preset")?.takeIf { it.isJsonPrimitive }?.asString ?: ""
+                    val enabled = o.get("enable")?.takeIf { it.isJsonPrimitive }?.runCatching { asBoolean }?.getOrDefault(true)
+                        ?: o.get("active")?.takeIf { it.isJsonPrimitive }?.runCatching { asBoolean }?.getOrDefault(true) ?: true
+
+                    val assigned = mutableListOf<String>()
+                    o.get("assign")?.takeIf { it.isJsonArray }?.asJsonArray?.forEach { el ->
+                        if (el.isJsonPrimitive) assigned.add(el.asString)
+                        else if (el.isJsonObject) {
+                            el.asJsonObject.get("interface")?.takeIf { it.isJsonPrimitive }?.asString?.let { assigned.add(it) }
+                        }
+                    }
+                    o.get("interface")?.takeIf { it.isJsonPrimitive }?.asString?.let { assigned.add(it) }
+
+                    list.add(DnsFilterProfile(
+                        id = key,
+                        name = name,
+                        presetId = preset,
+                        description = desc,
+                        enabled = enabled,
+                        assignedTo = assigned
+                    ))
+                } else if (value.isJsonArray) {
+                    value.asJsonArray.forEach { el ->
+                        if (el.isJsonObject) extractProfiles(el.asJsonObject)
+                    }
+                }
+            }
+        }
+
+        when {
+            root.isJsonObject -> {
+                val obj = root.asJsonObject
+                obj.get("profile")?.takeIf { it.isJsonObject }?.let { extractProfiles(it.asJsonObject) }
+                obj.get("profiles")?.takeIf { it.isJsonObject }?.let { extractProfiles(it.asJsonObject) }
+                if (list.isEmpty()) extractProfiles(obj)
+            }
+            root.isJsonArray -> {
+                root.asJsonArray.forEach { el ->
+                    if (el.isJsonObject) extractProfiles(el.asJsonObject)
+                }
+            }
+        }
+
+        return list
+    }
+
     private fun findKey(element: JsonElement?, key: String): JsonObject? {
         if (element == null || !element.isJsonObject) return null
         val obj = element.asJsonObject

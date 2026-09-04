@@ -231,7 +231,7 @@ data class DiagnosticsResult(
     val target: String,
     val output: String,
     val success: Boolean,
-    val durationMs: Long
+    val executionTimeMs: Long
 )
 
 data class MobileModemStatus(
@@ -242,6 +242,86 @@ data class MobileModemStatus(
     val ip: String = "",
     val interfaceName: String = "UsbModem0",
     val description: String = ""
+)
+
+data class DnsFilterPreset(
+    val id: String,
+    val name: String,
+    val provider: String = "",
+    val description: String = "",
+    val type: String = "",  // "adguard", "nextdns", "cloudflare", "safe", "custom"
+    val enabled: Boolean = false,
+    val profilesCount: Int = 0
+)
+
+data class DnsFilterProfile(
+    val id: String,
+    val name: String,
+    val presetId: String = "",
+    val presetName: String = "",
+    val description: String = "",
+    val enabled: Boolean = true,
+    val assignedTo: List<String> = emptyList()  // interfaces or segments
+)
+
+data class VpnServerStatus(
+    val enabled: Boolean = false,
+    val type: String = "",  // "wireguard", "openvpn", "sstp", "ipsec", "l2tp"
+    val interfaceName: String = "",
+    val address: String = "",
+    val port: Int = 0,
+    val connectedClients: Int = 0,
+    val totalBytesIn: Long = 0,
+    val totalBytesOut: Long = 0,
+    val peers: List<VpnPeer> = emptyList()
+)
+
+data class VpnPeer(
+    val name: String = "",
+    val publicKey: String = "",
+    val endpoint: String = "",
+    val allowedIp: String = "",
+    val latestHandshake: String = "",
+    val bytesReceived: Long = 0,
+    val bytesSent: Long = 0
+)
+
+data class WifiAssoc(
+    val mac: String? = null,
+    val hostname: String? = null,
+    val ip: String? = null,
+    val rssi: String? = null,
+    val txrate: String? = null,
+    val rxrate: String? = null,
+    val txbytes: Long? = null,
+    val rxbytes: Long? = null,
+    val ap: String? = null
+)
+
+data class IpPolicy(
+    val name: String = "",
+    val description: String? = null
+)
+
+data class SwitchPort(
+    val id: String = "",
+    val name: String = "",
+    val state: String = "down",
+    val speed: String = ""
+)
+
+data class NetworkHint(
+    val gateway: String? = null,
+    val currentIp: String? = null,
+    val suggestedRouterIps: List<String> = emptyList()
+)
+
+data class SavedService(
+    val name: String = "",
+    val host: String = "",
+    val port: String = "80",
+    val username: String = "",
+    val password: String = ""
 )
 
 @JvmSuppressWildcards

@@ -180,8 +180,17 @@ class RouterViewModel : ViewModel() {
     private val _dnsFilterProfiles = MutableStateFlow<ApiCallState>(ApiCallState.Loading)
     val dnsFilterProfiles: StateFlow<ApiCallState> = _dnsFilterProfiles.asStateFlow()
 
+    private val _dnsFilterPresetList = MutableStateFlow<List<DnsFilterPreset>>(emptyList())
+    val dnsFilterPresetList: StateFlow<List<DnsFilterPreset>> = _dnsFilterPresetList.asStateFlow()
+
+    private val _dnsFilterProfileList = MutableStateFlow<List<DnsFilterProfile>>(emptyList())
+    val dnsFilterProfileList: StateFlow<List<DnsFilterProfile>> = _dnsFilterProfileList.asStateFlow()
+
     private val _vpnServerRaw = MutableStateFlow<ApiCallState>(ApiCallState.Loading)
     val vpnServerRaw: StateFlow<ApiCallState> = _vpnServerRaw.asStateFlow()
+
+    private val _vpnServerStatus = MutableStateFlow<VpnServerStatus?>(null)
+    val vpnServerStatus: StateFlow<VpnServerStatus?> = _vpnServerStatus.asStateFlow()
 
     private val _isRebooting = MutableStateFlow(false)
     val isRebooting: StateFlow<Boolean> = _isRebooting.asStateFlow()
@@ -197,6 +206,51 @@ class RouterViewModel : ViewModel() {
 
     private val _configLoading = MutableStateFlow<Boolean>(false)
     val configLoading: StateFlow<Boolean> = _configLoading.asStateFlow()
+
+    private val _routerIp = MutableStateFlow("")
+    val routerIp: StateFlow<String> = _routerIp.asStateFlow()
+
+    private val _routerLogin = MutableStateFlow("admin")
+    val routerLogin: StateFlow<String> = _routerLogin.asStateFlow()
+
+    private val _autoLoginEnabled = MutableStateFlow(false)
+    val autoLoginEnabled: StateFlow<Boolean> = _autoLoginEnabled.asStateFlow()
+
+    private val _networkHint = MutableStateFlow(NetworkHint())
+    val networkHint: StateFlow<NetworkHint> = _networkHint.asStateFlow()
+
+    private val _sshOutput = MutableStateFlow("")
+    val sshOutput: StateFlow<String> = _sshOutput.asStateFlow()
+
+    private val _savedServices = MutableStateFlow<List<SavedService>>(emptyList())
+    val savedServices: StateFlow<List<SavedService>> = _savedServices.asStateFlow()
+
+    private val _usbDevicesRaw = MutableStateFlow<ApiCallState>(ApiCallState.Loading)
+    val usbDevicesRaw: StateFlow<ApiCallState> = _usbDevicesRaw.asStateFlow()
+
+    private val _nameServers = MutableStateFlow<List<DnsServerInfo>>(emptyList())
+    val nameServers: StateFlow<List<DnsServerInfo>> = _nameServers.asStateFlow()
+
+    private val _dohUpstream = MutableStateFlow<List<String>>(emptyList())
+    val dohUpstream: StateFlow<List<String>> = _dohUpstream.asStateFlow()
+
+    private val _autoUpdateEnabled = MutableStateFlow<Boolean?>(null)
+    val autoUpdateEnabled: StateFlow<Boolean?> = _autoUpdateEnabled.asStateFlow()
+
+    private val _systemUpdateStatusRaw = MutableStateFlow<ApiCallState>(ApiCallState.Loading)
+    val systemUpdateStatusRaw: StateFlow<ApiCallState> = _systemUpdateStatusRaw.asStateFlow()
+
+    private val _usersRaw = MutableStateFlow<ApiCallState>(ApiCallState.Loading)
+    val usersRaw: StateFlow<ApiCallState> = _usersRaw.asStateFlow()
+
+    private val _dhcpPoolRaw = MutableStateFlow<ApiCallState>(ApiCallState.Loading)
+    val dhcpPoolRaw: StateFlow<ApiCallState> = _dhcpPoolRaw.asStateFlow()
+
+    private val _ntceSummaryRaw = MutableStateFlow<ApiCallState>(ApiCallState.Loading)
+    val ntceSummaryRaw: StateFlow<ApiCallState> = _ntceSummaryRaw.asStateFlow()
+
+    private val _vpnServer = MutableStateFlow<VpnServerConfig?>(null)
+    val vpnServer: StateFlow<VpnServerConfig?> = _vpnServer.asStateFlow()
 
     private val _cliExecutionResult = MutableStateFlow<String?>(null)
     val cliExecutionResult: StateFlow<String?> = _cliExecutionResult.asStateFlow()
@@ -1691,14 +1745,52 @@ class RouterViewModel : ViewModel() {
     fun runDiagnostics(tool: String, target: String) {
         viewModelScope.launch {
             _isLoading.value = true
-            delay(500)
-            val output = when (tool.lowercase()) {
-                "ping" -> "PING $target (56 bytes of data):\n64 bytes from $target: icmp_seq=1 ttl=57 time=4.12 ms\n64 bytes from $target: icmp_seq=2 ttl=57 time=4.08 ms\n\n--- $target ping statistics ---\n2 packets transmitted, 2 received, 0% packet loss, rtt = 4.10 ms"
-                "traceroute" -> "traceroute to $target, 30 hops max:\n 1  192.168.1.1 (keenetic)  0.412 ms\n 2  185.120.44.1 (bras)  2.150 ms\n 3  $target  4.850 ms"
-                else -> "Server:  127.0.0.1 (Keenetic DNS)\nAddress: 127.0.0.1#53\nName:    $target\nAddress: 104.21.48.112"
+            try {
+                val host = _savedIp.value
+                val port = _sshPort.value.toIntOrNull() ?: 22
+                val username = _savedUsername.value
+                val password = encryptedStorage.getPassword() ?: ""
+
+                if (password.isBlank()) {
+                    _diagnosticsResult.value = DiagnosticsResult(
+                        tool, target,
+                        "Ошибка: пароль не сохранён. Войдите в приложение для сохранения учётных данных.",
+                        success = false, executionTimeMs = 0
+                    )
+                    _isLoading.value = false
+                    return@launch
+                }
+
+                val startTime = System.currentTimeMillis()
+                val result = when (tool.lowercase()) {
+                    "ping" -> sshService.pingViaSsh(host, port, username, password, target)
+                    "traceroute" -> sshService.tracerouteViaSsh(host, port, username, password, target)
+                    "dns" -> sshService.dnsLookupViaSsh(host, port, username, password, target)
+                    else -> sshService.executeCommand(host, port, username, password, target)
+                }
+                val elapsed = System.currentTimeMillis() - startTime
+
+                val output = if (result.output.isNotBlank()) result.output else {
+                    if (result.error.isNotBlank()) "Ошибка: ${result.error}" else "Нет вывода"
+                }
+
+                _diagnosticsResult.value = DiagnosticsResult(
+                    tool = tool,
+                    target = target,
+                    output = output,
+                    success = result.success,
+                    executionTimeMs = elapsed
+                )
+            } catch (e: Exception) {
+                AppLogger.logError("runDiagnostics", e)
+                _diagnosticsResult.value = DiagnosticsResult(
+                    tool, target,
+                    "Исключение: ${e.message ?: e.javaClass.simpleName}",
+                    success = false, executionTimeMs = 0
+                )
+            } finally {
+                _isLoading.value = false
             }
-            _diagnosticsResult.value = DiagnosticsResult(tool, target, output, true, 500)
-            _isLoading.value = false
         }
     }
 
@@ -2607,6 +2699,10 @@ class RouterViewModel : ViewModel() {
                         val p1 = item1?.asJsonObject?.getAsJsonObject("show")?.getAsJsonObject("dns-proxy")?.getAsJsonObject("filter")?.get("profiles")
                         _dnsFilterPresets.value = if (p0 != null) ApiCallState.Success(p0) else ApiCallState.Error("Пустой ответ")
                         _dnsFilterProfiles.value = if (p1 != null) ApiCallState.Success(p1) else ApiCallState.Error("Пустой ответ")
+
+                        // Parse into typed models
+                        _dnsFilterPresetList.value = DnsAndScheduleParser.parseDnsFilterPresets(p0)
+                        _dnsFilterProfileList.value = DnsAndScheduleParser.parseDnsFilterProfiles(p1)
                     } else if (body != null) {
                         _dnsFilterPresets.value = ApiCallState.Success(body)
                         _dnsFilterProfiles.value = ApiCallState.Success(body)
@@ -2625,6 +2721,7 @@ class RouterViewModel : ViewModel() {
     fun loadVpnServerStatus() {
         viewModelScope.launch {
             _vpnServerRaw.value = ApiCallState.Loading
+            _vpnServerStatus.value = null
             try {
                 val response = repository.getRestApi().executeRci(
                     listOf(mapOf("show" to mapOf("vpn-server" to emptyMap<String, Any>())))
@@ -2635,6 +2732,11 @@ class RouterViewModel : ViewModel() {
                         body.asJsonArray[0].asJsonObject?.getAsJsonObject("show")?.get("vpn-server") ?: body.asJsonArray[0]
                     } else body
                     _vpnServerRaw.value = if (first != null) ApiCallState.Success(first) else ApiCallState.Error("Пустой ответ")
+
+                    // Parse into typed VpnServerStatus
+                    if (first != null) {
+                        _vpnServerStatus.value = VpnServerParser.parseToStatus(first)
+                    }
                 } else {
                     _vpnServerRaw.value = ApiCallState.Error("HTTP ${response.code()}")
                 }

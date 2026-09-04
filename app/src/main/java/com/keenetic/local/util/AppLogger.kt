@@ -20,4 +20,12 @@ object AppLogger {
     fun logError(action: String, throwable: Throwable? = null) {
         Log.e(TAG, "Error in $action", throwable)
     }
+
+    fun d(message: String) {
+        Log.d(TAG, message)
+    }
+
+    fun w(message: String, throwable: Throwable? = null) {
+        Log.w(TAG, message, throwable)
+    }
 }
