@@ -23,6 +23,7 @@ object KeeneticColors {
     val Card = Color(0xFF131B2E)
     val TerminalBg = Color(0xFF0A0E1A)
     val TerminalText = Color(0xFF10B981)
+    val Accent = Primary
 
     val BackgroundDark = Color(0xFF0B0F19)
     val SurfaceDark = Color(0xFF131B2E)
@@ -46,8 +47,5 @@ private val DarkColorScheme = darkColorScheme(
 
 @Composable
 fun KeeneticAppTheme(content: @Composable () -> Unit) {
-    MaterialTheme(
-        colorScheme = DarkColorScheme,
-        content = content
-    )
+    MaterialTheme(colorScheme = DarkColorScheme, content = content)
 }
