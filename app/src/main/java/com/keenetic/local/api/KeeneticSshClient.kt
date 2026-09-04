@@ -27,7 +27,7 @@ class KeeneticSshClient(
 
             val channel = session.openChannel("exec") as ChannelExec
             channel.setCommand(command)
-            channel.inputStream = null
+            channel.setInputStream(null)
 
             val outputStream = ByteArrayOutputStream()
             channel.outputStream = outputStream
