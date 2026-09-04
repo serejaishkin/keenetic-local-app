@@ -1,4 +1,4 @@
-package com.keenetic.local.ui
+package com.keenetic.local.ui.screens
 
 import androidx.lifecycle.viewModelScope
 import com.google.gson.JsonElement
@@ -7,7 +7,7 @@ import com.keenetic.local.api.DnsServerInfo
 import com.keenetic.local.api.SavedService
 import com.keenetic.local.api.VpnServerParser
 import com.keenetic.local.ssh.KeeneticSshService
-import com.keenetic.local.ui.screens.common.ApiCallState
+import com.keenetic.local.ui.RouterViewModel
 import com.keenetic.local.util.NetworkUtils
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -104,7 +104,7 @@ fun RouterViewModel.setOpkgManager(enabled: Boolean) {
 
 fun RouterViewModel.setTorrentClient(enabled: Boolean) {
     viewModelScope.launch {
-        val cmd = if (enabled) mapOf("torrent" to mapOf("enable" to true)) else mapOf("no" to mapOf("torrent" to true))
+        val cmd = if (enabled) mapOf("torrent" to mapOf("enable" to true)) else mapOf("no" to mapOf("torrent" to true)
         if (!repositoryExecute(this@setTorrentClient, cmd)) setState("_error", "Не удалось изменить торрент-клиент")
     }
 }
@@ -125,9 +125,8 @@ fun RouterViewModel.setAutoUpdate(enabled: Boolean) {
 
 fun RouterViewModel.loadSystemUpdateStatus() {
     viewModelScope.launch {
-        setState("_systemUpdateStatusRaw", ApiCallState.Loading)
         val raw = queryCompat(this@loadSystemUpdateStatus, "system/update/status")
-        setState("_systemUpdateStatusRaw", raw?.let { ApiCallState.Success(it) } ?: ApiCallState.Error("Нет данных от роутера"))
+        setState("_systemUpdateStatusRaw", raw ?: com.google.gson.JsonNull.INSTANCE)
     }
 }
 
@@ -139,17 +138,15 @@ fun RouterViewModel.setAdminPassword(username: String, password: String) {
 
 fun RouterViewModel.loadDhcpPool() {
     viewModelScope.launch {
-        setState("_dhcpPoolRaw", ApiCallState.Loading)
         val raw = queryCompat(this@loadDhcpPool, "ip/dhcp/pool")
-        setState("_dhcpPoolRaw", raw?.let { ApiCallState.Success(it) } ?: ApiCallState.Error("Нет данных от роутера"))
+        setState("_dhcpPoolRaw", raw ?: com.google.gson.JsonNull.INSTANCE)
     }
 }
 
 fun RouterViewModel.loadIntelliQos() {
     viewModelScope.launch {
-        setState("_ntceSummaryRaw", ApiCallState.Loading)
         val raw = queryCompat(this@loadIntelliQos, "ntce/summary")
-        setState("_ntceSummaryRaw", raw?.let { ApiCallState.Success(it) } ?: ApiCallState.Error("Нет данных от роутера"))
+        setState("_ntceSummaryRaw", raw ?: com.google.gson.JsonNull.INSTANCE)
     }
 }
 
