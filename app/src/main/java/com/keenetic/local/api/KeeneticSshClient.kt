@@ -30,10 +30,10 @@ class KeeneticSshClient(
             channel.setInputStream(null)
 
             val outputStream = ByteArrayOutputStream()
-            channel.outputStream = outputStream
+            channel.setOutputStream(outputStream)
 
             val errStream = ByteArrayOutputStream()
-            channel.errStream = errStream
+            channel.setErrStream(errStream)
 
             channel.connect(10000)
 
