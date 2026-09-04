@@ -8,11 +8,9 @@ import com.google.gson.JsonObject
  * Разбор ответов /rci/show/associations и /rci/show/ip/policy. Эти два
  * эндпоинта, в отличие от остальных в проекте, НЕ подтверждены реальным
  * HAR-дампом с роутера - только официальной документацией Keenetic и
- * общей схемой других show/-эндпоинтов. Реальная форма ответа (массив,
- * объект по ключу интерфейса, или объект с вложенным "station"/"host")
- * может отличаться в зависимости от прошивки, поэтому парсинг перебирает
- * несколько вероятных вариантов и не падает на неожиданной структуре -
- * в худшем случае просто вернёт пустой список.
+ * общей схемой других show/-эндпоинтов. Реальная форма ответа может
+ * отличаться в зависимости от прошивки, поэтому парсинг перебирает
+ * несколько вероятных вариантов.
  */
 object AssociationsParser {
 
@@ -26,11 +24,9 @@ object AssociationsParser {
             }
             root.isJsonObject -> {
                 val obj = root.asJsonObject
-                // Вариант: {"station": [...]}
                 obj.get("station")?.takeIf { it.isJsonArray }?.asJsonArray?.forEach { el ->
                     if (el.isJsonObject) result += toAssoc(el.asJsonObject)
                 }
-                // Вариант: {"<interfaceId>": {"station": [...]}} или {"<interfaceId>": [...]}
                 if (result.isEmpty()) {
                     obj.entrySet().forEach { (_, value) ->
                         when {
@@ -52,15 +48,15 @@ object AssociationsParser {
     }
 
     private fun toAssoc(o: JsonObject): WifiAssoc = WifiAssoc(
-        mac = str(o, "mac"),
-        hostname = str(o, "hostname") ?: str(o, "name"),
-        ip = str(o, "ip"),
-        rssi = str(o, "rssi"),
-        txrate = str(o, "txrate"),
-        rxrate = str(o, "rxrate"),
-        txbytes = long(o, "txbytes"),
-        rxbytes = long(o, "rxbytes"),
-        ap = str(o, "ap") ?: str(o, "interface")
+        mac = str(o, "mac") ?: "",
+        hostname = str(o, "hostname") ?: str(o, "name") ?: "",
+        ip = str(o, "ip") ?: "",
+        rssi = str(o, "rssi") ?: "",
+        txrate = str(o, "txrate") ?: "",
+        rxrate = str(o, "rxrate") ?: "",
+        txbytes = long(o, "txbytes") ?: 0L,
+        rxbytes = long(o, "rxbytes") ?: 0L,
+        ap = str(o, "ap") ?: str(o, "interface") ?: ""
     )
 
     fun parsePolicyNames(root: JsonElement?): List<IpPolicy> {
@@ -69,7 +65,6 @@ object AssociationsParser {
 
         when {
             root.isJsonObject -> {
-                // Вероятный вариант: объект вида {"<policyName>": {"description": "..."}}
                 root.asJsonObject.entrySet().forEach { (key, value) ->
                     val desc = if (value.isJsonObject) str(value.asJsonObject, "description") else null
                     result += IpPolicy(name = key, description = desc?.takeIf { it.isNotBlank() })
@@ -94,9 +89,9 @@ object AssociationsParser {
 
         fun fromObj(o: JsonObject) {
             result += DhcpBinding(
-                mac = str(o, "mac"),
-                ip = str(o, "ip") ?: str(o, "address"),
-                hostname = str(o, "hostname") ?: str(o, "name"),
+                mac = str(o, "mac") ?: "",
+                ip = str(o, "ip") ?: str(o, "address") ?: "",
+                hostname = str(o, "hostname") ?: str(o, "name") ?: "",
                 active = str(o, "active")?.equals("true", ignoreCase = true) == true ||
                     o.get("active")?.takeIf { it.isJsonPrimitive }?.asBoolean == true
             )
@@ -115,8 +110,8 @@ object AssociationsParser {
                             val o = value.asJsonObject
                             result += DhcpBinding(
                                 mac = str(o, "mac") ?: key,
-                                ip = str(o, "ip") ?: str(o, "address"),
-                                hostname = str(o, "hostname") ?: str(o, "name"),
+                                ip = str(o, "ip") ?: str(o, "address") ?: "",
+                                hostname = str(o, "hostname") ?: str(o, "name") ?: "",
                                 active = false
                             )
                         }
