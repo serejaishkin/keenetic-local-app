@@ -104,7 +104,7 @@ fun RouterViewModel.setOpkgManager(enabled: Boolean) {
 
 fun RouterViewModel.setTorrentClient(enabled: Boolean) {
     viewModelScope.launch {
-        val cmd = if (enabled) mapOf("torrent" to mapOf("enable" to true)) else mapOf("no" to mapOf("torrent" to true)
+        val cmd = if (enabled) mapOf("torrent" to mapOf("enable" to true)) else mapOf("no" to mapOf("torrent" to true))
         if (!repositoryExecute(this@setTorrentClient, cmd)) setState("_error", "Не удалось изменить торрент-клиент")
     }
 }
