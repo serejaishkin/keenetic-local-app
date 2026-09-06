@@ -3067,4 +3067,1040 @@ class RouterViewModel : ViewModel() {
             }
         }
     }
+
+    // ===== Фаза 3: Новые модели и методы =====
+
+    private val _environmentInfo = MutableStateFlow(EnvironmentInfo())
+    val environmentInfo: StateFlow<EnvironmentInfo> = _environmentInfo.asStateFlow()
+
+    private val _productInfo = MutableStateFlow(ProductInfo())
+    val productInfo: StateFlow<ProductInfo> = _productInfo.asStateFlow()
+
+    private val _ntpStatus = MutableStateFlow(NtpStatus())
+    val ntpStatus: StateFlow<NtpStatus> = _ntpStatus.asStateFlow()
+
+    private val _backupStatus = MutableStateFlow(BackupStatus())
+    val backupStatus: StateFlow<BackupStatus> = _backupStatus.asStateFlow()
+
+    private val _ledConfig = MutableStateFlow(LedConfig())
+    val ledConfig: StateFlow<LedConfig> = _ledConfig.asStateFlow()
+
+    private val _systemMode = MutableStateFlow(SystemMode())
+    val systemMode: StateFlow<SystemMode> = _systemMode.asStateFlow()
+
+    private val _trafficCounters = MutableStateFlow<List<TrafficCounter>>(emptyList())
+    val trafficCounters: StateFlow<List<TrafficCounter>> = _trafficCounters.asStateFlow()
+
+    private val _channelUtilization = MutableStateFlow<List<ChannelUtilization>>(emptyList())
+    val channelUtilization: StateFlow<List<ChannelUtilization>> = _channelUtilization.asStateFlow()
+
+    private val _spectrumData = MutableStateFlow<List<SpectrumChannel>>(emptyList())
+    val spectrumData: StateFlow<List<SpectrumChannel>> = _spectrumData.asStateFlow()
+
+    private val _cableDiagnostics = MutableStateFlow<List<CableDiagnosticResult>>(emptyList())
+    val cableDiagnostics: StateFlow<List<CableDiagnosticResult>> = _cableDiagnostics.asStateFlow()
+
+    private val _wpsStatus = MutableStateFlow(WpsStatus())
+    val wpsStatus: StateFlow<WpsStatus> = _wpsStatus.asStateFlow()
+
+    private val _mwsStatus = MutableStateFlow(MwsStatus())
+    val mwsStatus: StateFlow<MwsStatus> = _mwsStatus.asStateFlow()
+
+    private val _mwsMembers = MutableStateFlow<List<MwsMember>>(emptyList())
+    val mwsMembers: StateFlow<List<MwsMember>> = _mwsMembers.asStateFlow()
+
+    private val _internetDetailed = MutableStateFlow(InternetDetailedStatus())
+    val internetDetailed: StateFlow<InternetDetailedStatus> = _internetDetailed.asStateFlow()
+
+    private val _conntrackEntries = MutableStateFlow<List<ConntrackEntry>>(emptyList())
+    val conntrackEntries: StateFlow<List<ConntrackEntry>> = _conntrackEntries.asStateFlow()
+
+    private val _natEntries = MutableStateFlow<List<NatEntry>>(emptyList())
+    val natEntries: StateFlow<List<NatEntry>> = _natEntries.asStateFlow()
+
+    private val _arpEntries = MutableStateFlow<List<ArpEntry>>(emptyList())
+    val arpEntries: StateFlow<List<ArpEntry>> = _arpEntries.asStateFlow()
+
+    private val _neighbourEntries = MutableStateFlow<List<NeighbourEntry>>(emptyList())
+    val neighbourEntries: StateFlow<List<NeighbourEntry>> = _neighbourEntries.asStateFlow()
+
+    private val _ipRules = MutableStateFlow<List<IpRule>>(emptyList())
+    val ipRules: StateFlow<List<IpRule>> = _ipRules.asStateFlow()
+
+    private val _wireguardServer = MutableStateFlow(WireguardServerStatus())
+    val wireguardServer: StateFlow<WireguardServerStatus> = _wireguardServer.asStateFlow()
+
+    private val _l2tpServer = MutableStateFlow(L2tpServer())
+    val l2tpServer: StateFlow<L2tpServer> = _l2tpServer.asStateFlow()
+
+    private val _ikev2Server = MutableStateFlow(Ikev2Server())
+    val ikev2Server: StateFlow<Ikev2Server> = _ikev2Server.asStateFlow()
+
+    private val _sstpServer = MutableStateFlow(SstpServerFull())
+    val sstpServer: StateFlow<SstpServerFull> = _sstpServer.asStateFlow()
+
+    private val _ipsecStatus = MutableStateFlow(IpsecStatus())
+    val ipsecStatus: StateFlow<IpsecStatus> = _ipsecStatus.asStateFlow()
+
+    private val _ntceApps = MutableStateFlow<List<NtceApp>>(emptyList())
+    val ntceApps: StateFlow<List<NtceApp>> = _ntceApps.asStateFlow()
+
+    private val _ntceHosts = MutableStateFlow<List<NtceHost>>(emptyList())
+    val ntceHosts: StateFlow<List<NtceHost>> = _ntceHosts.asStateFlow()
+
+    private val _ntceOses = MutableStateFlow<List<NtceOs>>(emptyList())
+    val ntceOses: StateFlow<List<NtceOs>> = _ntceOses.asStateFlow()
+
+    private val _ntceGroups = MutableStateFlow<List<NtceGroup>>(emptyList())
+    val ntceGroups: StateFlow<List<NtceGroup>> = _ntceGroups.asStateFlow()
+
+    private val _dyndnsStatus = MutableStateFlow(DyndnsStatus())
+    val dyndnsStatus: StateFlow<DyndnsStatus> = _dyndnsStatus.asStateFlow()
+
+    private val _dyndnsProfiles = MutableStateFlow<List<DyndnsProfile>>(emptyList())
+    val dyndnsProfiles: StateFlow<List<DyndnsProfile>> = _dyndnsProfiles.asStateFlow()
+
+    private val _dyndnsUpdaters = MutableStateFlow<List<DyndnsUpdater>>(emptyList())
+    val dyndnsUpdaters: StateFlow<List<DyndnsUpdater>> = _dyndnsUpdaters.asStateFlow()
+
+    private val _nextdnsProfile = MutableStateFlow(NextdnsProfileFull())
+    val nextdnsProfile: StateFlow<NextdnsProfileFull> = _nextdnsProfile.asStateFlow()
+
+    private val _safednsProfile = MutableStateFlow(SafednsProfileFull())
+    val safednsProfile: StateFlow<SafednsProfileFull> = _safednsProfile.asStateFlow()
+
+    private val _skydnsProfile = MutableStateFlow(SkydnsProfileFull())
+    val skydnsProfile: StateFlow<SkydnsProfileFull> = _skydnsProfile.asStateFlow()
+
+    private val _upnpRedirects = MutableStateFlow<List<UpnpRedirect>>(emptyList())
+    val upnpRedirects: StateFlow<List<UpnpRedirect>> = _upnpRedirects.asStateFlow()
+
+    private val _upnpPinholes = MutableStateFlow<List<UpnpPinhole>>(emptyList())
+    val upnpPinholes: StateFlow<List<UpnpPinhole>> = _upnpPinholes.asStateFlow()
+
+    private val _torrentStatusFull = MutableStateFlow(TorrentStatusFull())
+    val torrentStatusFull: StateFlow<TorrentStatusFull> = _torrentStatusFull.asStateFlow()
+
+    private val _torrentLocalAccount = MutableStateFlow(TorrentLocalAccount())
+    val torrentLocalAccount: StateFlow<TorrentLocalAccount> = _torrentLocalAccount.asStateFlow()
+
+    private val _cloudStatus = MutableStateFlow(CloudStatus())
+    val cloudStatus: StateFlow<CloudStatus> = _cloudStatus.asStateFlow()
+
+    private val _cloudNdmp = MutableStateFlow(CloudNdmp())
+    val cloudNdmp: StateFlow<CloudNdmp> = _cloudNdmp.asStateFlow()
+
+    private val _sshSettings = MutableStateFlow(SshSettings())
+    val sshSettings: StateFlow<SshSettings> = _sshSettings.asStateFlow()
+
+    private val _sshFingerprint = MutableStateFlow(SshFingerprint())
+    val sshFingerprint: StateFlow<SshFingerprint> = _sshFingerprint.asStateFlow()
+
+    private val _snmpView = MutableStateFlow(SnmpView())
+    val snmpView: StateFlow<SnmpView> = _snmpView.asStateFlow()
+
+    private val _ftpSettings = MutableStateFlow(FtpSettings())
+    val ftpSettings: StateFlow<FtpSettings> = _ftpSettings.asStateFlow()
+
+    private val _telnetSettings = MutableStateFlow(TelnetSettings())
+    val telnetSettings: StateFlow<TelnetSettings> = _telnetSettings.asStateFlow()
+
+    private val _httpProxySettings = MutableStateFlow(HttpProxySettings())
+    val httpProxySettings: StateFlow<HttpProxySettings> = _httpProxySettings.asStateFlow()
+
+    private val _ipv6Addresses = MutableStateFlow<List<Ipv6Address>>(emptyList())
+    val ipv6Addresses: StateFlow<List<Ipv6Address>> = _ipv6Addresses.asStateFlow()
+
+    private val _ipv6Prefixes = MutableStateFlow<List<Ipv6Prefix>>(emptyList())
+    val ipv6Prefixes: StateFlow<List<Ipv6Prefix>> = _ipv6Prefixes.asStateFlow()
+
+    private val _ipv6Routes = MutableStateFlow<List<Ipv6Route>>(emptyList())
+    val ipv6Routes: StateFlow<List<Ipv6Route>> = _ipv6Routes.asStateFlow()
+
+    private val _ipv6Subnets = MutableStateFlow<List<Ipv6Subnet>>(emptyList())
+    val ipv6Subnets: StateFlow<List<Ipv6Subnet>> = _ipv6Subnets.asStateFlow()
+
+    private val _ipv6DhcpBindings = MutableStateFlow<List<Ipv6DhcpBinding>>(emptyList())
+    val ipv6DhcpBindings: StateFlow<List<Ipv6DhcpBinding>> = _ipv6DhcpBindings.asStateFlow()
+
+    private val _mediaStorageList = MutableStateFlow<List<MediaStorage>>(emptyList())
+    val mediaStorageList: StateFlow<List<MediaStorage>> = _mediaStorageList.asStateFlow()
+
+    private val _componentList = MutableStateFlow<List<ComponentInfo>>(emptyList())
+    val componentList: StateFlow<List<ComponentInfo>> = _componentList.asStateFlow()
+
+    private val _deviceListFull = MutableStateFlow<List<DeviceListEntryFull>>(emptyList())
+    val deviceListFull: StateFlow<List<DeviceListEntryFull>> = _deviceListFull.asStateFlow()
+
+    private val _objectGroups = MutableStateFlow<List<ObjectGroupFqdn>>(emptyList())
+    val objectGroups: StateFlow<List<ObjectGroupFqdn>> = _objectGroups.asStateFlow()
+
+    private val _monitorStatus = MutableStateFlow(MonitorStatus())
+    val monitorStatus: StateFlow<MonitorStatus> = _monitorStatus.asStateFlow()
+
+    private val _fingerprintRaw = MutableStateFlow<ApiCallState>(ApiCallState.Loading)
+    val fingerprintRaw: StateFlow<ApiCallState> = _fingerprintRaw.asStateFlow()
+
+    // ===== Load methods =====
+
+    fun loadEnvironmentInfo() {
+        viewModelScope.launch {
+            try {
+                val res = repository.queryShow("system/environment")
+                if (res != null) {
+                    _environmentInfo.value = SystemDetailParser.parseEnvironment(res)
+                }
+            } catch (e: Exception) {
+                AppLogger.logError("loadEnvironmentInfo", e)
+            }
+        }
+    }
+
+    fun loadProductInfo() {
+        viewModelScope.launch {
+            try {
+                val res = repository.queryShow("ndm")
+                if (res != null) {
+                    _productInfo.value = SystemDetailParser.parseProduct(res)
+                }
+            } catch (e: Exception) {
+                AppLogger.logError("loadProductInfo", e)
+            }
+        }
+    }
+
+    fun loadNtpStatus() {
+        viewModelScope.launch {
+            try {
+                val res = repository.queryShow("system/clock/ntp")
+                if (res != null) {
+                    _ntpStatus.value = SystemDetailParser.parseNtp(res)
+                }
+            } catch (e: Exception) {
+                AppLogger.logError("loadNtpStatus", e)
+            }
+        }
+    }
+
+    fun loadBackupStatus() {
+        viewModelScope.launch {
+            try {
+                val res = repository.queryShow("system/backup")
+                if (res != null) {
+                    _backupStatus.value = SystemDetailParser.parseBackup(res)
+                }
+            } catch (e: Exception) {
+                AppLogger.logError("loadBackupStatus", e)
+            }
+        }
+    }
+
+    fun loadLedConfig() {
+        viewModelScope.launch {
+            try {
+                val res = repository.queryShow("system/led")
+                if (res != null) {
+                    _ledConfig.value = SystemDetailParser.parseLed(res)
+                }
+            } catch (e: Exception) {
+                AppLogger.logError("loadLedConfig", e)
+            }
+        }
+    }
+
+    fun loadSystemMode() {
+        viewModelScope.launch {
+            try {
+                val res = repository.queryShow("system/mode")
+                if (res != null) {
+                    _systemMode.value = SystemDetailParser.parseMode(res)
+                }
+            } catch (e: Exception) {
+                AppLogger.logError("loadSystemMode", e)
+            }
+        }
+    }
+
+    fun loadTrafficCounters() {
+        viewModelScope.launch {
+            try {
+                val res = repository.queryShow("interface/traffic-counter")
+                if (res != null) {
+                    _trafficCounters.value = InterfaceDetailParser.parseTrafficCounters(res)
+                }
+            } catch (e: Exception) {
+                AppLogger.logError("loadTrafficCounters", e)
+            }
+        }
+    }
+
+    fun loadChannelUtilization() {
+        viewModelScope.launch {
+            try {
+                val res = repository.queryShow("wifi/channel-utilization")
+                if (res != null) {
+                    _channelUtilization.value = InterfaceDetailParser.parseChannelUtilization(res)
+                }
+            } catch (e: Exception) {
+                AppLogger.logError("loadChannelUtilization", e)
+            }
+        }
+    }
+
+    fun loadSpectrum() {
+        viewModelScope.launch {
+            try {
+                val res = repository.queryShow("wifi/spectrum")
+                if (res != null) {
+                    _spectrumData.value = InterfaceDetailParser.parseSpectrum(res)
+                }
+            } catch (e: Exception) {
+                AppLogger.logError("loadSpectrum", e)
+            }
+        }
+    }
+
+    fun loadCableDiagnostics() {
+        viewModelScope.launch {
+            try {
+                val res = repository.queryShow("interface/cable-diagnostics")
+                if (res != null) {
+                    _cableDiagnostics.value = InterfaceDetailParser.parseCableDiagnostics(res)
+                }
+            } catch (e: Exception) {
+                AppLogger.logError("loadCableDiagnostics", e)
+            }
+        }
+    }
+
+    fun loadWpsStatus() {
+        viewModelScope.launch {
+            try {
+                val res = repository.queryShow("wifi/wps")
+                if (res != null) {
+                    _wpsStatus.value = InterfaceDetailParser.parseWps(res)
+                }
+            } catch (e: Exception) {
+                AppLogger.logError("loadWpsStatus", e)
+            }
+        }
+    }
+
+    fun loadMwsStatus() {
+        viewModelScope.launch {
+            try {
+                val res = repository.queryShow("wifi/mws")
+                if (res != null) {
+                    _mwsStatus.value = InterfaceDetailParser.parseMws(res)
+                    _mwsMembers.value = InterfaceDetailParser.parseMwsMembers(res)
+                }
+            } catch (e: Exception) {
+                AppLogger.logError("loadMwsStatus", e)
+            }
+        }
+    }
+
+    fun loadInternetDetailed() {
+        viewModelScope.launch {
+            try {
+                val res = repository.queryShow("internet")
+                if (res != null) {
+                    _internetDetailed.value = InterfaceDetailParser.parseInternetDetailed(res)
+                }
+            } catch (e: Exception) {
+                AppLogger.logError("loadInternetDetailed", e)
+            }
+        }
+    }
+
+    fun loadConntrack() {
+        viewModelScope.launch {
+            try {
+                val res = repository.queryShow("ip/conntrack")
+                if (res != null) {
+                    _conntrackEntries.value = ConntrackParser.parseConntrack(res)
+                }
+            } catch (e: Exception) {
+                AppLogger.logError("loadConntrack", e)
+            }
+        }
+    }
+
+    fun loadNatEntries() {
+        viewModelScope.launch {
+            try {
+                val res = repository.queryShow("ip/nat")
+                if (res != null) {
+                    _natEntries.value = ConntrackParser.parseNat(res)
+                }
+            } catch (e: Exception) {
+                AppLogger.logError("loadNatEntries", e)
+            }
+        }
+    }
+
+    fun loadArpEntries() {
+        viewModelScope.launch {
+            try {
+                val res = repository.queryShow("ip/arp")
+                if (res != null) {
+                    _arpEntries.value = ConntrackParser.parseArp(res)
+                }
+            } catch (e: Exception) {
+                AppLogger.logError("loadArpEntries", e)
+            }
+        }
+    }
+
+    fun loadNeighbourEntries() {
+        viewModelScope.launch {
+            try {
+                val res = repository.queryShow("ip/neighbour")
+                if (res != null) {
+                    _neighbourEntries.value = ConntrackParser.parseNeighbours(res)
+                }
+            } catch (e: Exception) {
+                AppLogger.logError("loadNeighbourEntries", e)
+            }
+        }
+    }
+
+    fun loadIpRules() {
+        viewModelScope.launch {
+            try {
+                val res = repository.queryShow("ip/rules")
+                if (res != null) {
+                    _ipRules.value = ConntrackParser.parseIpRules(res)
+                }
+            } catch (e: Exception) {
+                AppLogger.logError("loadIpRules", e)
+            }
+        }
+    }
+
+    fun loadWireguardServer() {
+        viewModelScope.launch {
+            try {
+                val res = repository.queryShow("sc/vpn-server")
+                if (res != null) {
+                    _wireguardServer.value = VpnDetailParser.parseWireguardServer(res)
+                }
+            } catch (e: Exception) {
+                AppLogger.logError("loadWireguardServer", e)
+            }
+        }
+    }
+
+    fun loadL2tpServer() {
+        viewModelScope.launch {
+            try {
+                val res = repository.queryShow("sc/l2tp-server")
+                if (res != null) {
+                    _l2tpServer.value = VpnDetailParser.parseL2tpServer(res)
+                }
+            } catch (e: Exception) {
+                AppLogger.logError("loadL2tpServer", e)
+            }
+        }
+    }
+
+    fun loadIkev2Server() {
+        viewModelScope.launch {
+            try {
+                val res = repository.queryShow("sc/ikev2-server")
+                if (res != null) {
+                    _ikev2Server.value = VpnDetailParser.parseIkev2Server(res)
+                }
+            } catch (e: Exception) {
+                AppLogger.logError("loadIkev2Server", e)
+            }
+        }
+    }
+
+    fun loadSstpServer() {
+        viewModelScope.launch {
+            try {
+                val res = repository.queryShow("sc/sstp-server")
+                if (res != null) {
+                    _sstpServer.value = VpnDetailParser.parseSstpServer(res)
+                }
+            } catch (e: Exception) {
+                AppLogger.logError("loadSstpServer", e)
+            }
+        }
+    }
+
+    fun loadIpsecStatus() {
+        viewModelScope.launch {
+            try {
+                val res = repository.queryShow("ipsec")
+                if (res != null) {
+                    _ipsecStatus.value = VpnDetailParser.parseIpsec(res)
+                }
+            } catch (e: Exception) {
+                AppLogger.logError("loadIpsecStatus", e)
+            }
+        }
+    }
+
+    fun loadNtceApps() {
+        viewModelScope.launch {
+            try {
+                val res = repository.queryShow("ntce/applications")
+                if (res != null) {
+                    _ntceApps.value = NtceDetailParser.parseApplications(res)
+                }
+            } catch (e: Exception) {
+                AppLogger.logError("loadNtceApps", e)
+            }
+        }
+    }
+
+    fun loadNtceHosts() {
+        viewModelScope.launch {
+            try {
+                val res = repository.queryShow("ntce/hosts")
+                if (res != null) {
+                    _ntceHosts.value = NtceDetailParser.parseHosts(res)
+                }
+            } catch (e: Exception) {
+                AppLogger.logError("loadNtceHosts", e)
+            }
+        }
+    }
+
+    fun loadNtceOses() {
+        viewModelScope.launch {
+            try {
+                val res = repository.queryShow("ntce/oses")
+                if (res != null) {
+                    _ntceOses.value = NtceDetailParser.parseOses(res)
+                }
+            } catch (e: Exception) {
+                AppLogger.logError("loadNtceOses", e)
+            }
+        }
+    }
+
+    fun loadNtceGroups() {
+        viewModelScope.launch {
+            try {
+                val res = repository.queryShow("ntce/groups")
+                if (res != null) {
+                    _ntceGroups.value = NtceDetailParser.parseGroups(res)
+                }
+            } catch (e: Exception) {
+                AppLogger.logError("loadNtceGroups", e)
+            }
+        }
+    }
+
+    fun loadDyndnsStatus() {
+        viewModelScope.launch {
+            try {
+                val res = repository.queryShow("dyndns")
+                if (res != null) {
+                    _dyndnsStatus.value = DyndnsParser.parseStatus(res)
+                    _dyndnsProfiles.value = DyndnsParser.parseProfiles(res)
+                    _dyndnsUpdaters.value = DyndnsParser.parseUpdaters(res)
+                }
+            } catch (e: Exception) {
+                AppLogger.logError("loadDyndnsStatus", e)
+            }
+        }
+    }
+
+    fun loadNextdnsProfile() {
+        viewModelScope.launch {
+            try {
+                val res = repository.queryShow("nextdns")
+                if (res != null) {
+                    _nextdnsProfile.value = ContentFilterParser.parseNextdns(res)
+                }
+            } catch (e: Exception) {
+                AppLogger.logError("loadNextdnsProfile", e)
+            }
+        }
+    }
+
+    fun loadSafednsProfile() {
+        viewModelScope.launch {
+            try {
+                val res = repository.queryShow("safedns")
+                if (res != null) {
+                    _safednsProfile.value = ContentFilterParser.parseSafedns(res)
+                }
+            } catch (e: Exception) {
+                AppLogger.logError("loadSafednsProfile", e)
+            }
+        }
+    }
+
+    fun loadSkydnsProfile() {
+        viewModelScope.launch {
+            try {
+                val res = repository.queryShow("skydns")
+                if (res != null) {
+                    _skydnsProfile.value = ContentFilterParser.parseSkydns(res)
+                }
+            } catch (e: Exception) {
+                AppLogger.logError("loadSkydnsProfile", e)
+            }
+        }
+    }
+
+    fun loadUpnpStatus() {
+        viewModelScope.launch {
+            try {
+                val res = repository.queryShow("upnp")
+                if (res != null) {
+                    _upnpRedirects.value = UpnpParser.parseRedirects(res)
+                    _upnpPinholes.value = UpnpParser.parsePinholes(res)
+                }
+            } catch (e: Exception) {
+                AppLogger.logError("loadUpnpStatus", e)
+            }
+        }
+    }
+
+    fun loadTorrentStatusFull() {
+        viewModelScope.launch {
+            try {
+                val res = repository.queryShow("torrent")
+                if (res != null) {
+                    _torrentStatusFull.value = TorrentDetailParser.parseStatus(res)
+                    _torrentLocalAccount.value = TorrentDetailParser.parseLocalAccount(res)
+                }
+            } catch (e: Exception) {
+                AppLogger.logError("loadTorrentStatusFull", e)
+            }
+        }
+    }
+
+    fun loadCloudStatus() {
+        viewModelScope.launch {
+            try {
+                val res = repository.queryShow("cloud")
+                if (res != null) {
+                    _cloudStatus.value = CloudParser.parseStatus(res)
+                    _cloudNdmp.value = CloudParser.parseNdmp(res)
+                }
+            } catch (e: Exception) {
+                AppLogger.logError("loadCloudStatus", e)
+            }
+        }
+    }
+
+    fun loadSshSettings() {
+        viewModelScope.launch {
+            try {
+                val res = repository.queryShow("ssh")
+                if (res != null) {
+                    _sshSettings.value = SshSnmpParser.parseSsh(res)
+                    _sshFingerprint.value = SshSnmpParser.parseSshFingerprint(res)
+                }
+            } catch (e: Exception) {
+                AppLogger.logError("loadSshSettings", e)
+            }
+        }
+    }
+
+    fun loadSnmpSettings() {
+        viewModelScope.launch {
+            try {
+                val res = repository.queryShow("snmp")
+                if (res != null) {
+                    _snmpView.value = SshSnmpParser.parseSnmp(res)
+                }
+            } catch (e: Exception) {
+                AppLogger.logError("loadSnmpSettings", e)
+            }
+        }
+    }
+
+    fun loadFtpSettings() {
+        viewModelScope.launch {
+            try {
+                val res = repository.queryShow("ftp")
+                if (res != null) {
+                    _ftpSettings.value = SshSnmpParser.parseFtp(res)
+                }
+            } catch (e: Exception) {
+                AppLogger.logError("loadFtpSettings", e)
+            }
+        }
+    }
+
+    fun loadTelnetSettings() {
+        viewModelScope.launch {
+            try {
+                val res = repository.queryShow("telnet")
+                if (res != null) {
+                    _telnetSettings.value = SshSnmpParser.parseTelnet(res)
+                }
+            } catch (e: Exception) {
+                AppLogger.logError("loadTelnetSettings", e)
+            }
+        }
+    }
+
+    fun loadHttpProxySettings() {
+        viewModelScope.launch {
+            try {
+                val res = repository.queryShow("http-proxy")
+                if (res != null) {
+                    _httpProxySettings.value = SshSnmpParser.parseHttpProxy(res)
+                }
+            } catch (e: Exception) {
+                AppLogger.logError("loadHttpProxySettings", e)
+            }
+        }
+    }
+
+    fun loadIpv6Addresses() {
+        viewModelScope.launch {
+            try {
+                val res = repository.queryShow("ipv6/addresses")
+                if (res != null) {
+                    _ipv6Addresses.value = Ipv6DetailParser.parseAddresses(res)
+                }
+            } catch (e: Exception) {
+                AppLogger.logError("loadIpv6Addresses", e)
+            }
+        }
+    }
+
+    fun loadIpv6Prefixes() {
+        viewModelScope.launch {
+            try {
+                val res = repository.queryShow("ipv6/prefix")
+                if (res != null) {
+                    _ipv6Prefixes.value = Ipv6DetailParser.parsePrefixes(res)
+                }
+            } catch (e: Exception) {
+                AppLogger.logError("loadIpv6Prefixes", e)
+            }
+        }
+    }
+
+    fun loadIpv6Routes() {
+        viewModelScope.launch {
+            try {
+                val res = repository.queryShow("ipv6/route")
+                if (res != null) {
+                    _ipv6Routes.value = Ipv6DetailParser.parseRoutes(res)
+                }
+            } catch (e: Exception) {
+                AppLogger.logError("loadIpv6Routes", e)
+            }
+        }
+    }
+
+    fun loadIpv6Subnets() {
+        viewModelScope.launch {
+            try {
+                val res = repository.queryShow("ipv6/subnets")
+                if (res != null) {
+                    _ipv6Subnets.value = Ipv6DetailParser.parseSubnets(res)
+                }
+            } catch (e: Exception) {
+                AppLogger.logError("loadIpv6Subnets", e)
+            }
+        }
+    }
+
+    fun loadIpv6DhcpBindings() {
+        viewModelScope.launch {
+            try {
+                val res = repository.queryShow("ipv6/dhcp/bindings")
+                if (res != null) {
+                    _ipv6DhcpBindings.value = Ipv6DetailParser.parseDhcpBindings(res)
+                }
+            } catch (e: Exception) {
+                AppLogger.logError("loadIpv6DhcpBindings", e)
+            }
+        }
+    }
+
+    fun loadMediaStorage() {
+        viewModelScope.launch {
+            try {
+                val res = repository.queryShow("media")
+                if (res != null) {
+                    _mediaStorageList.value = DeviceListParser.parseMedia(res)
+                }
+            } catch (e: Exception) {
+                AppLogger.logError("loadMediaStorage", e)
+            }
+        }
+    }
+
+    fun loadComponents() {
+        viewModelScope.launch {
+            try {
+                val res = repository.queryShow("components/list")
+                if (res != null) {
+                    _componentList.value = DeviceListParser.parseComponents(res)
+                }
+            } catch (e: Exception) {
+                AppLogger.logError("loadComponents", e)
+            }
+        }
+    }
+
+    fun loadDeviceListFull() {
+        viewModelScope.launch {
+            try {
+                val res = repository.queryShow("devices")
+                if (res != null) {
+                    _deviceListFull.value = DeviceListParser.parseFull(res)
+                }
+            } catch (e: Exception) {
+                AppLogger.logError("loadDeviceListFull", e)
+            }
+        }
+    }
+
+    fun loadObjectGroups() {
+        viewModelScope.launch {
+            try {
+                val res = repository.queryShow("object-group/fqdn")
+                if (res != null) {
+                    _objectGroups.value = DeviceListParser.parseObjectGroup(res)
+                }
+            } catch (e: Exception) {
+                AppLogger.logError("loadObjectGroups", e)
+            }
+        }
+    }
+
+    fun loadMonitorStatus() {
+        viewModelScope.launch {
+            try {
+                val res = repository.queryShow("monitor")
+                if (res != null) {
+                    _monitorStatus.value = DeviceListParser.parseMonitor(res)
+                }
+            } catch (e: Exception) {
+                AppLogger.logError("loadMonitorStatus", e)
+            }
+        }
+    }
+
+    fun loadSshFingerprint() {
+        viewModelScope.launch {
+            _fingerprintRaw.value = ApiCallState.Loading
+            try {
+                val res = repository.queryShow("ssh/fingerprint")
+                _fingerprintRaw.value = if (res != null) ApiCallState.Success(res) else ApiCallState.Error("Нет данных")
+            } catch (e: Exception) {
+                _fingerprintRaw.value = ApiCallState.Error(e.message ?: "Ошибка")
+            }
+        }
+    }
+
+    // ===== Write methods =====
+
+    fun setHostname(hostname: String) {
+        viewModelScope.launch {
+            try {
+                val cmd = mapOf("system" to mapOf("name" to hostname))
+                repository.executeRciWithSave(listOf(cmd))
+                loadSystemInfo()
+            } catch (e: Exception) {
+                AppLogger.logError("setHostname", e)
+            }
+        }
+    }
+
+    fun setTimezone(timezone: String) {
+        viewModelScope.launch {
+            try {
+                val cmd = mapOf("system" to mapOf("clock" to mapOf("time-zone" to timezone)))
+                repository.executeRciWithSave(listOf(cmd))
+                loadNtpStatus()
+            } catch (e: Exception) {
+                AppLogger.logError("setTimezone", e)
+            }
+        }
+    }
+
+    fun setNtpEnabled(enabled: Boolean) {
+        viewModelScope.launch {
+            try {
+                val cmd = mapOf("system" to mapOf("clock" to mapOf("ntp" to mapOf("enable" to enabled))))
+                repository.executeRciWithSave(listOf(cmd))
+                loadNtpStatus()
+            } catch (e: Exception) {
+                AppLogger.logError("setNtpEnabled", e)
+            }
+        }
+    }
+
+    fun setLedEnabled(enabled: Boolean) {
+        viewModelScope.launch {
+            try {
+                val cmd = mapOf("system" to mapOf("led" to mapOf("enable" to enabled)))
+                repository.executeRciWithSave(listOf(cmd))
+                loadLedConfig()
+            } catch (e: Exception) {
+                AppLogger.logError("setLedEnabled", e)
+            }
+        }
+    }
+
+    fun setSshPort(port: Int) {
+        viewModelScope.launch {
+            try {
+                val cmd = mapOf("ssh" to mapOf("port" to port))
+                repository.executeRciWithSave(listOf(cmd))
+                loadSshSettings()
+            } catch (e: Exception) {
+                AppLogger.logError("setSshPort", e)
+            }
+        }
+    }
+
+    fun setSshEnabled(enabled: Boolean) {
+        viewModelScope.launch {
+            try {
+                val cmd = mapOf("ssh" to mapOf("enable" to enabled))
+                repository.executeRciWithSave(listOf(cmd))
+                loadSshSettings()
+            } catch (e: Exception) {
+                AppLogger.logError("setSshEnabled", e)
+            }
+        }
+    }
+
+    fun setSnmpEnabled(enabled: Boolean) {
+        viewModelScope.launch {
+            try {
+                val cmd = mapOf("snmp" to mapOf("enable" to enabled))
+                repository.executeRciWithSave(listOf(cmd))
+                loadSnmpSettings()
+            } catch (e: Exception) {
+                AppLogger.logError("setSnmpEnabled", e)
+            }
+        }
+    }
+
+    fun setSnmpCommunity(community: String) {
+        viewModelScope.launch {
+            try {
+                val cmd = mapOf("snmp" to mapOf("community" to community))
+                repository.executeRciWithSave(listOf(cmd))
+                loadSnmpSettings()
+            } catch (e: Exception) {
+                AppLogger.logError("setSnmpCommunity", e)
+            }
+        }
+    }
+
+    fun setUpnpEnabled(enabled: Boolean) {
+        viewModelScope.launch {
+            try {
+                val cmd = mapOf("upnp" to mapOf("enable" to enabled))
+                repository.executeRciWithSave(listOf(cmd))
+                loadUpnpStatus()
+            } catch (e: Exception) {
+                AppLogger.logError("setUpnpEnabled", e)
+            }
+        }
+    }
+
+    fun setDyndnsEnabled(enabled: Boolean) {
+        viewModelScope.launch {
+            try {
+                val cmd = mapOf("dyndns" to mapOf("enable" to enabled))
+                repository.executeRciWithSave(listOf(cmd))
+                loadDyndnsStatus()
+            } catch (e: Exception) {
+                AppLogger.logError("setDyndnsEnabled", e)
+            }
+        }
+    }
+
+    fun setNextdnsEnabled(enabled: Boolean) {
+        viewModelScope.launch {
+            try {
+                val cmd = mapOf("nextdns" to mapOf("enable" to enabled))
+                repository.executeRciWithSave(listOf(cmd))
+                loadNextdnsProfile()
+            } catch (e: Exception) {
+                AppLogger.logError("setNextdnsEnabled", e)
+            }
+        }
+    }
+
+    fun setSafednsEnabled(enabled: Boolean) {
+        viewModelScope.launch {
+            try {
+                val cmd = mapOf("safedns" to mapOf("enable" to enabled))
+                repository.executeRciWithSave(listOf(cmd))
+                loadSafednsProfile()
+            } catch (e: Exception) {
+                AppLogger.logError("setSafednsEnabled", e)
+            }
+        }
+    }
+
+    fun setSkydnsEnabled(enabled: Boolean) {
+        viewModelScope.launch {
+            try {
+                val cmd = mapOf("skydns" to mapOf("enable" to enabled))
+                repository.executeRciWithSave(listOf(cmd))
+                loadSkydnsProfile()
+            } catch (e: Exception) {
+                AppLogger.logError("setSkydnsEnabled", e)
+            }
+        }
+    }
+
+    fun setWpsEnabled(enabled: Boolean) {
+        viewModelScope.launch {
+            try {
+                val cmd = mapOf("wifi" to mapOf("wps" to mapOf("enable" to enabled)))
+                repository.executeRciWithSave(listOf(cmd))
+                loadWpsStatus()
+            } catch (e: Exception) {
+                AppLogger.logError("setWpsEnabled", e)
+            }
+        }
+    }
+
+    fun setMwsEnabled(enabled: Boolean) {
+        viewModelScope.launch {
+            try {
+                val cmd = mapOf("wifi" to mapOf("mws" to mapOf("enable" to enabled)))
+                repository.executeRciWithSave(listOf(cmd))
+                loadMwsStatus()
+            } catch (e: Exception) {
+                AppLogger.logError("setMwsEnabled", e)
+            }
+        }
+    }
+
+    fun setIpv6Enabled(enabled: Boolean) {
+        viewModelScope.launch {
+            try {
+                val cmd = mapOf("ipv6" to mapOf("enable" to enabled))
+                repository.executeRciWithSave(listOf(cmd))
+                loadIpv6Addresses()
+            } catch (e: Exception) {
+                AppLogger.logError("setIpv6Enabled", e)
+            }
+        }
+    }
+
+    fun rebootRouter() {
+        viewModelScope.launch {
+            try {
+                val cmd = mapOf("system" to mapOf("reboot" to true))
+                repository.executeRciWithSave(listOf(cmd))
+            } catch (e: Exception) {
+                AppLogger.logError("rebootRouter", e)
+            }
+        }
+    }
 }

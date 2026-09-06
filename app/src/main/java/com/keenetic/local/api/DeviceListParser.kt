@@ -1,100 +1,131 @@
 package com.keenetic.local.api
 
-/**
- * Модель одного устройства из `show device-list` (SSH CLI). Эта команда
- * даёт гораздо больше, чем /rci/show/ip/hotspot: реальный трафик rx/tx на
- * устройство, оффлайн-устройства в том же списке (link: down), назначенную
- * политику и приоритет прямо на хосте, и различает проводные/беспроводные
- * подключения. Подтверждено реальным выводом с роутера (не HAR).
- */
-data class DeviceListEntry(
-    val mac: String,
-    val ip: String? = null,
-    val hostname: String? = null,   // имя, которое сообщило само устройство (DHCP)
-    val customName: String? = null, // имя, заданное вручную в веб-морде/приложении
-    val interfaceDescription: String? = null, // например "Home network"
-    val policy: String? = null,
-    val priority: Int? = null,
-    val access: String? = null,     // permit / deny
-    val active: Boolean = false,    // link up прямо сейчас
-    val rxbytes: Long = 0,
-    val txbytes: Long = 0,
-    val ssid: String? = null,       // если Wi-Fi
-    val rssi: Int? = null,
-    val security: String? = null,
-    val wired: Boolean = false      // проводное подключение (есть "port")
-) {
-    /** Лучшее доступное имя для показа пользователю. */
-    val displayName: String?
-        get() = customName?.takeIf { it.isNotBlank() } ?: hostname?.takeIf { it.isNotBlank() }
-}
+import com.google.gson.JsonElement
+import com.google.gson.JsonObject
 
-/**
- * `show device-list` отдаёт не JSON, а текст с отступами (человекочитаемый
- * CLI-формат), в отличие от большинства других show-команд через REST.
- * Парсим построчно: новый блок устройства начинается с одиночной строки
- * "host:" (без значения после двоеточия).
- */
 object DeviceListParser {
 
-    private val lineRegex = Regex("""^\s*([\w-]+):\s*(.*?)\s*$""")
-
-    fun parse(raw: String): List<DeviceListEntry> {
-        val entries = mutableListOf<DeviceListEntry>()
-        var current: MutableMap<String, String>? = null
-        var seenInterfaceSection = false
-
-        fun flush() {
-            val fields = current ?: return
-            val mac = fields["mac"] ?: return
-            entries += DeviceListEntry(
-                mac = mac,
-                ip = fields["ip"]?.takeIf { it.isNotBlank() && it != "0.0.0.0" },
-                hostname = fields["hostname"],
-                customName = fields["name"],
-                interfaceDescription = fields["description"],
-                policy = fields["policy"]?.takeIf { it.isNotBlank() },
-                priority = fields["priority"]?.toIntOrNull(),
-                access = fields["access"],
-                active = fields["link"]?.equals("up", ignoreCase = true) == true,
-                rxbytes = fields["rxbytes"]?.toLongOrNull() ?: 0,
-                txbytes = fields["txbytes"]?.toLongOrNull() ?: 0,
-                ssid = fields["ssid"],
-                rssi = fields["rssi"]?.toIntOrNull(),
-                security = fields["security"],
-                wired = fields.containsKey("port")
-            )
-        }
-
-        raw.lineSequence().forEach { rawLine ->
-            val trimmed = rawLine.trim()
-            if (trimmed == "host:") {
-                flush()
-                current = mutableMapOf()
-                seenInterfaceSection = false
-                return@forEach
-            }
-            val fields = current ?: return@forEach
-            if (trimmed == "interface:") {
-                seenInterfaceSection = true
-                return@forEach
-            }
-            val match = lineRegex.matchEntire(rawLine) ?: return@forEach
-            val (key, value) = match.destructured
-            if (value.isBlank()) return@forEach
-
-            // "name" встречается дважды: имя устройства (нужное нам, идёт до
-            // "interface:") и имя самого сетевого сегмента внутри interface:
-            // ("name: Home") - его игнорируем. "description" берём только
-            // из секции interface (описание сегмента, напр. "Home network").
-            when (key) {
-                "name" -> if (!seenInterfaceSection) fields["name"] = value
-                "description" -> if (seenInterfaceSection) fields["description"] = value
-                "mac" -> fields.putIfAbsent("mac", value) // только первое вхождение (у host, не у via)
-                else -> fields.putIfAbsent(key, value)
+    fun parseFull(root: JsonElement?): List<DeviceListEntryFull> {
+        if (root == null || !root.isJsonObject) return emptyList()
+        val list = mutableListOf<DeviceListEntryFull>()
+        val devices = findKey(root, "devices") ?: findKey(root, "device") ?: return emptyList()
+        for ((key, value) in devices.entrySet()) {
+            if (value.isJsonObject) {
+                val o = value.asJsonObject
+                list.add(DeviceListEntryFull(
+                    name = key,
+                    mac = str(o, "mac") ?: "",
+                    ip = str(o, "ip") ?: "",
+                    hostname = str(o, "hostname") ?: "",
+                    interfaceName = str(o, "interface") ?: "",
+                    type = str(o, "type") ?: "",
+                    online = o.get("online")?.takeIf { it.isJsonPrimitive }?.asBoolean ?: false,
+                    policy = str(o, "policy") ?: "",
+                    schedule = str(o, "schedule") ?: ""
+                ))
             }
         }
-        flush()
-        return entries
+        return list
     }
+
+    fun parseMedia(root: JsonElement?): List<MediaStorage> {
+        if (root == null || !root.isJsonObject) return emptyList()
+        val list = mutableListOf<MediaStorage>()
+        val media = findKey(root, "media") ?: return emptyList()
+        for ((key, value) in media.entrySet()) {
+            if (value.isJsonObject) {
+                val o = value.asJsonObject
+                val partitions = mutableListOf<MediaPartition>()
+                o.getAsJsonArray("partition")?.forEach { p ->
+                    if (p.isJsonObject) {
+                        val po = p.asJsonObject
+                        partitions.add(MediaPartition(
+                            uuid = str(po, "uuid") ?: "",
+                            label = str(po, "label") ?: "",
+                            fstype = str(po, "fstype") ?: "",
+                            size = po.get("size")?.takeIf { it.isJsonPrimitive }?.asLong ?: 0,
+                            free = po.get("free")?.takeIf { it.isJsonPrimitive }?.asLong ?: 0,
+                            state = str(po, "state") ?: ""
+                        ))
+                    }
+                }
+                list.add(MediaStorage(
+                    name = key,
+                    label = str(o, "label") ?: "",
+                    mounted = str(o, "mounted") ?: "",
+                    fstype = str(o, "fstype") ?: "",
+                    total = o.get("total")?.takeIf { it.isJsonPrimitive }?.asLong ?: 0,
+                    free = o.get("free")?.takeIf { it.isJsonPrimitive }?.asLong ?: 0,
+                    partitions = partitions
+                ))
+            }
+        }
+        return list
+    }
+
+    fun parseComponents(root: JsonElement?): List<ComponentInfo> {
+        if (root == null || !root.isJsonObject) return emptyList()
+        val list = mutableListOf<ComponentInfo>()
+        val components = findKey(root, "components") ?: findKey(root, "component") ?: return emptyList()
+        for ((key, value) in components.entrySet()) {
+            if (value.isJsonObject) {
+                val o = value.asJsonObject
+                list.add(ComponentInfo(
+                    name = key,
+                    title = str(o, "title") ?: key,
+                    installed = o.get("installed")?.takeIf { it.isJsonPrimitive }?.asBoolean ?: false,
+                    available = o.get("available")?.takeIf { it.isJsonPrimitive }?.asBoolean ?: false,
+                    version = str(o, "version") ?: "",
+                    description = str(o, "description") ?: ""
+                ))
+            }
+        }
+        return list
+    }
+
+    fun parseObjectGroup(root: JsonElement?): List<ObjectGroupFqdn> {
+        if (root == null || !root.isJsonObject) return emptyList()
+        val list = mutableListOf<ObjectGroupFqdn>()
+        val groups = findKey(root, "object-group") ?: findKey(root, "fqdn") ?: return emptyList()
+        for ((key, value) in groups.entrySet()) {
+            if (value.isJsonObject) {
+                val o = value.asJsonObject
+                val members = mutableListOf<String>()
+                o.getAsJsonArray("member")?.forEach { m ->
+                    if (m.isJsonPrimitive) members.add(m.asString)
+                    else if (m.isJsonObject) {
+                        m.asJsonObject.get("host")?.takeIf { it.isJsonPrimitive }?.asString?.let { members.add(it) }
+                    }
+                }
+                list.add(ObjectGroupFqdn(
+                    name = key,
+                    members = members
+                ))
+            }
+        }
+        return list
+    }
+
+    fun parseMonitor(root: JsonElement?): MonitorStatus {
+        if (root == null || !root.isJsonObject) return MonitorStatus()
+        val monitor = findKey(root, "monitor") ?: return MonitorStatus()
+        return MonitorStatus(
+            active = monitor.get("active")?.takeIf { it.isJsonPrimitive }?.asBoolean ?: false,
+            interfaceName = str(monitor, "interface") ?: "",
+            filter = str(monitor, "filter") ?: ""
+        )
+    }
+
+    private fun findKey(element: JsonElement?, key: String): JsonObject? {
+        if (element == null || !element.isJsonObject) return null
+        val obj = element.asJsonObject
+        obj.get(key)?.takeIf { it.isJsonObject }?.let { return it.asJsonObject }
+        for ((_, v) in obj.entrySet()) {
+            findKey(v, key)?.let { return it }
+        }
+        return null
+    }
+
+    private fun str(o: JsonObject, field: String): String? =
+        o.get(field)?.takeIf { it.isJsonPrimitive }?.asString
 }
