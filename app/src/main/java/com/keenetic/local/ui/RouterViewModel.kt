@@ -2915,4 +2915,156 @@ class RouterViewModel : ViewModel() {
         _isLoggedIn.value = false
         _isDemoMode.value = false
     }
+
+    fun refreshNetworkHint() {
+        viewModelScope.launch(Dispatchers.IO) {
+            val gateway = NetworkUtils.detectRouterGatewayIp(KeeneticApp.instance)
+            val suggested = NetworkUtils.getSuggestedRouterIps(KeeneticApp.instance)
+            _networkHint.value = NetworkHint(
+                gateway = gateway,
+                currentIp = gateway,
+                suggestedRouterIps = suggested
+            )
+        }
+    }
+
+    fun saveConnectionSettings(ip: String, login: String, password: String?, autoLogin: Boolean) {
+        _routerIp.value = ip
+        _routerLogin.value = login
+        _autoLoginEnabled.value = autoLogin
+        _savedIp.value = ip
+        _savedUsername.value = login
+        viewModelScope.launch {
+            dataStore.saveSettings(ip, _savedPort.value, login, autoLogin)
+            if (!password.isNullOrBlank()) {
+                encryptedStorage.savePassword(password)
+            }
+        }
+    }
+
+    fun executeSsh(command: String, port: Int = 22, login: String? = null, password: String? = null) {
+        viewModelScope.launch {
+            _sshOutput.value = ""
+            try {
+                val user = login ?: _routerLogin.value
+                val pass = password ?: encryptedStorage.getPassword() ?: ""
+                val host = _routerIp.value.ifBlank { _savedIp.value }
+                val ssh = com.keenetic.local.api.KeeneticSshClient(
+                    host = host, port = port, login = user, password = pass
+                )
+                val result = ssh.execute(command)
+                _sshOutput.value = result.getOrElse { it.message ?: "Ошибка" }
+            } catch (e: Exception) {
+                _sshOutput.value = "Ошибка: ${e.message}"
+            }
+        }
+    }
+
+    fun setTorrentSettings(directory: String, rpcPort: Int, rpcPublic: Boolean, peerPort: Int) {
+        viewModelScope.launch {
+            try {
+                val cmd = mapOf(
+                    "torrent" to mapOf(
+                        "client" to mapOf(
+                            "rpc-port" to rpcPort,
+                            "rpc-public" to rpcPublic,
+                            "peer-port" to peerPort,
+                            "download-dir" to directory
+                        )
+                    )
+                )
+                repository.executeRciWithSave(listOf(cmd))
+            } catch (e: Exception) {
+                AppLogger.logError("setTorrentSettings", e)
+            }
+        }
+    }
+
+    fun saveService(service: SavedService) {
+        _savedServices.value = _savedServices.value.filter { it.host != service.host || it.port != service.port } + service
+    }
+
+    fun deleteService(service: SavedService) {
+        _savedServices.value = _savedServices.value.filter { it.host != service.host || it.port != service.port }
+    }
+
+    fun loadNameServers() {
+        viewModelScope.launch {
+            try {
+                val res = repository.queryShow("ip/name-server")
+                if (res != null) {
+                    _nameServers.value = DnsAndScheduleParser.parseNameServers(res)
+                }
+            } catch (e: Exception) {
+                AppLogger.logError("loadNameServers", e)
+            }
+        }
+    }
+
+    fun loadDohUpstream() {
+        viewModelScope.launch {
+            try {
+                val res = repository.queryShow("dns-proxy/https/upstream")
+                if (res != null) {
+                    _dohUpstream.value = DnsAndScheduleParser.parseDohUpstream(res)
+                }
+            } catch (e: Exception) {
+                AppLogger.logError("loadDohUpstream", e)
+            }
+        }
+    }
+
+    fun setCustomDoh(url: String, interfaceName: String? = null) {
+        viewModelScope.launch {
+            try {
+                val dohMap = mutableMapOf<String, Any>("url" to url)
+                if (!interfaceName.isNullOrBlank()) dohMap["interface"] = interfaceName
+                val cmd = mapOf("dns-proxy" to mapOf("https" to mapOf("upstream" to listOf(dohMap))))
+                repository.executeRciWithSave(listOf(cmd))
+                loadDohUpstream()
+            } catch (e: Exception) {
+                AppLogger.logError("setCustomDoh", e)
+            }
+        }
+    }
+
+    fun loadAutoUpdateStatus() {
+        viewModelScope.launch {
+            try {
+                val res = repository.queryShow("system/update/auto")
+                if (res != null && res.isJsonObject) {
+                    _autoUpdateEnabled.value = res.asJsonObject.get("enable")
+                        ?.takeIf { it.isJsonPrimitive }?.asBoolean ?: false
+                } else {
+                    _autoUpdateEnabled.value = false
+                }
+            } catch (e: Exception) {
+                _autoUpdateEnabled.value = false
+            }
+        }
+    }
+
+    fun setAutoUpdate(enabled: Boolean) {
+        _autoUpdateEnabled.value = enabled
+        viewModelScope.launch {
+            try {
+                val cmd = mapOf("system" to mapOf("update" to mapOf("auto" to mapOf("enable" to enabled))))
+                repository.executeRciWithSave(listOf(cmd))
+            } catch (e: Exception) {
+                AppLogger.logError("setAutoUpdate", e)
+            }
+        }
+    }
+
+    fun loadSystemUpdateStatus() {
+        viewModelScope.launch {
+            _systemUpdateStatusRaw.value = ApiCallState.Loading
+            try {
+                val res = repository.queryShow("system/update/status")
+                _systemUpdateStatusRaw.value = if (res != null) ApiCallState.Success(res) else ApiCallState.Error("Нет данных")
+            } catch (e: Exception) {
+                _systemUpdateStatusRaw.value = ApiCallState.Error(e.message ?: "Ошибка")
+            }
+        }
+    }
 }
