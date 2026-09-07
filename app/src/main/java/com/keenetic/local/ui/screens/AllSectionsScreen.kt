@@ -39,9 +39,13 @@ fun AllSectionsScreen(
             icon = Icons.Default.Public,
             items = listOf(
                 SectionItem("Проводной интернет (ISP)", Screen.Internet.route, "WAN/LAN и сетевые интерфейсы"),
+                SectionItem("Интернет (подробно)", Screen.InternetDetailed.route, "IP, шлюз, DNS, скорость"),
                 SectionItem("Wi-Fi сети", Screen.WiFi.route, "Беспроводные точки доступа 2.4/5 GHz"),
+                SectionItem("WPS", Screen.Wps.route, "Быстрое подключение по PIN"),
+                SectionItem("Mesh Wi-Fi (MWS)", Screen.Mws.route, "Mesh-сеть из нескольких роутеров"),
                 SectionItem("Мобильный интернет", Screen.Mobile.route, "USB-модемы и 4G/LTE"),
-                SectionItem("VPN-сервер и клиенты", Screen.VpnAdvanced.route, "WireGuard, SSTP, OpenVPN, L2TP")
+                SectionItem("VPN-сервер и клиенты", Screen.VpnAdvanced.route, "WireGuard, SSTP, OpenVPN, L2TP"),
+                SectionItem("VPN Серверы (детально)", Screen.VpnServers.route, "WireGuard, L2TP, IKEv2, SSTP, IPsec")
             )
         ),
         SectionCategory(
@@ -49,23 +53,48 @@ fun AllSectionsScreen(
             icon = Icons.Default.Security,
             items = listOf(
                 SectionItem("DNS-фильтры", Screen.DnsFilters.route, "Контентная фильтрация и безопасность"),
+                SectionItem("Контентная фильтрация", Screen.ContentFilter.route, "NextDNS, SafeDNS, SkyDNS"),
                 SectionItem("Переадресация портов", Screen.PortForwarding.route, "NAT и виртуальные серверы"),
                 SectionItem("Межсетевой экран", Screen.Firewall.route, "Правила фильтрации трафика"),
+                SectionItem("FQDN группы", Screen.ObjectGroup.route, "Доменные имена в группах"),
                 SectionItem("Статическая маршрутизация", Screen.StaticRoutes.route, "Таблица маршрутов и шлюзы"),
-                SectionItem("LAN сегменты", Screen.LanSegments.route, "Подсети и изоляция клиентов")
+                SectionItem("LAN сегменты", Screen.LanSegments.route, "Подсети и изоляция клиентов"),
+                SectionItem("IPv6", Screen.Ipv6.route, "Адреса, префиксы, маршруты IPv6")
+            )
+        ),
+        SectionCategory(
+            title = "Сервисы и приложения",
+            icon = Icons.Default.Apps,
+            items = listOf(
+                SectionItem("UPnP / NAT-PMP", Screen.Upnp.route, "Автоматическая переадресация"),
+                SectionItem("Динамический DNS", Screen.Ddns.route, "DDNS-провайдеры и обновления"),
+                SectionItem("Торрент-клиент", Screen.TorrentDetail.route, "Статус и настройки торрента"),
+                SectionItem("Облачные сервисы", Screen.Cloud.route, "Keenetic Cloud и NDMP"),
+                SectionItem("USB и накопители", Screen.UsbDevices.route, "Диски, SMB, FTP, DLNA"),
+                SectionItem("Сетевые сервисы", Screen.SshSnmp.route, "SSH, SNMP, FTP, Telnet, Proxy")
             )
         ),
         SectionCategory(
             title = "Управление и система",
             icon = Icons.Default.Settings,
             items = listOf(
-                SectionItem("Конфигурация (RCI / CLI)", Screen.Configuration.route, "Running-config, инспектор и команды NDM"),
-                SectionItem("Пользователи и доступ", Screen.UserAccounts.route, "Учетные записи и права"),
-                SectionItem("USB и накопители", Screen.UsbDevices.route, "Диски, SMB, FTP, DLNA"),
+                SectionItem("Системные настройки", Screen.SystemAdvanced.route, "Имя хоста, время, LED, NTP, бэкап"),
+                SectionItem("Компоненты", Screen.Components.route, "Установка и управление пакетами"),
                 SectionItem("KeeneticOS и обновление", Screen.Firmware.route, "Версия прошивки и компоненты"),
+                SectionItem("Пользователи и доступ", Screen.UserAccounts.route, "Учетные записи и права"),
+                SectionItem("Конфигурация (RCI / CLI)", Screen.Configuration.route, "Running-config, инспектор и команды NDM"),
                 SectionItem("Журнал событий (Логи)", Screen.SystemLogs.route, "Системные события ndm"),
                 SectionItem("Диагностика сети", Screen.Diagnostics.route, "Ping, Traceroute, DNS"),
-                SectionItem("Перезагрузка роутера", Screen.Firmware.route, "Безопасный перезапуск системы через RCI")
+                SectionItem("Диагностика кабеля", Screen.CableDiagnostics.route, "Длина и состояние кабелей")
+            )
+        ),
+        SectionCategory(
+            title = "Мониторинг",
+            icon = Icons.Default.Monitor,
+            items = listOf(
+                SectionItem("Мониторинг сети", Screen.NetworkMonitor.route, "Conntrack, ARP, IP-правила"),
+                SectionItem("Список устройств", Screen.DeviceListDetailed.route, "Все подключённые устройства"),
+                SectionItem("Устройства (обзор)", Screen.Devices.route, "Подключённые клиенты")
             )
         )
     )

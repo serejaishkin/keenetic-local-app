@@ -164,6 +164,7 @@ fun SystemAdvancedScreen(viewModel: RouterViewModel, onBack: () -> Unit = {}) {
     }
 }
 
+@Composable
 private fun InfoRow(label: String, value: String) {
     Row(modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp), horizontalArrangement = Arrangement.SpaceBetween) {
         Text(label, style = MaterialTheme.typography.bodyMedium, color = KeeneticColors.TextSecondary)

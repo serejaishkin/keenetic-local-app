@@ -26,6 +26,25 @@ sealed class Screen(val route: String, val title: String) {
     data object DnsFilters : Screen("dns_filters", "DNS-фильтры")
     data object VpnAdvanced : Screen("vpn_advanced", "VPN-сервер")
     data object Configuration : Screen("configuration", "Конфигурация (RCI / CLI)")
+
+    // Phase 5: Новые разделы
+    data object SystemAdvanced : Screen("system_advanced", "Системные настройки")
+    data object Components : Screen("components", "Компоненты")
+    data object SshSnmp : Screen("ssh_snmp", "Сетевые сервисы")
+    data object Upnp : Screen("upnp", "UPnP / NAT-PMP")
+    data object VpnServers : Screen("vpn_servers", "VPN Серверы")
+    data object Ipv6 : Screen("ipv6", "IPv6")
+    data object Ddns : Screen("ddns", "Динамический DNS")
+    data object ContentFilter : Screen("content_filter", "Контентная фильтрация")
+    data object TorrentDetail : Screen("torrent_detail", "Торрент-клиент")
+    data object Cloud : Screen("cloud", "Облачные сервисы")
+    data object NetworkMonitor : Screen("network_monitor", "Мониторинг сети")
+    data object DeviceListDetailed : Screen("device_list_detailed", "Список устройств")
+    data object Wps : Screen("wps", "WPS")
+    data object CableDiagnostics : Screen("cable_diagnostics", "Диагностика кабеля")
+    data object InternetDetailed : Screen("internet_detailed", "Интернет (подробно)")
+    data object Mws : Screen("mws", "Mesh Wi-Fi")
+    data object ObjectGroup : Screen("object_group", "FQDN группы")
 }
 
 @Composable
@@ -95,6 +114,57 @@ fun KeeneticNavHost(
         }
         composable(Screen.Configuration.route) {
             ConfigurationScreen(viewModel = viewModel, onBack = { navController.popBackStack() })
+        }
+        composable(Screen.SystemAdvanced.route) {
+            SystemAdvancedScreen(viewModel = viewModel, onBack = { navController.popBackStack() })
+        }
+        composable(Screen.Components.route) {
+            ComponentsScreen(viewModel = viewModel, onBack = { navController.popBackStack() })
+        }
+        composable(Screen.SshSnmp.route) {
+            SshSnmpScreen(viewModel = viewModel, onBack = { navController.popBackStack() })
+        }
+        composable(Screen.Upnp.route) {
+            UpnpScreen(viewModel = viewModel, onBack = { navController.popBackStack() })
+        }
+        composable(Screen.VpnServers.route) {
+            VpnServersScreen(viewModel = viewModel, onBack = { navController.popBackStack() })
+        }
+        composable(Screen.Ipv6.route) {
+            Ipv6Screen(viewModel = viewModel, onBack = { navController.popBackStack() })
+        }
+        composable(Screen.Ddns.route) {
+            DdnsScreen(viewModel = viewModel, onBack = { navController.popBackStack() })
+        }
+        composable(Screen.ContentFilter.route) {
+            ContentFilterScreen(viewModel = viewModel, onBack = { navController.popBackStack() })
+        }
+        composable(Screen.TorrentDetail.route) {
+            TorrentDetailScreen(viewModel = viewModel, onBack = { navController.popBackStack() })
+        }
+        composable(Screen.Cloud.route) {
+            CloudScreen(viewModel = viewModel, onBack = { navController.popBackStack() })
+        }
+        composable(Screen.NetworkMonitor.route) {
+            NetworkMonitorScreen(viewModel = viewModel, onBack = { navController.popBackStack() })
+        }
+        composable(Screen.DeviceListDetailed.route) {
+            DeviceListDetailedScreen(viewModel = viewModel, onBack = { navController.popBackStack() })
+        }
+        composable(Screen.Wps.route) {
+            WpsScreen(viewModel = viewModel, onBack = { navController.popBackStack() })
+        }
+        composable(Screen.CableDiagnostics.route) {
+            CableDiagnosticsScreen(viewModel = viewModel, onBack = { navController.popBackStack() })
+        }
+        composable(Screen.InternetDetailed.route) {
+            InternetDetailedScreen(viewModel = viewModel, onBack = { navController.popBackStack() })
+        }
+        composable(Screen.Mws.route) {
+            MwsScreen(viewModel = viewModel, onBack = { navController.popBackStack() })
+        }
+        composable(Screen.ObjectGroup.route) {
+            ObjectGroupScreen(viewModel = viewModel, onBack = { navController.popBackStack() })
         }
     }
 }

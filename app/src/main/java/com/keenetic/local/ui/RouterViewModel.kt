@@ -1221,7 +1221,7 @@ class RouterViewModel : ViewModel() {
         if (_isDemoMode.value && _portForwardingRules.value.isNotEmpty()) return
         viewModelScope.launch {
             try {
-                val res = repository.queryShow("ip/static") ?: repository.queryShow("ip/nat")
+                val res = repository.queryShow("ip/nat")
                 if (res != null) {
                     val list = mutableListOf<PortForwardingRule>()
                     fun parseNat(o: com.google.gson.JsonObject, defaultIdx: Int) {
@@ -1290,7 +1290,7 @@ class RouterViewModel : ViewModel() {
         if (_isDemoMode.value && _firewallRules.value.isNotEmpty()) return
         viewModelScope.launch {
             try {
-                val res = repository.queryShow("ip/access-list") ?: repository.queryShow("ip/firewall")
+                val res = repository.queryShow("ip/rule")
                 if (res != null) {
                     val list = mutableListOf<FirewallRule>()
                     fun parseRule(o: com.google.gson.JsonObject, defaultIface: String = "ISP") {
@@ -1550,7 +1550,7 @@ class RouterViewModel : ViewModel() {
         viewModelScope.launch {
             try {
                 val verRes = repository.queryShow("version")
-                val updateRes = repository.queryShow("system/update/status") ?: repository.queryShow("components/list")
+                val updateRes = repository.queryShow("system/update/status") ?: repository.queryShow("components")
 
                 val verObj = verRes?.takeIf { it.isJsonObject }?.asJsonObject
                 val updObj = updateRes?.takeIf { it.isJsonObject }?.asJsonObject
@@ -3246,7 +3246,7 @@ class RouterViewModel : ViewModel() {
     fun loadEnvironmentInfo() {
         viewModelScope.launch {
             try {
-                val res = repository.queryShow("system/environment")
+                val res = repository.queryShow("environment")
                 if (res != null) {
                     _environmentInfo.value = SystemDetailParser.parseEnvironment(res)
                 }
@@ -3259,7 +3259,7 @@ class RouterViewModel : ViewModel() {
     fun loadProductInfo() {
         viewModelScope.launch {
             try {
-                val res = repository.queryShow("ndm")
+                val res = repository.queryShow("product")
                 if (res != null) {
                     _productInfo.value = SystemDetailParser.parseProduct(res)
                 }
@@ -3272,7 +3272,7 @@ class RouterViewModel : ViewModel() {
     fun loadNtpStatus() {
         viewModelScope.launch {
             try {
-                val res = repository.queryShow("system/clock/ntp")
+                val res = repository.queryShow("ntp")
                 if (res != null) {
                     _ntpStatus.value = SystemDetailParser.parseNtp(res)
                 }
@@ -3298,7 +3298,7 @@ class RouterViewModel : ViewModel() {
     fun loadLedConfig() {
         viewModelScope.launch {
             try {
-                val res = repository.queryShow("system/led")
+                val res = repository.queryShow("led")
                 if (res != null) {
                     _ledConfig.value = SystemDetailParser.parseLed(res)
                 }
@@ -3337,7 +3337,7 @@ class RouterViewModel : ViewModel() {
     fun loadChannelUtilization() {
         viewModelScope.launch {
             try {
-                val res = repository.queryShow("wifi/channel-utilization")
+                val res = repository.queryShow("interface/channel-utilization")
                 if (res != null) {
                     _channelUtilization.value = InterfaceDetailParser.parseChannelUtilization(res)
                 }
@@ -3350,7 +3350,7 @@ class RouterViewModel : ViewModel() {
     fun loadSpectrum() {
         viewModelScope.launch {
             try {
-                val res = repository.queryShow("wifi/spectrum")
+                val res = repository.queryShow("interface/spectrum")
                 if (res != null) {
                     _spectrumData.value = InterfaceDetailParser.parseSpectrum(res)
                 }
@@ -3376,7 +3376,7 @@ class RouterViewModel : ViewModel() {
     fun loadWpsStatus() {
         viewModelScope.launch {
             try {
-                val res = repository.queryShow("wifi/wps")
+                val res = repository.queryShow("interface/wps")
                 if (res != null) {
                     _wpsStatus.value = InterfaceDetailParser.parseWps(res)
                 }
@@ -3389,7 +3389,7 @@ class RouterViewModel : ViewModel() {
     fun loadMwsStatus() {
         viewModelScope.launch {
             try {
-                val res = repository.queryShow("wifi/mws")
+                val res = repository.queryShow("mws")
                 if (res != null) {
                     _mwsStatus.value = InterfaceDetailParser.parseMws(res)
                     _mwsMembers.value = InterfaceDetailParser.parseMwsMembers(res)
