@@ -1,7 +1,5 @@
 package com.keenetic.local.api
 
-import com.google.gson.JsonElement
-import com.keenetic.local.util.AppLogger
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
 import java.lang.reflect.Proxy
@@ -20,21 +18,22 @@ class RouterRepository : KeeneticRciRepository() {
     override fun rebuildRetrofit(baseUrl: String) {
         super.rebuildRetrofit(baseUrl)
 
-        // The web configurator uses a few RCI paths that are not exposed by the
-        // generic show/path names used by the app. Normalize them here so every
-        // existing queryShow(...) caller gets the real Keenetic RCI path.
+        // The web configurator uses a few RCI paths that differ from the
+        // generic names used by the app. Normalize them centrally so all
+        // existing queryShow(...) callers use the real Keenetic RCI paths.
         val delegate = rciService ?: return
         rciService = Proxy.newProxyInstance(
             KeeneticRciService::class.java.classLoader,
             arrayOf(KeeneticRciService::class.java)
         ) { _, method, args ->
-            if (method.name == "queryShow" && args != null && args.isNotEmpty()) {
-                val originalPath = args[0] as? String
+            val callArgs = args?.copyOf() ?: emptyArray()
+            if (method.name == "queryShow" && callArgs.isNotEmpty()) {
+                val originalPath = callArgs[0] as? String
                 if (originalPath != null) {
-                    args[0] = normalizeShowPath(originalPath)
+                    callArgs[0] = normalizeShowPath(originalPath)
                 }
             }
-            method.invoke(delegate, *(args ?: emptyArray()))
+            method.invoke(delegate, *callArgs)
         } as KeeneticRciService
 
         val retrofit = Retrofit.Builder()
