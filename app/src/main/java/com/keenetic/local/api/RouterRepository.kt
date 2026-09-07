@@ -18,9 +18,9 @@ class RouterRepository : KeeneticRciRepository() {
     override fun rebuildRetrofit(baseUrl: String) {
         super.rebuildRetrofit(baseUrl)
 
-        // The web configurator uses a few RCI paths that differ from the
-        // generic names used by the app. Normalize them centrally so all
-        // existing queryShow(...) callers use the real Keenetic RCI paths.
+        // The web configurator and the CLI use a few different names for the
+        // same RCI show trees. Normalize compatibility aliases in one place so
+        // all existing queryShow(...) callers reach the canonical RCI endpoint.
         val delegate = rciService ?: return
         rciService = Proxy.newProxyInstance(
             KeeneticRciService::class.java.classLoader,
@@ -44,16 +44,12 @@ class RouterRepository : KeeneticRciRepository() {
         restApi = retrofit.create(KeeneticRestApi::class.java)
     }
 
-    /**
-     * Reconfigures router base URL with host, port, and HTTPS mode.
-     */
+    /** Reconfigures router base URL with host, port, and HTTPS mode. */
     fun initApi(host: String, port: String, useHttps: Boolean = false) {
         configureBaseUrl(host, port, useHttps)
     }
 
-    /**
-     * Returns the typed [KeeneticRestApi] instance for KeeneticOS endpoints.
-     */
+    /** Returns the typed [KeeneticRestApi] instance for KeeneticOS endpoints. */
     fun getRestApi(): KeeneticRestApi {
         if (restApi == null) {
             initApi("192.168.1.1", "80")
@@ -61,15 +57,13 @@ class RouterRepository : KeeneticRciRepository() {
         return restApi!!
     }
 
-    /**
-     * Clears session cookies and any active authentication headers.
-     */
+    /** Clears session cookies and any active authentication headers. */
     fun clearSession() {
         clearAuth()
     }
 
     private fun normalizeShowPath(path: String): String {
-        val normalized = path.trim().trim('/')
+        val normalized = path.trim().trim('/').replace(Regex("/+"), "/")
         return when (normalized) {
             // Web configurator: show.sc.ip.static
             "ip/static" -> "sc/ip/static"
@@ -79,6 +73,27 @@ class RouterRepository : KeeneticRciRepository() {
 
             // Web configurator: show.components
             "components/list" -> "components"
+
+            // The app historically used the plural form, while the RCI tree
+            // used by the firewall page is show ip rule.
+            "ip/rules" -> "ip/rule"
+
+            // Canonical RCI status branches used by the system detail pages.
+            // show ntp status -> /rci/show/ntp/status
+            "ntp" -> "ntp/status"
+
+            // show mws status -> /rci/show/mws/status
+            "mws" -> "mws/status"
+
+            // show mws member -> /rci/show/mws/member
+            "mws/members" -> "mws/member"
+
+            // CLI exposes "show ipv6 prefixes"; the RCI tree is plural too.
+            "ipv6/prefix" -> "ipv6/prefixes"
+
+            // CLI uses plural "routes", while the HTTP RCI endpoint is the
+            // singular route resource.
+            "ipv6/routes" -> "ipv6/route"
 
             else -> normalized
         }
