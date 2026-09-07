@@ -392,11 +392,12 @@ open class KeeneticRciRepository(
      * First attempts direct GET /rci/show/$path; if rejected or unavailable, falls back to POST /rci/.
      */
     suspend fun queryShow(path: String, fallbackCommand: Map<String, Any>? = null): JsonElement? {
+        val normalizedPath = normalizeShowPath(path)
         return try {
             val service = getService()
 
-            // 1. Direct GET /rci/show/$path
-            val getRes = service.queryShow(path)
+            // 1. Direct GET /rci/show/<normalized path>
+            val getRes = service.queryShow(normalizedPath)
             if (getRes.isSuccessful) {
                 val body = getRes.body()
                 if (body != null && !isRciError(body)) {
@@ -404,8 +405,8 @@ open class KeeneticRciRepository(
                 }
             }
 
-            // 2. Fallback via POST /rci/ batch
-            val cmd = fallbackCommand ?: pathToCommandMap(path)
+            // 2. Fallback via POST /rci/. Build the command from the same normalized path.
+            val cmd = fallbackCommand ?: pathToCommandMap(normalizedPath)
             val postRes = service.executeRci(listOf(mapOf("show" to cmd)))
             if (postRes.isSuccessful) {
                 val pBody = postRes.body()
@@ -416,8 +417,23 @@ open class KeeneticRciRepository(
 
             null
         } catch (e: Exception) {
-            AppLogger.logError("queryShow($path)", e)
+            AppLogger.logError("queryShow($normalizedPath)", e)
             null
+        }
+    }
+
+    /**
+     * Compatibility aliases left in older UI/parser code. These are normalized before
+     * both GET /rci/show and POST /rci/ are attempted so the two transports use
+     * exactly the same valid RCI tree.
+     */
+    private fun normalizeShowPath(path: String): String {
+        val clean = path.trim().trim('/').replace(Regex("/+"), "/")
+        return when (clean) {
+            "ip/static" -> "sc/ip/static"
+            "ip/access-list" -> "sc/interface/mac.access-list"
+            "components/list" -> "components"
+            else -> clean
         }
     }
 
