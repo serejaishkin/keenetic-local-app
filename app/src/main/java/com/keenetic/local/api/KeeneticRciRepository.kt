@@ -23,6 +23,11 @@ import javax.net.ssl.SSLContext
 import javax.net.ssl.TrustManager
 import javax.net.ssl.X509TrustManager
 
+data class AuthResult(
+    val success: Boolean,
+    val errorMessage: String? = null
+)
+
 /**
  * Data repository class handling RCI (Remote Control Interface) REST API requests
  * to the Keenetic router, including dynamic base URL configuration and authentication header support.
