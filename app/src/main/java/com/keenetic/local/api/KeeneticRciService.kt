@@ -293,10 +293,10 @@ interface KeeneticRciService {
     /**
      * Retrieve static route configurations.
      */
-    @GET("rci/show/ip/static")
+    @GET("rci/show/sc/ip/static")
     suspend fun getIpStaticRaw(): Response<JsonElement>
 
-    @GET("rci/show/ip/static")
+    @GET("rci/show/sc/ip/static")
     suspend fun getStaticRoutes(): Response<JsonElement>
 
     /**
@@ -378,10 +378,10 @@ interface KeeneticRciService {
     /**
      * IP Access Lists (ACLs).
      */
-    @GET("rci/show/ip/access-list")
+    @GET("rci/show/sc/interface/mac.access-list")
     suspend fun getAccessListRaw(): Response<JsonElement>
 
-    @GET("rci/show/ip/access-list")
+    @GET("rci/show/sc/interface/mac.access-list")
     suspend fun getAccessLists(): Response<JsonElement>
 
     /**

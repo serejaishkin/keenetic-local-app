@@ -438,6 +438,32 @@ open class KeeneticRciRepository(
     }
 
     /**
+     * Reads the router system log. KeeneticOS exposes the syslog only through the
+     * POST command `show log {"max-lines":N}` (the way the web configurator does);
+     * there is no GET /rci/show/log tree, so a plain queryShow("log") produced
+     * "not found" entries in the router log.
+     */
+    suspend fun queryLog(maxLines: Int = 300): JsonElement? {
+        val command = mapOf("show" to mapOf("log" to mapOf("max-lines" to maxLines)))
+        return try {
+            val response = getService().executeRci(listOf(command))
+            if (response.isSuccessful) {
+                val body = response.body()
+                if (body != null && !isRciError(body)) {
+                    extractFirstRciResult(body)
+                } else {
+                    null
+                }
+            } else {
+                null
+            }
+        } catch (e: Exception) {
+            AppLogger.logError("queryLog", e)
+            null
+        }
+    }
+
+    /**
      * Queries running configuration section (show.sc.*).
      */
     suspend fun querySc(section: String, subSection: String? = null): JsonElement? {

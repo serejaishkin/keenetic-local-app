@@ -1580,7 +1580,7 @@ class RouterViewModel : ViewModel() {
         if (_isDemoMode.value && _systemLogs.value.isNotEmpty()) return
         viewModelScope.launch {
             try {
-                val res = repository.queryShow("log")
+                val res = repository.queryLog()
                 if (res != null) {
                     val list = mutableListOf<SystemLogEntry>()
                     val arr = when {
@@ -1589,6 +1589,12 @@ class RouterViewModel : ViewModel() {
                             res.asJsonObject.getAsJsonArray("log")
                         res.isJsonObject && res.asJsonObject.has("entry") && res.asJsonObject.get("entry").isJsonArray ->
                             res.asJsonObject.getAsJsonArray("entry")
+                        res.isJsonObject && res.asJsonObject.size() > 0 && !res.asJsonObject.has("log") && !res.asJsonObject.has("entry") -> {
+                            // Web configurator: show log returns an object whose values are the log entries.
+                            val arrTemp = com.google.gson.JsonArray()
+                            for ((_, v) in res.asJsonObject.entrySet()) arrTemp.add(v)
+                            arrTemp
+                        }
                         else -> null
                     }
 
@@ -1602,11 +1608,21 @@ class RouterViewModel : ViewModel() {
                                     ?: o.get("ident")?.takeIf { p -> p.isJsonPrimitive }?.asString ?: "ndm"
                                 val level = o.get("level")?.takeIf { p -> p.isJsonPrimitive }?.asString
                                     ?: o.get("priority")?.takeIf { p -> p.isJsonPrimitive }?.asString ?: "info"
-                                val msg = o.get("message")?.takeIf { p -> p.isJsonPrimitive }?.asString
-                                    ?: o.get("msg")?.takeIf { p -> p.isJsonPrimitive }?.asString ?: ""
+                                val msg = o.get("message")
+                                val msgText = when {
+                                    msg != null && msg.isJsonObject -> {
+                                        msg.asJsonObject.get("message")?.takeIf { p -> p.isJsonPrimitive }?.asString
+                                            ?: msg.asJsonObject.get("msg")?.takeIf { p -> p.isJsonPrimitive }?.asString ?: ""
+                                    }
+                                    msg != null && msg.isJsonPrimitive -> msg.asString
+                                    else -> o.get("msg")?.takeIf { p -> p.isJsonPrimitive }?.asString ?: ""
+                                }
+                                val msgLevel = msg?.takeIf { it.isJsonObject }
+                                    ?.asJsonObject?.get("level")?.takeIf { p -> p.isJsonPrimitive }?.asString
+                                val finalLevel = msgLevel ?: level
 
-                                if (msg.isNotBlank()) {
-                                    list.add(SystemLogEntry(time, facility, level, msg))
+                                if (msgText.isNotBlank()) {
+                                    list.add(SystemLogEntry(time, facility, finalLevel, msgText))
                                 }
                             } else if (el.isJsonPrimitive) {
                                 val line = el.asString
@@ -1634,7 +1650,9 @@ class RouterViewModel : ViewModel() {
         if (_isDemoMode.value && _mobileModemStatus.value.connected) return
         viewModelScope.launch {
             try {
-                val mobileRes = repository.queryShow("mobile") ?: repository.queryShow("sim") ?: repository.queryShow("interface")
+                // Web configurator has no show/mobile or show/sim tree: the modem state
+                // is read from the interface map (show.interface UsbModem*), so query it directly.
+                val mobileRes = repository.queryShow("interface")
                 var modemConnected = false
                 var operator = ""
                 var networkType = "4G/LTE"
