@@ -115,6 +115,9 @@ class RouterViewModel : ViewModel() {
     private val _interfaces = MutableStateFlow<List<RouterInterface>>(emptyList())
     val interfaces: StateFlow<List<RouterInterface>> = _interfaces.asStateFlow()
 
+    private val _vpnConnections = MutableStateFlow<List<VpnConnection>>(emptyList())
+    val vpnConnections: StateFlow<List<VpnConnection>> = _vpnConnections.asStateFlow()
+
     private val _wifiNetworks = MutableStateFlow<List<WifiNetworkInfo>>(emptyList())
     val wifiNetworks: StateFlow<List<WifiNetworkInfo>> = _wifiNetworks.asStateFlow()
 
@@ -180,6 +183,9 @@ class RouterViewModel : ViewModel() {
     private val _dnsFilterProfiles = MutableStateFlow<ApiCallState>(ApiCallState.Loading)
     val dnsFilterProfiles: StateFlow<ApiCallState> = _dnsFilterProfiles.asStateFlow()
 
+    private val _dnsFilterInstalled = MutableStateFlow(true)
+    val dnsFilterInstalled: StateFlow<Boolean> = _dnsFilterInstalled.asStateFlow()
+
     private val _dnsFilterPresetList = MutableStateFlow<List<DnsFilterPreset>>(emptyList())
     val dnsFilterPresetList: StateFlow<List<DnsFilterPreset>> = _dnsFilterPresetList.asStateFlow()
 
@@ -233,6 +239,21 @@ class RouterViewModel : ViewModel() {
 
     private val _dohUpstream = MutableStateFlow<List<String>>(emptyList())
     val dohUpstream: StateFlow<List<String>> = _dohUpstream.asStateFlow()
+
+    private val _dohServers = MutableStateFlow<List<DohServerInfo>>(emptyList())
+    val dohServers: StateFlow<List<DohServerInfo>> = _dohServers.asStateFlow()
+
+    private val _dotUpstream = MutableStateFlow<List<String>>(emptyList())
+    val dotUpstream: StateFlow<List<String>> = _dotUpstream.asStateFlow()
+
+    private val _dotServers = MutableStateFlow<List<DotServerInfo>>(emptyList())
+    val dotServers: StateFlow<List<DotServerInfo>> = _dotServers.asStateFlow()
+
+    private val _scNameServers = MutableStateFlow<List<DnsServerInfo>>(emptyList())
+    val scNameServers: StateFlow<List<DnsServerInfo>> = _scNameServers.asStateFlow()
+
+    private val _dnsInterceptEnabled = MutableStateFlow<Boolean?>(null)
+    val dnsInterceptEnabled: StateFlow<Boolean?> = _dnsInterceptEnabled.asStateFlow()
 
     private val _autoUpdateEnabled = MutableStateFlow<Boolean?>(null)
     val autoUpdateEnabled: StateFlow<Boolean?> = _autoUpdateEnabled.asStateFlow()
@@ -1175,9 +1196,23 @@ class RouterViewModel : ViewModel() {
 
                     _interfaces.value = ifaceList
                     _wifiNetworks.value = updatedWifi
+                    _vpnConnections.value = InterfaceMapper.toVpnConnections(res)
                 }
             } catch (e: Exception) {
                 AppLogger.logError("loadInterfaces", e)
+            }
+        }
+    }
+
+    fun loadVpnConnections() {
+        viewModelScope.launch {
+            try {
+                val res = repository.queryShow("interface")
+                if (res != null) {
+                    _vpnConnections.value = InterfaceMapper.toVpnConnections(res)
+                }
+            } catch (e: Exception) {
+                AppLogger.logError("loadVpnConnections", e)
             }
         }
     }
@@ -2094,10 +2129,96 @@ class RouterViewModel : ViewModel() {
         _mobileModemStatus.value = _mobileModemStatus.value.copy(networkType = mode)
         viewModelScope.launch {
             try {
-                val cmd = mapOf("interface" to mapOf("usb" to mapOf("modem" to mapOf("mode" to mode.lowercase())), "name" to "UsbModem0"))
+                // Get the first available modem interface
+                val modemInterface = _interfaces.value.firstOrNull { it.type.lowercase() == "modem" || it.type.lowercase() == "usbmodem" }?.id ?: "UsbModem0"
+                
+                val cmd = mapOf("interface" to mapOf("name" to modemInterface, "modem" to mapOf("mode" to mode.lowercase())))
                 repository.executeRciWithSave(listOf(cmd))
             } catch (e: Exception) {
                 AppLogger.logError("setModemMode", e)
+            }
+        }
+    }
+
+    fun setMobileActivationType(type: String) {
+        viewModelScope.launch {
+            try {
+                // Web UI: mobile.app.activation_type = always | backup | schedule | disabled
+                val cmd = mapOf("mobile" to mapOf("app" to mapOf("activation_type" to type.lowercase())))
+                repository.executeRciWithSave(listOf(cmd))
+            } catch (e: Exception) {
+                AppLogger.logError("setMobileActivationType", e)
+            }
+        }
+    }
+
+    fun sendUssdCommand(command: String) {
+        viewModelScope.launch {
+            try {
+                // Web UI modem diagnostics: mobile.req_diag.chat
+                val cmd = mapOf("mobile" to mapOf("req_diag" to mapOf("chat" to command)))
+                repository.executeRciWithSave(listOf(cmd))
+            } catch (e: Exception) {
+                AppLogger.logError("sendUssdCommand", e)
+            }
+        }
+    }
+
+    fun updateMobileConnectionSettings(
+        interfaceId: String? = null,
+        apn: String? = null,
+        username: String? = null,
+        password: String? = null,
+        phone: String? = null,
+        atCommands: List<String>? = null,
+        ttlModification: String? = null,
+        ignoreRemoteDns: Boolean? = null
+    ) {
+        viewModelScope.launch {
+            try {
+                val modemInterface = interfaceId
+                    ?: _interfaces.value.firstOrNull { it.type.lowercase().contains("modem") }?.id
+                    ?: "UsbModem0"
+                val mobileMap = linkedMapOf<String, Any>()
+                if (apn != null) mobileMap["apn"] = mapOf("apn" to apn, "comment" to "")
+                if (username != null) mobileMap["username"] = username
+                if (password != null) mobileMap["password"] = password
+                if (phone != null) mobileMap["phone"] = phone
+                if (atCommands != null) mobileMap["init"] = atCommands
+                if (ttlModification != null) mobileMap["ttl-modification"] = ttlModification
+                if (ignoreRemoteDns != null) mobileMap["ignore-remote-dns"] = ignoreRemoteDns
+                if (mobileMap.isEmpty()) return@launch
+
+                val cmd = mapOf("interface" to mapOf("name" to modemInterface, "mobile" to mobileMap))
+                repository.executeRciWithSave(listOf(cmd))
+                loadMobileStatus()
+            } catch (e: Exception) {
+                AppLogger.logError("updateMobileConnectionSettings", e)
+            }
+        }
+    }
+
+    fun updateWispClientSettings(
+        id: String,
+        ssid: String? = null,
+        password: String? = null,
+        channel: String? = null,
+        bssid: String? = null
+    ) {
+        viewModelScope.launch {
+            try {
+                val wirelessMap = linkedMapOf<String, Any>()
+                if (ssid != null) wirelessMap["ssid"] = ssid
+                if (password != null) wirelessMap["authentication"] = mapOf("wpa-psk" to password)
+                if (channel != null) wirelessMap["channel"] = channel
+                if (bssid != null) wirelessMap["bssid"] = bssid
+                if (wirelessMap.isEmpty()) return@launch
+
+                val cmd = mapOf("interface" to mapOf(id to mapOf("wireless" to wirelessMap)))
+                repository.executeRciWithSave(listOf(cmd))
+                loadInterfaces()
+            } catch (e: Exception) {
+                AppLogger.logError("updateWispClientSettings", e)
             }
         }
     }
@@ -2161,7 +2282,6 @@ class RouterViewModel : ViewModel() {
         viewModelScope.launch {
             _isWifiLoading.value = true
             try {
-                val wifiShow = repository.queryShow("wifi")
                 val assocShow = repository.queryShow("associations")
                 val hotspotShow = repository.queryShow("ip/hotspot")
                 val ifaceShow = repository.queryShow("interface")
@@ -2201,7 +2321,6 @@ class RouterViewModel : ViewModel() {
                 }
 
                 collectAssocs(assocShow)
-                collectAssocs(wifiShow)
 
                 val parsedClients = mutableListOf<WirelessClient>()
                 val seenMacs = mutableSetOf<String>()
@@ -2295,10 +2414,12 @@ class RouterViewModel : ViewModel() {
                     _wirelessClients.value = parsedClients.sortedWith(compareBy<WirelessClient> { it.band }.thenBy { -(it.rssi ?: -999) })
                 }
 
-                // 2. Parse WifiStation interface
-                val st0 = repository.queryShow("interface/WifiMaster0/WifiStation0")
-                    ?: repository.queryShow("interface/WifiStation0")
-                val st1 = repository.queryShow("interface/WifiMaster1/WifiStation0")
+                // 2. Parse WifiStation interface (only if it exists)
+                val knownInterfaces = _interfaces.value.map { it.id }
+                val hasSt0 = knownInterfaces.any { it.contains("WifiStation0") && it.contains("WifiMaster0") }
+                val hasSt1 = knownInterfaces.any { it.contains("WifiStation0") && it.contains("WifiMaster1") }
+                val st0 = if (hasSt0) repository.queryShow("interface/WifiMaster0/WifiStation0") else null
+                val st1 = if (hasSt1) repository.queryShow("interface/WifiMaster1/WifiStation0") else null
                 val activeStationJson = when {
                     st0 != null && st0.isJsonObject && st0.asJsonObject.get("state")?.asString?.equals("up", ignoreCase = true) == true -> st0.asJsonObject
                     st1 != null && st1.isJsonObject && st1.asJsonObject.get("state")?.asString?.equals("up", ignoreCase = true) == true -> st1.asJsonObject
@@ -2614,7 +2735,12 @@ class RouterViewModel : ViewModel() {
     }
 
     fun addPortForwardingRule(rule: PortForwardingRule) {
-        _portForwardingRules.value = _portForwardingRules.value + rule
+        _portForwardingRules.value =
+            if (_portForwardingRules.value.any { it.id == rule.id }) {
+                _portForwardingRules.value.map { if (it.id == rule.id) rule else it }
+            } else {
+                _portForwardingRules.value + rule
+            }
         viewModelScope.launch {
             try {
                 val cmd = mapOf(
@@ -2643,7 +2769,12 @@ class RouterViewModel : ViewModel() {
     }
 
     fun addFirewallRule(rule: FirewallRule) {
-        _firewallRules.value = _firewallRules.value + rule
+        _firewallRules.value =
+            if (_firewallRules.value.any { it.id == rule.id }) {
+                _firewallRules.value.map { if (it.id == rule.id) rule else it }
+            } else {
+                _firewallRules.value + rule
+            }
         viewModelScope.launch {
             try {
                 val aclName = "_WEBADMIN_${rule.interfaceName}"
@@ -2674,7 +2805,12 @@ class RouterViewModel : ViewModel() {
     }
 
     fun addStaticRoute(route: StaticRoute) {
-        _staticRoutes.value = _staticRoutes.value + route
+        _staticRoutes.value =
+            if (_staticRoutes.value.any { it.id == route.id }) {
+                _staticRoutes.value.map { if (it.id == route.id) route else it }
+            } else {
+                _staticRoutes.value + route
+            }
         viewModelScope.launch {
             try {
                 val routeMap = mutableMapOf<String, Any>(
@@ -2701,10 +2837,24 @@ class RouterViewModel : ViewModel() {
             _dnsFilterPresets.value = ApiCallState.Loading
             _dnsFilterProfiles.value = ApiCallState.Loading
             try {
+                // Component presence check (mirrors sc/cloud detection) - avoids 404 noise
+                // when the Internet Filter component is not installed on the router.
+                val component = repository.queryShow("sc/dns-proxy/filter")
+                if (component == null) {
+                    _dnsFilterInstalled.value = false
+                    _dnsFilterPresetList.value = emptyList()
+                    _dnsFilterProfileList.value = emptyList()
+                    _dnsFilterPresets.value = ApiCallState.Error("Компонент не установлен")
+                    _dnsFilterProfiles.value = ApiCallState.Error("Компонент не установлен")
+                    return@launch
+                }
+                _dnsFilterInstalled.value = true
+
+                // Live presets + configured profiles (same RCI paths as web morda).
                 val response = repository.getRestApi().executeRci(
                     listOf(
                         mapOf("show" to mapOf("dns-proxy" to mapOf("filter" to mapOf("presets" to emptyMap<String, Any>())))),
-                        mapOf("show" to mapOf("dns-proxy" to mapOf("filter" to mapOf("profiles" to emptyMap<String, Any>()))))
+                        mapOf("show" to mapOf("sc" to mapOf("dns-proxy" to mapOf("filter" to mapOf("profile" to emptyMap<String, Any>())))))
                     )
                 )
                 if (response.isSuccessful) {
@@ -2714,7 +2864,7 @@ class RouterViewModel : ViewModel() {
                         val item0 = if (arr.size() > 0) arr.get(0) else null
                         val item1 = if (arr.size() > 1) arr.get(1) else null
                         val p0 = item0?.asJsonObject?.getAsJsonObject("show")?.getAsJsonObject("dns-proxy")?.getAsJsonObject("filter")?.get("presets")
-                        val p1 = item1?.asJsonObject?.getAsJsonObject("show")?.getAsJsonObject("dns-proxy")?.getAsJsonObject("filter")?.get("profiles")
+                        val p1 = item1?.asJsonObject?.getAsJsonObject("show")?.getAsJsonObject("sc")?.getAsJsonObject("dns-proxy")?.getAsJsonObject("filter")?.get("profile")
                         _dnsFilterPresets.value = if (p0 != null) ApiCallState.Success(p0) else ApiCallState.Error("Пустой ответ")
                         _dnsFilterProfiles.value = if (p1 != null) ApiCallState.Success(p1) else ApiCallState.Error("Пустой ответ")
 
@@ -3013,6 +3163,10 @@ class RouterViewModel : ViewModel() {
                 if (res != null) {
                     _nameServers.value = DnsAndScheduleParser.parseNameServers(res)
                 }
+                val scRes = repository.querySc("ip", "name-server")
+                if (scRes != null) {
+                    _scNameServers.value = DnsAndScheduleParser.parseScNameServers(scRes)
+                }
             } catch (e: Exception) {
                 AppLogger.logError("loadNameServers", e)
             }
@@ -3022,9 +3176,17 @@ class RouterViewModel : ViewModel() {
     fun loadDohUpstream() {
         viewModelScope.launch {
             try {
-                val res = repository.queryShow("dns-proxy/https/upstream")
-                if (res != null) {
-                    _dohUpstream.value = DnsAndScheduleParser.parseDohUpstream(res)
+                val response = repository.getRestApi().executeRci(
+                    listOf(mapOf("show" to mapOf("sc" to mapOf("dns-proxy" to mapOf("https" to mapOf("upstream" to emptyMap<String, Any>()))))))
+                )
+                if (response.isSuccessful) {
+                    val body = response.body()
+                    val upstream = if (body?.isJsonArray == true && body.asJsonArray.size() > 0) {
+                        body.asJsonArray[0].asJsonObject?.getAsJsonObject("show")?.getAsJsonObject("sc")
+                            ?.getAsJsonObject("dns-proxy")?.getAsJsonObject("https")?.get("upstream")
+                    } else body
+                    _dohServers.value = DnsAndScheduleParser.parseDohServers(upstream)
+                    _dohUpstream.value = DnsAndScheduleParser.parseDohUpstream(upstream)
                 }
             } catch (e: Exception) {
                 AppLogger.logError("loadDohUpstream", e)
@@ -3032,18 +3194,162 @@ class RouterViewModel : ViewModel() {
         }
     }
 
-    fun setCustomDoh(url: String, interfaceName: String? = null) {
+    fun loadDotUpstream() {
         viewModelScope.launch {
             try {
-                val dohMap = mutableMapOf<String, Any>("url" to url)
-                if (!interfaceName.isNullOrBlank()) dohMap["interface"] = interfaceName
-                val cmd = mapOf("dns-proxy" to mapOf("https" to mapOf("upstream" to listOf(dohMap))))
+                val response = repository.getRestApi().executeRci(
+                    listOf(mapOf("show" to mapOf("sc" to mapOf("dns-proxy" to mapOf("tls" to mapOf("upstream" to emptyMap<String, Any>()))))))
+                )
+                if (response.isSuccessful) {
+                    val body = response.body()
+                    val upstream = if (body?.isJsonArray == true && body.asJsonArray.size() > 0) {
+                        body.asJsonArray[0].asJsonObject?.getAsJsonObject("show")?.getAsJsonObject("sc")
+                            ?.getAsJsonObject("dns-proxy")?.getAsJsonObject("tls")?.get("upstream")
+                    } else body
+                    _dotServers.value = DnsAndScheduleParser.parseDotServers(upstream)
+                    _dotUpstream.value = DnsAndScheduleParser.parseDotUpstream(upstream)
+                }
+            } catch (e: Exception) {
+                AppLogger.logError("loadDotUpstream", e)
+            }
+        }
+    }
+
+    /** Полная перезапись списка DoH-серверов (как это делает веб-конфигуратор). */
+    fun setDohUpstreams(servers: List<DohServerInfo>) {
+        viewModelScope.launch {
+            try {
+                val list = servers.map { s ->
+                    mutableMapOf<String, Any>("url" to s.url).apply {
+                        if (!s.interfaceName.isNullOrBlank()) put("interface", s.interfaceName!!)
+                    }
+                }
+                val cmd = mapOf("dns-proxy" to mapOf("https" to mapOf("upstream" to list)))
                 repository.executeRciWithSave(listOf(cmd))
                 loadDohUpstream()
             } catch (e: Exception) {
-                AppLogger.logError("setCustomDoh", e)
+                AppLogger.logError("setDohUpstreams", e)
             }
         }
+    }
+
+    /** Полная перезапись списка DoT-серверов. */
+    fun setDotUpstreams(servers: List<DotServerInfo>) {
+        viewModelScope.launch {
+            try {
+                val list = servers.map { s ->
+                    mutableMapOf<String, Any>().apply {
+                        s.address?.let { put("address", it) }
+                        s.fqdn?.let { put("fqdn", it) }
+                        if (!s.interfaceName.isNullOrBlank()) put("interface", s.interfaceName!!)
+                    }
+                }
+                val cmd = mapOf("dns-proxy" to mapOf("tls" to mapOf("upstream" to list)))
+                repository.executeRciWithSave(listOf(cmd))
+                loadDotUpstream()
+            } catch (e: Exception) {
+                AppLogger.logError("setDotUpstreams", e)
+            }
+        }
+    }
+
+    fun addDohServer(url: String, interfaceName: String? = null) {
+        setDohUpstreams(_dohServers.value.filter { it.url != url } + DohServerInfo(url = url, interfaceName = interfaceName))
+    }
+
+    fun removeDohServer(url: String, interfaceName: String? = null) {
+        setDohUpstreams(
+            _dohServers.value.filter {
+                if (interfaceName.isNullOrBlank()) it.url != url
+                else it.url != url || it.interfaceName != interfaceName
+            }
+        )
+    }
+
+    fun addDotServer(address: String, fqdn: String? = null, interfaceName: String? = null) {
+        val existing = _dotServers.value.filter {
+            it.address != address && (fqdn.isNullOrBlank() || it.fqdn != fqdn)
+        }
+        setDotUpstreams(existing + DotServerInfo(address = address, fqdn = fqdn, interfaceName = interfaceName))
+    }
+
+    fun removeDotServer(address: String, interfaceName: String? = null) {
+        setDotUpstreams(
+            _dotServers.value.filter {
+                if (interfaceName.isNullOrBlank()) it.address != address
+                else it.address != address || it.interfaceName != interfaceName
+            }
+        )
+    }
+
+    /** Ручные plain DNS (ip name-server). Добавление/удаление записей списка. */
+    fun setPlainDnsServers(servers: List<DnsServerInfo>) {
+        viewModelScope.launch {
+            try {
+                val list = servers.map { s ->
+                    mutableMapOf<String, Any>("address" to (s.address ?: "")).apply {
+                        s.interfaceName?.let { put("interface", it) }
+                    }
+                }
+                val cmd = mapOf("ip" to mapOf("name-server" to list))
+                repository.executeRciWithSave(listOf(cmd))
+                loadNameServers()
+            } catch (e: Exception) {
+                AppLogger.logError("setPlainDnsServers", e)
+            }
+        }
+    }
+
+    fun addPlainDnsServer(address: String, interfaceName: String) {
+        val existing = _scNameServers.value
+        if (existing.any { it.address == address && it.interfaceName == interfaceName }) return
+        setPlainDnsServers(existing + DnsServerInfo(address = address, interfaceName = interfaceName))
+    }
+
+    fun removePlainDnsServer(address: String, interfaceName: String) {
+        setPlainDnsServers(
+            _scNameServers.value.filter { it.address != address || it.interfaceName != interfaceName }
+        )
+    }
+
+    fun loadDnsIntercept() {
+        viewModelScope.launch {
+            try {
+                val response = repository.getRestApi().executeRci(
+                    listOf(mapOf("show" to mapOf("sc" to mapOf("dns-proxy" to mapOf("intercept" to emptyMap<String, Any>()))))))
+                if (response.isSuccessful) {
+                    var enable: Boolean? = null
+                    val body = response.body()
+                    if (body?.isJsonArray == true && body.asJsonArray.size() > 0) {
+                        val o = body.asJsonArray[0].asJsonObject
+                            ?.getAsJsonObject("show")?.getAsJsonObject("sc")?.getAsJsonObject("dns-proxy")
+                            ?.getAsJsonObject("intercept")
+                        enable = o?.get("enable")?.takeIf { it.isJsonPrimitive }?.asBoolean
+                    } else if (body?.isJsonObject == true) {
+                        enable = body.asJsonObject.get("enable")?.takeIf { it.isJsonPrimitive }?.asBoolean
+                    }
+                    _dnsInterceptEnabled.value = enable
+                }
+            } catch (e: Exception) {
+                AppLogger.logError("loadDnsIntercept", e)
+            }
+        }
+    }
+
+    fun setDnsIntercept(enabled: Boolean) {
+        viewModelScope.launch {
+            try {
+                val cmd = mapOf("dns-proxy" to mapOf("intercept" to mapOf("enable" to enabled)))
+                repository.executeRciWithSave(listOf(cmd))
+                _dnsInterceptEnabled.value = enabled
+            } catch (e: Exception) {
+                AppLogger.logError("setDnsIntercept", e)
+            }
+        }
+    }
+
+    fun setCustomDoh(url: String, interfaceName: String? = null) {
+        addDohServer(url, interfaceName)
     }
 
     fun loadAutoUpdateStatus() {
@@ -3181,15 +3487,6 @@ class RouterViewModel : ViewModel() {
     private val _dyndnsUpdaters = MutableStateFlow<List<DyndnsUpdater>>(emptyList())
     val dyndnsUpdaters: StateFlow<List<DyndnsUpdater>> = _dyndnsUpdaters.asStateFlow()
 
-    private val _nextdnsProfile = MutableStateFlow(NextdnsProfileFull())
-    val nextdnsProfile: StateFlow<NextdnsProfileFull> = _nextdnsProfile.asStateFlow()
-
-    private val _safednsProfile = MutableStateFlow(SafednsProfileFull())
-    val safednsProfile: StateFlow<SafednsProfileFull> = _safednsProfile.asStateFlow()
-
-    private val _skydnsProfile = MutableStateFlow(SkydnsProfileFull())
-    val skydnsProfile: StateFlow<SkydnsProfileFull> = _skydnsProfile.asStateFlow()
-
     private val _upnpRedirects = MutableStateFlow<List<UpnpRedirect>>(emptyList())
     val upnpRedirects: StateFlow<List<UpnpRedirect>> = _upnpRedirects.asStateFlow()
 
@@ -3207,6 +3504,9 @@ class RouterViewModel : ViewModel() {
 
     private val _cloudNdmp = MutableStateFlow(CloudNdmp())
     val cloudNdmp: StateFlow<CloudNdmp> = _cloudNdmp.asStateFlow()
+
+    private val _cloudInstalled = MutableStateFlow(true)
+    val cloudInstalled: StateFlow<Boolean> = _cloudInstalled.asStateFlow()
 
     private val _sshSettings = MutableStateFlow(SshSettings())
     val sshSettings: StateFlow<SshSettings> = _sshSettings.asStateFlow()
@@ -3290,10 +3590,10 @@ class RouterViewModel : ViewModel() {
     fun loadNtpStatus() {
         viewModelScope.launch {
             try {
+                val flags = repository.querySc("service")?.let { SystemDetailParser.parseServiceFlags(it) }
                 val res = repository.queryShow("ntp")
-                if (res != null) {
-                    _ntpStatus.value = SystemDetailParser.parseNtp(res)
-                }
+                val parsed = if (res != null) SystemDetailParser.parseNtp(res) else NtpStatus()
+                _ntpStatus.value = if (flags != null) parsed.copy(enabled = flags.ntp) else parsed
             } catch (e: Exception) {
                 AppLogger.logError("loadNtpStatus", e)
             }
@@ -3628,52 +3928,24 @@ class RouterViewModel : ViewModel() {
         }
     }
 
-    fun loadNextdnsProfile() {
-        viewModelScope.launch {
-            try {
-                val res = repository.queryShow("nextdns")
-                if (res != null) {
-                    _nextdnsProfile.value = ContentFilterParser.parseNextdns(res)
-                }
-            } catch (e: Exception) {
-                AppLogger.logError("loadNextdnsProfile", e)
-            }
-        }
-    }
-
-    fun loadSafednsProfile() {
-        viewModelScope.launch {
-            try {
-                val res = repository.queryShow("safedns")
-                if (res != null) {
-                    _safednsProfile.value = ContentFilterParser.parseSafedns(res)
-                }
-            } catch (e: Exception) {
-                AppLogger.logError("loadSafednsProfile", e)
-            }
-        }
-    }
-
-    fun loadSkydnsProfile() {
-        viewModelScope.launch {
-            try {
-                val res = repository.queryShow("skydns")
-                if (res != null) {
-                    _skydnsProfile.value = ContentFilterParser.parseSkydns(res)
-                }
-            } catch (e: Exception) {
-                AppLogger.logError("loadSkydnsProfile", e)
-            }
-        }
-    }
-
     fun loadUpnpStatus() {
         viewModelScope.launch {
             try {
-                val res = repository.queryShow("upnp")
-                if (res != null) {
-                    _upnpRedirects.value = UpnpParser.parseRedirects(res)
-                    _upnpPinholes.value = UpnpParser.parsePinholes(res)
+                val response = repository.getRestApi().executeRci(
+                    listOf(
+                        mapOf("show" to mapOf("upnp" to mapOf("redirect" to emptyMap<String, Any>()))),
+                        mapOf("show" to mapOf("upnp" to mapOf("pinhole" to emptyMap<String, Any>())))
+                    )
+                )
+                if (response.isSuccessful) {
+                    val body = response.body()
+                    if (body?.isJsonArray == true) {
+                        val arr = body.asJsonArray
+                        val item0 = if (arr.size() > 0) arr.get(0) else null
+                        val item1 = if (arr.size() > 1) arr.get(1) else null
+                        _upnpRedirects.value = UpnpParser.parseRedirects(item0)
+                        _upnpPinholes.value = UpnpParser.parsePinholes(item1)
+                    }
                 }
             } catch (e: Exception) {
                 AppLogger.logError("loadUpnpStatus", e)
@@ -3698,6 +3970,14 @@ class RouterViewModel : ViewModel() {
     fun loadCloudStatus() {
         viewModelScope.launch {
             try {
+                val scRes = repository.queryShow("sc/cloud")
+                if (scRes == null) {
+                    _cloudInstalled.value = false
+                    _cloudStatus.value = CloudStatus()
+                    _cloudNdmp.value = CloudNdmp()
+                    return@launch
+                }
+                _cloudInstalled.value = true
                 val res = repository.queryShow("cloud")
                 if (res != null) {
                     _cloudStatus.value = CloudParser.parseStatus(res)
@@ -3712,9 +3992,11 @@ class RouterViewModel : ViewModel() {
     fun loadSshSettings() {
         viewModelScope.launch {
             try {
+                val flags = repository.querySc("service")?.let { SystemDetailParser.parseServiceFlags(it) }
                 val res = repository.queryShow("ssh")
+                val parsed = if (res != null) SshSnmpParser.parseSsh(res) else SshSettings()
+                _sshSettings.value = if (flags != null) parsed.copy(enabled = flags.ssh) else parsed
                 if (res != null) {
-                    _sshSettings.value = SshSnmpParser.parseSsh(res)
                     _sshFingerprint.value = SshSnmpParser.parseSshFingerprint(res)
                 }
             } catch (e: Exception) {
@@ -3739,10 +4021,10 @@ class RouterViewModel : ViewModel() {
     fun loadFtpSettings() {
         viewModelScope.launch {
             try {
+                val flags = repository.querySc("service")?.let { SystemDetailParser.parseServiceFlags(it) }
                 val res = repository.queryShow("ftp")
-                if (res != null) {
-                    _ftpSettings.value = SshSnmpParser.parseFtp(res)
-                }
+                val parsed = if (res != null) SshSnmpParser.parseFtp(res) else FtpSettings()
+                _ftpSettings.value = if (flags != null) parsed.copy(enabled = flags.ftp) else parsed
             } catch (e: Exception) {
                 AppLogger.logError("loadFtpSettings", e)
             }
@@ -3752,9 +4034,11 @@ class RouterViewModel : ViewModel() {
     fun loadTelnetSettings() {
         viewModelScope.launch {
             try {
-                val res = repository.queryShow("telnet")
-                if (res != null) {
-                    _telnetSettings.value = SshSnmpParser.parseTelnet(res)
+                val flags = repository.querySc("service")?.let { SystemDetailParser.parseServiceFlags(it) }
+                _telnetSettings.value = if (flags != null) {
+                    TelnetSettings(enabled = flags.telnet, port = 23)
+                } else {
+                    SshSnmpParser.parseTelnet(repository.queryShow("telnet"))
                 }
             } catch (e: Exception) {
                 AppLogger.logError("loadTelnetSettings", e)
@@ -3765,9 +4049,11 @@ class RouterViewModel : ViewModel() {
     fun loadHttpProxySettings() {
         viewModelScope.launch {
             try {
-                val res = repository.queryShow("http-proxy")
-                if (res != null) {
-                    _httpProxySettings.value = SshSnmpParser.parseHttpProxy(res)
+                val flags = repository.querySc("service")?.let { SystemDetailParser.parseServiceFlags(it) }
+                _httpProxySettings.value = if (flags != null) {
+                    HttpProxySettings(enabled = flags.httpProxy, port = 3128)
+                } else {
+                    SshSnmpParser.parseHttpProxy(repository.queryShow("http-proxy"))
                 }
             } catch (e: Exception) {
                 AppLogger.logError("loadHttpProxySettings", e)
@@ -3946,11 +4232,23 @@ class RouterViewModel : ViewModel() {
     fun setNtpEnabled(enabled: Boolean) {
         viewModelScope.launch {
             try {
-                val cmd = mapOf("system" to mapOf("clock" to mapOf("ntp" to mapOf("enable" to enabled))))
+                val cmd = mapOf("service" to mapOf("ntp" to enabled))
                 repository.executeRciWithSave(listOf(cmd))
                 loadNtpStatus()
             } catch (e: Exception) {
                 AppLogger.logError("setNtpEnabled", e)
+            }
+        }
+    }
+
+    fun setNtpServer(server: String) {
+        viewModelScope.launch {
+            try {
+                val cmd = mapOf("ntp" to mapOf("server" to server.trim()))
+                repository.executeRciWithSave(listOf(cmd))
+                loadNtpStatus()
+            } catch (e: Exception) {
+                AppLogger.logError("setNtpServer", e)
             }
         }
     }
@@ -3963,6 +4261,123 @@ class RouterViewModel : ViewModel() {
                 loadLedConfig()
             } catch (e: Exception) {
                 AppLogger.logError("setLedEnabled", e)
+            }
+        }
+    }
+
+    fun setLedMode(mode: String) {
+        viewModelScope.launch {
+            try {
+                val cmd = mapOf("system" to mapOf("led" to mapOf("mode" to mode)))
+                repository.executeRciWithSave(listOf(cmd))
+                loadLedConfig()
+            } catch (e: Exception) {
+                AppLogger.logError("setLedMode", e)
+            }
+        }
+    }
+
+    fun installComponent(name: String) {
+        viewModelScope.launch {
+            try {
+                val cmd = mapOf("components" to mapOf("component" to listOf(mapOf("name" to name, "install" to true))))
+                repository.executeRciWithSave(listOf(cmd))
+                loadComponents()
+            } catch (e: Exception) {
+                AppLogger.logError("installComponent", e)
+            }
+        }
+    }
+
+    fun removeComponent(name: String) {
+        viewModelScope.launch {
+            try {
+                val cmd = mapOf("components" to mapOf("component" to listOf(mapOf("name" to name, "uninstall" to true))))
+                repository.executeRciWithSave(listOf(cmd))
+                loadComponents()
+            } catch (e: Exception) {
+                AppLogger.logError("removeComponent", e)
+            }
+        }
+    }
+
+    fun setInterfaceUp(id: String, up: Boolean) {
+        viewModelScope.launch {
+            try {
+                val cmd = mapOf("interface" to mapOf(id to mapOf("up" to up)))
+                repository.executeRciWithSave(listOf(cmd))
+                loadInterfaces()
+            } catch (e: Exception) {
+                AppLogger.logError("setInterfaceUp", e)
+            }
+        }
+    }
+
+    fun updateInterfaceIpConfig(id: String, useDhcp: Boolean, ip: String?, mask: String?, gateway: String?) {
+        viewModelScope.launch {
+            try {
+                val cmd = if (useDhcp) {
+                    mapOf("interface" to mapOf(id to mapOf("ip" to mapOf("address" to "dhcp"))))
+                } else {
+                    val ipMap = mutableMapOf<String, Any>()
+                    if (!ip.isNullOrBlank()) ipMap["address"] = ip
+                    if (!mask.isNullOrBlank()) ipMap["mask"] = mask
+                    if (!gateway.isNullOrBlank()) ipMap["gateway"] = gateway
+                    mapOf("interface" to mapOf(id to mapOf("ip" to ipMap)))
+                }
+                repository.executeRciWithSave(listOf(cmd))
+                loadInterfaces()
+            } catch (e: Exception) {
+                AppLogger.logError("updateInterfaceIpConfig", e)
+            }
+        }
+    }
+
+    fun updateWiredConnectionSettings(
+        id: String,
+        description: String? = null,
+        mtu: String? = null,
+        hostname: String? = null,
+        order: String? = null,
+        schedule: String? = null,
+        macMode: String? = null,
+        macAddress: String? = null,
+        pppoeIdentity: String? = null,
+        pppoePassword: String? = null,
+        pppoeService: String? = null,
+        pppoeAuth: String? = null
+    ) {
+        viewModelScope.launch {
+            try {
+                val cmds = mutableListOf<Map<String, Any>>()
+
+                val ifaceMap = linkedMapOf<String, Any>()
+                if (description != null) ifaceMap["description"] = description
+                if (mtu != null) ifaceMap["mtu"] = mtu
+                if (hostname != null) ifaceMap["hostname"] = hostname
+                if (order != null) ifaceMap["order"] = order.toIntOrNull() ?: 0
+                if (schedule != null) ifaceMap["schedule"] = schedule
+                if (macMode != null) ifaceMap["mac-config-mode"] = macMode
+                if (macAddress != null) ifaceMap["mac"] = macAddress
+                if (ifaceMap.isNotEmpty()) {
+                    cmds.add(mapOf("interface" to mapOf(id to ifaceMap)))
+                }
+
+                val pppoeMap = linkedMapOf<String, Any>()
+                if (pppoeIdentity != null) pppoeMap["identity"] = pppoeIdentity
+                if (pppoePassword != null) pppoeMap["password"] = pppoePassword
+                if (pppoeService != null) pppoeMap["service"] = pppoeService
+                if (pppoeAuth != null) pppoeMap["type"] = pppoeAuth
+                if (pppoeMap.isNotEmpty()) {
+                    cmds.add(mapOf("interface" to mapOf(id to mapOf("pppoe" to pppoeMap))))
+                }
+
+                if (cmds.isNotEmpty()) {
+                    repository.executeRciWithSave(cmds)
+                    loadInterfaces()
+                }
+            } catch (e: Exception) {
+                AppLogger.logError("updateWiredConnectionSettings", e)
             }
         }
     }
@@ -3982,11 +4397,95 @@ class RouterViewModel : ViewModel() {
     fun setSshEnabled(enabled: Boolean) {
         viewModelScope.launch {
             try {
-                val cmd = mapOf("ssh" to mapOf("enable" to enabled))
+                val cmd = mapOf("service" to mapOf("ssh" to enabled))
                 repository.executeRciWithSave(listOf(cmd))
                 loadSshSettings()
             } catch (e: Exception) {
                 AppLogger.logError("setSshEnabled", e)
+            }
+        }
+    }
+
+    fun setFtpEnabled(enabled: Boolean) {
+        viewModelScope.launch {
+            try {
+                val cmd = mapOf("service" to mapOf("ftp" to enabled))
+                repository.executeRciWithSave(listOf(cmd))
+                loadFtpSettings()
+            } catch (e: Exception) {
+                AppLogger.logError("setFtpEnabled", e)
+            }
+        }
+    }
+
+    fun setFtpPort(port: Int) {
+        viewModelScope.launch {
+            try {
+                val cmd = mapOf("ftp" to mapOf("port" to port))
+                repository.executeRciWithSave(listOf(cmd))
+                loadFtpSettings()
+            } catch (e: Exception) {
+                AppLogger.logError("setFtpPort", e)
+            }
+        }
+    }
+
+    fun setFtpAnonymousAccess(enabled: Boolean) {
+        viewModelScope.launch {
+            try {
+                val cmd = mapOf("ftp" to mapOf("allow-anonymous" to enabled))
+                repository.executeRciWithSave(listOf(cmd))
+                loadFtpSettings()
+            } catch (e: Exception) {
+                AppLogger.logError("setFtpAnonymousAccess", e)
+            }
+        }
+    }
+
+    fun setTelnetPort(port: Int) {
+        viewModelScope.launch {
+            try {
+                val cmd = mapOf("telnet" to mapOf("port" to port))
+                repository.executeRciWithSave(listOf(cmd))
+                loadTelnetSettings()
+            } catch (e: Exception) {
+                AppLogger.logError("setTelnetPort", e)
+            }
+        }
+    }
+
+    fun setHttpProxyPort(port: Int) {
+        viewModelScope.launch {
+            try {
+                val cmd = mapOf("http-proxy" to mapOf("port" to port))
+                repository.executeRciWithSave(listOf(cmd))
+                loadHttpProxySettings()
+            } catch (e: Exception) {
+                AppLogger.logError("setHttpProxyPort", e)
+            }
+        }
+    }
+
+    fun setTelnetEnabled(enabled: Boolean) {
+        viewModelScope.launch {
+            try {
+                val cmd = mapOf("service" to mapOf("telnet" to enabled))
+                repository.executeRciWithSave(listOf(cmd))
+                loadTelnetSettings()
+            } catch (e: Exception) {
+                AppLogger.logError("setTelnetEnabled", e)
+            }
+        }
+    }
+
+    fun setHttpProxyEnabled(enabled: Boolean) {
+        viewModelScope.launch {
+            try {
+                val cmd = mapOf("service" to mapOf("http-proxy" to enabled))
+                repository.executeRciWithSave(listOf(cmd))
+                loadHttpProxySettings()
+            } catch (e: Exception) {
+                AppLogger.logError("setHttpProxyEnabled", e)
             }
         }
     }
@@ -4039,38 +4538,50 @@ class RouterViewModel : ViewModel() {
         }
     }
 
-    fun setNextdnsEnabled(enabled: Boolean) {
+    fun saveDyndnsProfile(
+        provider: String,
+        domain: String,
+        username: String,
+        password: String,
+        url: String,
+        autoDetectIp: Boolean,
+        interfaces: List<String>
+    ) {
         viewModelScope.launch {
             try {
-                val cmd = mapOf("nextdns" to mapOf("enable" to enabled))
-                repository.executeRciWithSave(listOf(cmd))
-                loadNextdnsProfile()
+                val cmds = mutableListOf<Map<String, Any>>()
+                val profile = linkedMapOf<String, Any>(
+                    "name" to "_WEBADMIN",
+                    "type" to provider,
+                    "domain" to domain,
+                    "username" to username,
+                    "password" to password,
+                    "send-address" to !autoDetectIp
+                )
+                if (url.isNotBlank()) profile["url"] = url
+                cmds.add(mapOf("dyndns" to mapOf("profile" to profile)))
+
+                // Bind selected interfaces to the DDNS profile (same as web morda).
+                val profileName = "_WEBADMIN"
+                interfaces.forEach { iface ->
+                    cmds.add(mapOf("interface" to mapOf("name" to iface, "dyndns" to listOf(profileName))))
+                }
+                repository.executeRciWithSave(cmds)
+                loadDyndnsStatus()
             } catch (e: Exception) {
-                AppLogger.logError("setNextdnsEnabled", e)
+                AppLogger.logError("saveDyndnsProfile", e)
             }
         }
     }
 
-    fun setSafednsEnabled(enabled: Boolean) {
+    fun deleteDyndnsProfile() {
         viewModelScope.launch {
             try {
-                val cmd = mapOf("safedns" to mapOf("enable" to enabled))
+                val cmd = mapOf("dyndns" to mapOf("profile" to mapOf("name" to "_WEBADMIN", "delete" to true)))
                 repository.executeRciWithSave(listOf(cmd))
-                loadSafednsProfile()
+                loadDyndnsStatus()
             } catch (e: Exception) {
-                AppLogger.logError("setSafednsEnabled", e)
-            }
-        }
-    }
-
-    fun setSkydnsEnabled(enabled: Boolean) {
-        viewModelScope.launch {
-            try {
-                val cmd = mapOf("skydns" to mapOf("enable" to enabled))
-                repository.executeRciWithSave(listOf(cmd))
-                loadSkydnsProfile()
-            } catch (e: Exception) {
-                AppLogger.logError("setSkydnsEnabled", e)
+                AppLogger.logError("deleteDyndnsProfile", e)
             }
         }
     }
@@ -4078,7 +4589,10 @@ class RouterViewModel : ViewModel() {
     fun setWpsEnabled(enabled: Boolean) {
         viewModelScope.launch {
             try {
-                val cmd = mapOf("wifi" to mapOf("wps" to mapOf("enable" to enabled)))
+                // Get the first available AccessPoint interface
+                val apInterface = _interfaces.value.firstOrNull { it.type.lowercase() == "accesspoint" }?.id ?: "WifiMaster0/AccessPoint0"
+                
+                val cmd = mapOf("interface" to mapOf("name" to apInterface, "wps" to mapOf("enable" to enabled)))
                 repository.executeRciWithSave(listOf(cmd))
                 loadWpsStatus()
             } catch (e: Exception) {

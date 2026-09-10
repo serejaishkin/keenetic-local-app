@@ -9,6 +9,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Route
 import androidx.compose.material3.*
@@ -25,6 +26,7 @@ import com.keenetic.local.ui.theme.KeeneticColors
 fun StaticRoutesScreen(viewModel: RouterViewModel, onBack: () -> Unit = {}) {
     val routes by viewModel.staticRoutes.collectAsState()
     var selectedRoute by remember { mutableStateOf<StaticRoute?>(null) }
+    var editingRoute by remember { mutableStateOf<StaticRoute?>(null) }
     var showAddDialog by remember { mutableStateOf(false) }
     var feedbackMessage by remember { mutableStateOf<String?>(null) }
 
@@ -209,6 +211,25 @@ fun StaticRoutesScreen(viewModel: RouterViewModel, onBack: () -> Unit = {}) {
 
                     OutlinedButton(
                         onClick = {
+                            routeNetwork = route.network
+                            routeMask = route.mask
+                            routeGateway = route.gateway
+                            routeIface = route.interfaceName
+                            routeComment = route.comment
+                            editingRoute = route
+                            selectedRoute = null
+                            showAddDialog = true
+                        },
+                        colors = ButtonDefaults.outlinedButtonColors(contentColor = KeeneticColors.Primary),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Icon(Icons.Default.Edit, contentDescription = null, modifier = Modifier.size(16.dp))
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text("Редактировать маршрут")
+                    }
+
+                    OutlinedButton(
+                        onClick = {
                             viewModel.deleteStaticRoute(route.id)
                             feedbackMessage = "Маршрут удален"
                             selectedRoute = null
@@ -230,14 +251,21 @@ fun StaticRoutesScreen(viewModel: RouterViewModel, onBack: () -> Unit = {}) {
         )
     }
 
-    // Add New Route Dialog
+    // Add / Edit Route Dialog
     if (showAddDialog) {
         AlertDialog(
-            onDismissRequest = { showAddDialog = false },
+            onDismissRequest = {
+                showAddDialog = false
+                editingRoute = null
+            },
             title = {
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     Icon(Icons.Default.Add, contentDescription = null, tint = KeeneticColors.Primary)
-                    Text("Добавить статический маршрут", fontWeight = FontWeight.Bold, color = KeeneticColors.TextPrimary)
+                    Text(
+                        if (editingRoute != null) "Редактирование маршрута" else "Добавить статический маршрут",
+                        fontWeight = FontWeight.Bold,
+                        color = KeeneticColors.TextPrimary
+                    )
                 }
             },
             text = {
@@ -280,17 +308,18 @@ fun StaticRoutesScreen(viewModel: RouterViewModel, onBack: () -> Unit = {}) {
                     onClick = {
                         if (routeNetwork.isNotBlank() && routeMask.isNotBlank()) {
                             val newRoute = StaticRoute(
-                                id = (routes.size + 1).toString(),
+                                id = editingRoute?.id ?: (routes.size + 1).toString(),
                                 network = routeNetwork,
                                 mask = routeMask,
                                 gateway = routeGateway,
-                                interfaceName = routeIface,
+                                interfaceName = editingRoute?.interfaceName ?: routeIface,
                                 auto = false,
                                 comment = routeComment
                             )
                             viewModel.addStaticRoute(newRoute)
-                            feedbackMessage = "Маршрут для сети $routeNetwork добавлен"
+                            feedbackMessage = if (editingRoute != null) "Маршрут для сети $routeNetwork обновлен" else "Маршрут для сети $routeNetwork добавлен"
                             showAddDialog = false
+                            editingRoute = null
                             routeNetwork = ""
                             routeGateway = ""
                             routeComment = ""
@@ -298,7 +327,7 @@ fun StaticRoutesScreen(viewModel: RouterViewModel, onBack: () -> Unit = {}) {
                     },
                     colors = ButtonDefaults.buttonColors(containerColor = KeeneticColors.Primary)
                 ) {
-                    Text("Добавить")
+                    Text(if (editingRoute != null) "Сохранить" else "Добавить")
                 }
             },
             dismissButton = {

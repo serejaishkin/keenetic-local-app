@@ -10,6 +10,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Dns
 import androidx.compose.material.icons.filled.FilterAlt
 import androidx.compose.material.icons.filled.Refresh
@@ -21,10 +22,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.keenetic.local.api.DnsFilterPreset
 import com.keenetic.local.api.DnsFilterProfile
+import com.keenetic.local.api.DnsServerInfo
+import com.keenetic.local.api.RouterInterface
 import com.keenetic.local.ui.RouterViewModel
 import com.keenetic.local.ui.theme.KeeneticColors
 
@@ -35,9 +39,21 @@ fun DnsFiltersScreen(viewModel: RouterViewModel, onBack: () -> Unit = {}) {
     val profiles by viewModel.dnsFilterProfileList.collectAsState()
     val rawPresets by viewModel.dnsFilterPresets.collectAsState()
     val rawProfiles by viewModel.dnsFilterProfiles.collectAsState()
+    val dnsFilterInstalled by viewModel.dnsFilterInstalled.collectAsState()
+    val dohUpstream by viewModel.dohUpstream.collectAsState()
+    val dotUpstream by viewModel.dotUpstream.collectAsState()
+    val dohServers by viewModel.dohServers.collectAsState()
+    val dotServers by viewModel.dotServers.collectAsState()
+    val scNameServers by viewModel.scNameServers.collectAsState()
+    val interfaces by viewModel.interfaces.collectAsState()
+    var showAddPlain by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) {
         viewModel.loadDnsFilters()
+        viewModel.loadDohUpstream()
+        viewModel.loadDotUpstream()
+        viewModel.loadNameServers()
+        viewModel.loadInterfaces()
     }
 
     Scaffold(
@@ -120,6 +136,39 @@ fun DnsFiltersScreen(viewModel: RouterViewModel, onBack: () -> Unit = {}) {
                 }
             }
 
+            // Missing component banner
+            if (!dnsFilterInstalled) {
+                item {
+                    Card(
+                        shape = RoundedCornerShape(14.dp),
+                        colors = CardDefaults.cardColors(containerColor = KeeneticColors.Error.copy(alpha = 0.08f)),
+                        border = CardDefaults.outlinedCardBorder().copy(
+                            brush = androidx.compose.ui.graphics.SolidColor(KeeneticColors.Error.copy(alpha = 0.3f))
+                        )
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(14.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Close,
+                                contentDescription = null,
+                                tint = KeeneticColors.Error,
+                                modifier = Modifier.size(24.dp)
+                            )
+                            Text(
+                                "Компонент Интернет-фильтр не установлен",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = KeeneticColors.TextPrimary
+                            )
+                        }
+                    }
+                }
+            }
+
             // Presets section
             item {
                 Row(
@@ -159,7 +208,9 @@ fun DnsFiltersScreen(viewModel: RouterViewModel, onBack: () -> Unit = {}) {
                         icon = Icons.Default.FilterAlt,
                         title = "Пресеты не найдены",
                         subtitle = if (rawPresets is com.keenetic.local.ui.screens.common.ApiCallState.Loading)
-                            "Загрузка с роутера..." else "Фильтры не активированы или не установлены компоненты"
+                            "Загрузка с роутера..." else
+                            if (!dnsFilterInstalled) "Компонент не установлен на роутере"
+                            else "На этой прошивке встроенные пресеты не поставляются. Настроенные DNS-серверы смотрите ниже."
                     )
                 }
             } else {
@@ -208,7 +259,9 @@ fun DnsFiltersScreen(viewModel: RouterViewModel, onBack: () -> Unit = {}) {
                         icon = Icons.Default.Dns,
                         title = "Нет активных профилей",
                         subtitle = if (rawProfiles is com.keenetic.local.ui.screens.common.ApiCallState.Loading)
-                            "Загрузка с роутера..." else "Профили фильтрации не настроены"
+                            "Загрузка с роутера..." else
+                            if (!dnsFilterInstalled) "Компонент не установлен на роутере"
+                            else "Профили фильтрации не настроены"
                     )
                 }
             } else {
@@ -216,12 +269,193 @@ fun DnsFiltersScreen(viewModel: RouterViewModel, onBack: () -> Unit = {}) {
                     DnsFilterProfileCard(profile = profile, presets = presets)
                 }
             }
+
+            // Configured DoH/DoT upstreams
+            item {
+                Spacer(modifier = Modifier.height(8.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Icon(
+                            Icons.Default.Security,
+                            contentDescription = null,
+                            tint = KeeneticColors.Primary,
+                            modifier = Modifier.size(20.dp)
+                        )
+                        Text(
+                            "Настроенные DNS-серверы",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = KeeneticColors.TextPrimary
+                        )
+                    }
+                    Text(
+                        "RCI: dns-proxy/{https,tls}/upstream, ip/name-server",
+                        style = MaterialTheme.typography.labelSmall,
+                        fontFamily = FontFamily.Monospace,
+                        color = KeeneticColors.TextSecondary
+                    )
+                }
+            }
+
+            if (dohUpstream.isEmpty() && dotUpstream.isEmpty() && scNameServers.isEmpty()) {
+                item {
+                    EmptyStateCard(
+                        icon = Icons.Default.Security,
+                        title = "DNS-серверы не настроены",
+                        subtitle = "Задайте серверы на роутере в разделе «Приоритеты подключения к интернету» → «DNS-клиенты»."
+                    )
+                }
+            } else {
+                if (scNameServers.isNotEmpty()) {
+                    item {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                "Обычные (по адресу)",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = KeeneticColors.TextSecondary
+                            )
+                            TextButton(onClick = { showAddPlain = true }) {
+                                Text("+ Добавить")
+                            }
+                        }
+                    }
+                    items(scNameServers, key = { "${it.address}-${it.interfaceName}" }) { server ->
+                        val intfName = interfaces.firstOrNull { it.id == server.interfaceName }?.description
+                            ?.takeIf { it.isNotBlank() } ?: server.interfaceName
+                        DnsUpstreamRow(
+                            label = "DNS",
+                            server = "${server.address ?: "?"} · $intfName",
+                            onRemove = {
+                                viewModel.removePlainDnsServer(server.address ?: "", server.interfaceName ?: "")
+                            }
+                        )
+                    }
+                    item {
+                        Spacer(modifier = Modifier.height(4.dp))
+                    }
+                }
+                if (dotServers.isNotEmpty()) {
+                    item {
+                        Text(
+                            "DNS-over-TLS (DoT)",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = KeeneticColors.TextSecondary
+                        )
+                    }
+                    items(dotServers, key = { "${it.address ?: ""}|${it.fqdn ?: ""}|${it.interfaceName ?: ""}" }) { srv ->
+                        val label = srv.fqdn ?: srv.address ?: "?"
+                        val intf = srv.interfaceName
+                        DnsUpstreamRow(
+                            label = "DoT",
+                            server = if (intf.isNullOrBlank()) label else "$label ($intf)",
+                            onRemove = { srv.address?.let { viewModel.removeDotServer(it, srv.interfaceName) } }
+                        )
+                    }
+                }
+                if (dohServers.isNotEmpty()) {
+                    item {
+                        Text(
+                            "DNS-over-HTTPS (DoH)",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = KeeneticColors.TextSecondary
+                        )
+                    }
+                    items(dohServers, key = { "${it.url}|${it.interfaceName ?: ""}" }) { srv ->
+                        val intf = srv.interfaceName
+                        DnsUpstreamRow(
+                            label = "DoH",
+                            server = if (intf.isNullOrBlank()) srv.url else "${srv.url} ($intf)",
+                            onRemove = { viewModel.removeDohServer(srv.url, srv.interfaceName) }
+                            )
+                        }
+                    }
+                }
+            }
+        }
+
+    if (showAddPlain) {
+        AddPlainDnsDialog(
+            interfaces = interfaces,
+            onDismiss = { showAddPlain = false },
+            onAdd = { address, iface ->
+                viewModel.addPlainDnsServer(address, iface)
+                showAddPlain = false
+            }
+        )
+    }
+}
+
+@Composable
+internal fun DnsUpstreamRow(label: String, server: String, onRemove: (() -> Unit)? = null) {
+    val typeColor = if (label == "DoT") KeeneticColors.Warning else KeeneticColors.Primary
+    Card(
+        shape = RoundedCornerShape(14.dp),
+        colors = CardDefaults.cardColors(containerColor = KeeneticColors.Surface),
+        border = CardDefaults.outlinedCardBorder().copy(
+            brush = androidx.compose.ui.graphics.SolidColor(typeColor.copy(alpha = 0.35f))
+        )
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(start = 14.dp, top = 8.dp, bottom = 8.dp, end = 4.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(32.dp)
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(typeColor.copy(alpha = 0.15f)),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    Icons.Default.Security,
+                    contentDescription = null,
+                    tint = typeColor,
+                    modifier = Modifier.size(18.dp)
+                )
+            }
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    label,
+                    style = MaterialTheme.typography.labelSmall,
+                    fontWeight = FontWeight.Bold,
+                    color = typeColor
+                )
+                Text(
+                    server,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = KeeneticColors.TextPrimary
+                )
+            }
+            if (onRemove != null) {
+                IconButton(onClick = onRemove) {
+                    Icon(
+                        Icons.Default.Delete,
+                        contentDescription = "Удалить",
+                        tint = KeeneticColors.Error,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+            }
         }
     }
 }
 
 @Composable
-private fun DnsFilterPresetCard(preset: DnsFilterPreset) {
+internal fun DnsFilterPresetCard(preset: DnsFilterPreset) {
     val typeColor = when (preset.type) {
         "adguard" -> KeeneticColors.Primary
         "nextdns" -> KeeneticColors.Success
@@ -336,7 +570,7 @@ private fun DnsFilterPresetCard(preset: DnsFilterPreset) {
 }
 
 @Composable
-private fun DnsFilterProfileCard(profile: DnsFilterProfile, presets: List<DnsFilterPreset>) {
+internal fun DnsFilterProfileCard(profile: DnsFilterProfile, presets: List<DnsFilterPreset>) {
     val matchedPreset = presets.find { it.id == profile.presetId || it.name == profile.presetName }
 
     Card(
@@ -445,12 +679,64 @@ private fun DnsFilterProfileCard(profile: DnsFilterProfile, presets: List<DnsFil
                                 fontWeight = FontWeight.Bold,
                                 color = KeeneticColors.Primary
                             )
+                            }
                         }
                     }
                 }
             }
         }
     }
+
+@Composable
+private fun AddPlainDnsDialog(
+    interfaces: List<com.keenetic.local.api.RouterInterface>,
+    onDismiss: () -> Unit,
+    onAdd: (address: String, iface: String) -> Unit
+) {
+    var address by remember { mutableStateOf("") }
+    var iface by remember { mutableStateOf(interfaces.firstOrNull { it.isUp }?.id ?: "") }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Добавить DNS-сервер по адресу") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                OutlinedTextField(
+                    value = address,
+                    onValueChange = { address = it },
+                    label = { Text("Адрес сервера") },
+                    placeholder = { Text("например 77.88.8.8") },
+                    singleLine = true,
+                    keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = KeyboardType.Text),
+                    modifier = Modifier.fillMaxWidth()
+                )
+                OutlinedTextField(
+                    value = iface,
+                    onValueChange = { iface = it },
+                    label = { Text("Интерфейс") },
+                    placeholder = { Text("например OpkgTun10") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
+                )
+                Text(
+                    "Доступные: ${interfaces.joinToString { i -> "${i.id} (${i.description})" }}",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = KeeneticColors.TextSecondary
+                )
+            }
+        },
+        confirmButton = {
+            TextButton(
+                onClick = { if (address.isNotBlank()) onAdd(address.trim(), iface.trim()) },
+                enabled = address.isNotBlank()
+            ) {
+                Text("Добавить")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text("Отмена") }
+        }
+    )
 }
 
 @Composable

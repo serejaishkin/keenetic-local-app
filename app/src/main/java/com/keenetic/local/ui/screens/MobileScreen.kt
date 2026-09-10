@@ -1,8 +1,11 @@
 package com.keenetic.local.ui.screens
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
@@ -18,9 +21,10 @@ import com.keenetic.local.ui.theme.KeeneticColors
 fun MobileScreen(viewModel: RouterViewModel, onBack: () -> Unit = {}) {
     val modemStatus by viewModel.mobileModemStatus.collectAsState()
     var selectedNetMode by remember { mutableStateOf("auto") } // "auto", "lte_only", "3g_only"
+    var selectedAppRole by remember { mutableStateOf("backup") } // "always", "backup", "schedule", "disabled"
     var showUssdDialog by remember { mutableStateOf(false) }
     var ussdCommand by remember { mutableStateOf("*100#") }
-    var ussdResponse by remember { mutableStateOf<String?>(null) }
+    var showApnDialog by remember { mutableStateOf(false) }
     var feedbackMessage by remember { mutableStateOf<String?>(null) }
 
     LaunchedEffect(Unit) {
@@ -165,6 +169,53 @@ fun MobileScreen(viewModel: RouterViewModel, onBack: () -> Unit = {}) {
             }
         }
 
+        // Режим работы мобильного приложения (веб-морда: Мобильный интернет -> Режим)
+        item {
+            Card(
+                shape = RoundedCornerShape(16.dp),
+                colors = CardDefaults.cardColors(containerColor = KeeneticColors.Surface)
+            ) {
+                Column(modifier = Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                        Icon(Icons.Default.Settings, contentDescription = null, tint = KeeneticColors.Primary)
+                        Text("Режим работы", style = MaterialTheme.typography.titleMedium, color = KeeneticColors.TextPrimary)
+                    }
+                    Text(
+                        "Определяет, когда мобильное соединение используется в качестве канала доступа в интернет.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = KeeneticColors.TextSecondary
+                    )
+                    HorizontalDivider(color = KeeneticColors.Divider)
+                    listOf(
+                        "always" to "Всегда основной канал",
+                        "backup" to "Резервный канал (по умолчанию)",
+                        "schedule" to "По расписанию",
+                        "disabled" to "Отключено"
+                    ).forEach { (modeKey, modeName) ->
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable {
+                                    selectedAppRole = modeKey
+                                    viewModel.setMobileActivationType(modeKey)
+                                    feedbackMessage = "Задан режим работы: $modeName"
+                                }
+                                .padding(vertical = 6.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(modeName, style = MaterialTheme.typography.bodyMedium, color = KeeneticColors.TextPrimary)
+                            Icon(
+                                if (selectedAppRole == modeKey) Icons.Default.RadioButtonChecked else Icons.Default.RadioButtonUnchecked,
+                                contentDescription = null,
+                                tint = if (selectedAppRole == modeKey) KeeneticColors.Primary else KeeneticColors.TextSecondary
+                            )
+                        }
+                    }
+                }
+            }
+        }
+
         // Sub-settings Section: Network standard and controls
         item {
             Text(
@@ -173,6 +224,34 @@ fun MobileScreen(viewModel: RouterViewModel, onBack: () -> Unit = {}) {
                 fontWeight = FontWeight.Bold,
                 color = KeeneticColors.TextPrimary
             )
+        }
+
+        item {
+            Card(
+                shape = RoundedCornerShape(16.dp),
+                colors = CardDefaults.cardColors(containerColor = KeeneticColors.Surface)
+            ) {
+                Column(modifier = Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                        Icon(Icons.Default.Settings, contentDescription = null, tint = KeeneticColors.Primary)
+                        Text("Настройки подключения (APN)", style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.SemiBold, color = KeeneticColors.TextPrimary)
+                    }
+                    Text(
+                        "Точка доступа, имя пользователя, пароль, телефон, TTL и игнорирование DNS — как на странице веб-морды «Через сотовую сеть».",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = KeeneticColors.TextSecondary
+                    )
+                    Button(
+                        onClick = { showApnDialog = true },
+                        colors = ButtonDefaults.buttonColors(containerColor = KeeneticColors.Primary),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Icon(Icons.Default.Edit, contentDescription = null, modifier = Modifier.size(16.dp))
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text("Настроить подключение")
+                    }
+                }
+            }
         }
 
         item {
@@ -231,8 +310,8 @@ fun MobileScreen(viewModel: RouterViewModel, onBack: () -> Unit = {}) {
 
                         Button(
                             onClick = {
-                                viewModel.loadMobileStatus()
-                                feedbackMessage = "Команда сброса питания USB-модема отправлена"
+                                viewModel.reconnectInterface(modemStatus.interfaceName)
+                                feedbackMessage = "Отправлена команда перезапуска модема «${modemStatus.interfaceName}»"
                             },
                             colors = ButtonDefaults.buttonColors(containerColor = KeeneticColors.SurfaceElevated, contentColor = KeeneticColors.Primary),
                             modifier = Modifier.weight(1f)
@@ -252,7 +331,6 @@ fun MobileScreen(viewModel: RouterViewModel, onBack: () -> Unit = {}) {
         AlertDialog(
             onDismissRequest = {
                 showUssdDialog = false
-                ussdResponse = null
             },
             title = {
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -269,26 +347,19 @@ fun MobileScreen(viewModel: RouterViewModel, onBack: () -> Unit = {}) {
                         singleLine = true,
                         modifier = Modifier.fillMaxWidth()
                     )
-                    if (ussdResponse != null) {
-                        Surface(
-                            color = KeeneticColors.SurfaceElevated,
-                            shape = RoundedCornerShape(8.dp),
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Text(
-                                ussdResponse ?: "",
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = KeeneticColors.TextPrimary,
-                                modifier = Modifier.padding(12.dp)
-                            )
-                        }
-                    }
+                    Text(
+                        "Запрос будет отправлен на модем для получения ответа оператора (баланс, тариф и т.п.).",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = KeeneticColors.TextSecondary
+                    )
                 }
             },
             confirmButton = {
                 Button(
                     onClick = {
-                        ussdResponse = "Ответ сети: Баланс: 420.50 руб. Тариф: Интернет для устройств. Доступно 50 ГБ."
+                        viewModel.sendUssdCommand(ussdCommand)
+                        feedbackMessage = "USSD-запрос «$ussdCommand» отправлен на модем"
+                        showUssdDialog = false
                     },
                     colors = ButtonDefaults.buttonColors(containerColor = KeeneticColors.Primary)
                 ) {
@@ -298,8 +369,153 @@ fun MobileScreen(viewModel: RouterViewModel, onBack: () -> Unit = {}) {
             dismissButton = {
                 TextButton(onClick = {
                     showUssdDialog = false
-                    ussdResponse = null
                 }) {
+                    Text("Закрыть", color = KeeneticColors.TextSecondary)
+                }
+            }
+        )
+    }
+
+    // APN (мобильное подключение) Dialog
+    if (showApnDialog) {
+        var apn by remember { mutableStateOf("") }
+        var username by remember { mutableStateOf("") }
+        var password by remember { mutableStateOf("") }
+        var phone by remember { mutableStateOf("") }
+        var extraInit by remember { mutableStateOf(false) }
+        var at0 by remember { mutableStateOf("") }
+        var at1 by remember { mutableStateOf("") }
+        var at2 by remember { mutableStateOf("") }
+        var ttl by remember { mutableStateOf("DISABLED") }
+        var ignoreDns by remember { mutableStateOf(false) }
+
+        AlertDialog(
+            onDismissRequest = { showApnDialog = false },
+            title = {
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Icon(Icons.Default.Settings, contentDescription = null, tint = KeeneticColors.Primary)
+                    Text("Подключение через сотовую сеть", fontWeight = FontWeight.Bold, color = KeeneticColors.TextPrimary)
+                }
+            },
+            text = {
+                Column(
+                    modifier = Modifier.verticalScroll(rememberScrollState()).heightIn(max = 480.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    OutlinedTextField(
+                        value = apn,
+                        onValueChange = { apn = it },
+                        label = { Text("Точка доступа (APN)") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    OutlinedTextField(
+                        value = username,
+                        onValueChange = { username = it },
+                        label = { Text("Имя пользователя") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    OutlinedTextField(
+                        value = password,
+                        onValueChange = { password = it },
+                        label = { Text("Пароль") },
+                        singleLine = true,
+                        visualTransformation = androidx.compose.ui.text.input.PasswordVisualTransformation(),
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    OutlinedTextField(
+                        value = phone,
+                        onValueChange = { phone = it },
+                        label = { Text("Телефон (номер APN)") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+
+                    HorizontalDivider(color = KeeneticColors.Divider)
+
+                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                        Text("Дополнительная инициализация", style = MaterialTheme.typography.bodySmall, color = KeeneticColors.TextPrimary)
+                        Switch(checked = extraInit, onCheckedChange = { extraInit = it })
+                    }
+                    if (extraInit) {
+                        OutlinedTextField(
+                            value = at0,
+                            onValueChange = { at0 = it },
+                            label = { Text("AT-команда 1") },
+                            singleLine = true,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                        OutlinedTextField(
+                            value = at1,
+                            onValueChange = { at1 = it },
+                            label = { Text("AT-команда 2") },
+                            singleLine = true,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                        OutlinedTextField(
+                            value = at2,
+                            onValueChange = { at2 = it },
+                            label = { Text("AT-команда 3") },
+                            singleLine = true,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    }
+
+                    HorizontalDivider(color = KeeneticColors.Divider)
+
+                    Text("Установить TTL", style = MaterialTheme.typography.bodySmall, color = KeeneticColors.TextSecondary)
+                    var ttlExpanded by remember { mutableStateOf(false) }
+                    Box {
+                        OutlinedButton(onClick = { ttlExpanded = true }, modifier = Modifier.fillMaxWidth()) {
+                            Text(
+                                when (ttl) {
+                                    "INCOMING" -> "Входящий"
+                                    "OUTGOING" -> "Исходящий"
+                                    "BOTH_DIRECTIONS" -> "Оба направления"
+                                    else -> "Отключено"
+                                },
+                                color = KeeneticColors.TextPrimary,
+                                modifier = Modifier.weight(1f)
+                            )
+                        }
+                        DropdownMenu(expanded = ttlExpanded, onDismissRequest = { ttlExpanded = false }, modifier = Modifier.verticalScroll(rememberScrollState()).heightIn(max = 400.dp)) {
+                            DropdownMenuItem(text = { Text("Отключено") }, onClick = { ttl = "DISABLED"; ttlExpanded = false })
+                            DropdownMenuItem(text = { Text("Входящий") }, onClick = { ttl = "INCOMING"; ttlExpanded = false })
+                            DropdownMenuItem(text = { Text("Исходящий") }, onClick = { ttl = "OUTGOING"; ttlExpanded = false })
+                            DropdownMenuItem(text = { Text("Оба направления") }, onClick = { ttl = "BOTH_DIRECTIONS"; ttlExpanded = false })
+                        }
+                    }
+
+                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                        Text("Игнорировать DNS интернет-провайдера", style = MaterialTheme.typography.bodySmall, color = KeeneticColors.TextPrimary)
+                        Switch(checked = ignoreDns, onCheckedChange = { ignoreDns = it })
+                    }
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        viewModel.updateMobileConnectionSettings(
+                            interfaceId = modemStatus.interfaceName.ifBlank { null },
+                            apn = apn.ifBlank { null },
+                            username = username.ifBlank { null },
+                            password = password.ifBlank { null },
+                            phone = phone.ifBlank { null },
+                            atCommands = if (extraInit) listOf(at0, at1, at2).filter { it.isNotBlank() } else null,
+                            ttlModification = ttl,
+                            ignoreRemoteDns = ignoreDns
+                        )
+                        feedbackMessage = "Настройки мобильного подключения отправлены на роутер"
+                        showApnDialog = false
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = KeeneticColors.Primary)
+                ) {
+                    Text("Сохранить")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showApnDialog = false }) {
                     Text("Закрыть", color = KeeneticColors.TextSecondary)
                 }
             }

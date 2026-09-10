@@ -73,6 +73,101 @@ object InterfaceMapper {
             .sortedWith(compareBy({ it.type != "Bridge" && it.type != "Ethernet" }, { it.id }))
     }
 
+    fun toVpnConnections(element: JsonElement?): List<VpnConnection> {
+        if (element == null || element.isJsonNull) return emptyList()
+        val rawMap = extractEntries(element)
+
+        val vpnTypes = setOf(
+            "proxy", "wireguard", "openvpn", "pptp", "l2tp", "sstp",
+            "ike", "openconnect", "zerotier", "gre", "ipip", "eoip"
+        )
+
+        return rawMap.entries
+            .filter { (key, obj) ->
+                val type = (str(obj, "type") ?: "").lowercase()
+                val lowerKey = key.lowercase()
+                vpnTypes.contains(type) ||
+                        lowerKey.startsWith("proxy") ||
+                        lowerKey.startsWith("wireguard") ||
+                        lowerKey.startsWith("wg") ||
+                        lowerKey.startsWith("awg") ||
+                        lowerKey.startsWith("openvpn") ||
+                        lowerKey.startsWith("sstp") ||
+                        lowerKey.startsWith("l2tp") ||
+                        lowerKey.startsWith("pptp")
+            }
+            .map { (key, obj) ->
+                val id = str(obj, "id") ?: key
+                val rawType = str(obj, "type") ?: when {
+                    key.startsWith("Proxy", ignoreCase = true) -> "Proxy"
+                    key.startsWith("Wireguard", ignoreCase = true) || key.startsWith("wg", ignoreCase = true) -> "Wireguard"
+                    key.startsWith("OpenVPN", ignoreCase = true) -> "OpenVPN"
+                    key.startsWith("Sstp", ignoreCase = true) -> "SSTP"
+                    key.startsWith("L2tp", ignoreCase = true) -> "L2TP"
+                    key.startsWith("Pptp", ignoreCase = true) -> "PPTP"
+                    else -> "VPN"
+                }
+                val description = str(obj, "description") ?: ""
+                val state = str(obj, "state") ?: "unknown"
+                val link = str(obj, "link") ?: state
+                val isUp = link.equals("up", ignoreCase = true) || state.equals("up", ignoreCase = true)
+                val ip = str(obj, "address") ?: str(obj, "ip")
+                val rxBytes = longVal(obj, "rxbytes")
+                val txBytes = longVal(obj, "txbytes")
+
+                val proxyObj = when {
+                    obj.has("proxy") && obj.get("proxy").isJsonObject -> obj.getAsJsonObject("proxy")
+                    obj.has("sc") && obj.getAsJsonObject("sc").has("proxy") -> obj.getAsJsonObject("sc").getAsJsonObject("proxy")
+                    else -> null
+                }
+
+                var proto: String? = null
+                var upstream: String? = null
+
+                if (proxyObj != null) {
+                    proto = when {
+                        proxyObj.has("protocol") && proxyObj.get("protocol").isJsonObject ->
+                            str(proxyObj.getAsJsonObject("protocol"), "proto")
+                        else -> str(proxyObj, "protocol")
+                    }
+                    upstream = when {
+                        proxyObj.has("upstream") && proxyObj.get("upstream").isJsonObject ->
+                            str(proxyObj.getAsJsonObject("upstream"), "server")
+                                ?: str(proxyObj.getAsJsonObject("upstream"), "address")
+                        else -> str(proxyObj, "upstream")
+                    }
+                }
+
+                if (proto == null && rawType.equals("Proxy", ignoreCase = true)) {
+                    proto = "SOCKS5"
+                }
+
+                if (upstream == null && obj.has("server")) {
+                    upstream = str(obj, "server")
+                }
+
+                val displayName = when {
+                    description.isNotBlank() -> description
+                    rawType.equals("Proxy", ignoreCase = true) -> "$id ($rawType)"
+                    else -> str(obj, "interface-name")?.takeIf { it.isNotBlank() } ?: id
+                }
+
+                VpnConnection(
+                    id = id,
+                    name = displayName,
+                    type = rawType,
+                    isUp = isUp,
+                    state = state,
+                    ip = ip,
+                    protocol = proto,
+                    upstream = upstream,
+                    rxBytes = rxBytes,
+                    txBytes = txBytes
+                )
+            }
+            .sortedWith(compareBy({ !it.isUp }, { it.id }))
+    }
+
     fun toWifiNetworks(element: JsonElement?): List<WifiNetworkInfo> {
         if (element == null || element.isJsonNull) return emptyList()
         val rawMap = extractEntries(element)

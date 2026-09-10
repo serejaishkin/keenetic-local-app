@@ -9,7 +9,8 @@ object UpnpParser {
         if (root == null || !root.isJsonObject) return emptyList()
         val list = mutableListOf<UpnpRedirect>()
         val upnp = findKey(root, "upnp") ?: return emptyList()
-        for ((key, value) in upnp.entrySet()) {
+        val redirects = findKey(upnp, "redirect") ?: return emptyList()
+        for ((key, value) in redirects.entrySet()) {
             if (value.isJsonObject) {
                 val o = value.asJsonObject
                 list.add(UpnpRedirect(
@@ -29,7 +30,8 @@ object UpnpParser {
         if (root == null || !root.isJsonObject) return emptyList()
         val list = mutableListOf<UpnpPinhole>()
         val upnp = findKey(root, "upnp") ?: return emptyList()
-        for ((key, value) in upnp.entrySet()) {
+        val pinholes = findKey(upnp, "pinhole") ?: return emptyList()
+        for ((key, value) in pinholes.entrySet()) {
             if (value.isJsonObject) {
                 val o = value.asJsonObject
                 list.add(UpnpPinhole(

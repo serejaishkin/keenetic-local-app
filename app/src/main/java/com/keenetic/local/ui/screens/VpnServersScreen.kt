@@ -23,6 +23,7 @@ fun VpnServersScreen(viewModel: RouterViewModel, onBack: () -> Unit = {}) {
     val ikev2Server by viewModel.ikev2Server.collectAsState()
     val sstpServer by viewModel.sstpServer.collectAsState()
     val ipsecStatus by viewModel.ipsecStatus.collectAsState()
+    val vpnConnections by viewModel.vpnConnections.collectAsState()
 
     LaunchedEffect(Unit) {
         viewModel.loadWireguardServer()
@@ -30,6 +31,7 @@ fun VpnServersScreen(viewModel: RouterViewModel, onBack: () -> Unit = {}) {
         viewModel.loadIkev2Server()
         viewModel.loadSstpServer()
         viewModel.loadIpsecStatus()
+        viewModel.loadVpnConnections()
     }
 
     LazyColumn(
@@ -53,6 +55,52 @@ fun VpnServersScreen(viewModel: RouterViewModel, onBack: () -> Unit = {}) {
                     fontWeight = FontWeight.Bold,
                     color = KeeneticColors.TextPrimary
                 )
+            }
+        }
+
+        // VPN-подключения (клиенты)
+        item {
+            Card(
+                shape = RoundedCornerShape(16.dp),
+                colors = CardDefaults.cardColors(containerColor = KeeneticColors.Surface)
+            ) {
+                Column(
+                    modifier = Modifier.fillMaxWidth().padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Icon(Icons.Default.VpnKey, contentDescription = null, tint = KeeneticColors.Primary)
+                        Text(
+                            "VPN-подключения",
+                            style = MaterialTheme.typography.titleMedium,
+                            color = KeeneticColors.TextPrimary,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Spacer(modifier = Modifier.weight(1f))
+                        Text(
+                            "${vpnConnections.size} шт.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = KeeneticColors.TextSecondary
+                        )
+                    }
+                    HorizontalDivider(color = KeeneticColors.Divider)
+                    if (vpnConnections.isEmpty()) {
+                        Text(
+                            "Нет активных подключений",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = KeeneticColors.TextSecondary
+                        )
+                    } else {
+                        Column(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalArrangement = Arrangement.spacedBy(4.dp)
+                        ) {
+                            vpnConnections.forEach { connection ->
+                                VpnConnectionCard(connection)
+                            }
+                        }
+                    }
+                }
             }
         }
 
@@ -209,9 +257,127 @@ private fun IpsecConnectionCard(conn: IpsecConnection) {
 }
 
 @Composable
+private fun VpnConnectionCard(connection: VpnConnection) {
+    val isUpColor = if (connection.isUp) KeeneticColors.Success else KeeneticColors.TextSecondary
+    val isUpText = if (connection.isUp) "Активен" else "Выкл"
+    val protocolIcon = when (connection.protocol?.lowercase()) {
+        "socks5" -> Icons.Default.Security
+        "http", "https" -> Icons.Default.Http
+        else -> Icons.Default.VpnKey
+    }
+
+    Card(
+        shape = RoundedCornerShape(12.dp),
+        colors = CardDefaults.cardColors(containerColor = KeeneticColors.Surface)
+    ) {
+        Column(
+            modifier = Modifier.fillMaxWidth().padding(12.dp),
+            verticalArrangement = Arrangement.spacedBy(4.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Icon(
+                        imageVector = protocolIcon,
+                        contentDescription = null,
+                        tint = isUpColor,
+                        modifier = Modifier.size(16.dp)
+                    )
+                    Text(
+                        text = connection.name,
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontWeight = FontWeight.SemiBold,
+                        color = KeeneticColors.TextPrimary
+                    )
+                }
+                Surface(
+                    shape = RoundedCornerShape(6.dp),
+                    color = isUpColor.copy(alpha = 0.15f)
+                ) {
+                    Text(
+                        text = isUpText,
+                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = isUpColor
+                    )
+                }
+            }
+
+            if (connection.type.isNotBlank() && connection.type.lowercase() != "proxy") {
+                Text(
+                    text = "Тип: ${connection.type}",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = KeeneticColors.TextSecondary
+                )
+            }
+
+            if (connection.protocol?.isNotBlank() == true) {
+                Text(
+                    text = "Протокол: ${connection.protocol}",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = KeeneticColors.TextSecondary
+                )
+            }
+
+            if (connection.upstream?.isNotBlank() == true) {
+                Text(
+                    text = "Сервер: ${connection.upstream}",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = KeeneticColors.TextSecondary
+                )
+            }
+
+            if (connection.ip?.isNotBlank() == true) {
+                Text(
+                    text = "IP: ${connection.ip}",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = KeeneticColors.TextSecondary
+                )
+            }
+
+            if (connection.rxBytes > 0 || connection.txBytes > 0) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceEvenly
+                ) {
+                    DetailItem("RX", formatBytes(connection.rxBytes))
+                    DetailItem("TX", formatBytes(connection.txBytes))
+                }
+            }
+        }
+    }
+}
+
+@Composable
 private fun InfoRow(label: String, value: String) {
     Row(modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp), horizontalArrangement = Arrangement.SpaceBetween) {
         Text(label, style = MaterialTheme.typography.bodyMedium, color = KeeneticColors.TextSecondary)
         Text(value, style = MaterialTheme.typography.bodyMedium, color = KeeneticColors.TextPrimary, fontWeight = FontWeight.Medium)
     }
+}
+
+@Composable
+private fun DetailItem(label: String, value: String) {
+    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+        Text(value, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold, color = KeeneticColors.TextPrimary)
+        Text(label, style = MaterialTheme.typography.labelSmall, color = KeeneticColors.TextSecondary)
+    }
+}
+
+private fun formatBytes(bytes: Long): String {
+    if (bytes <= 0) return "0"
+    val units = arrayOf("Б", "КБ", "МБ", "ГБ", "ТБ")
+    var value = bytes.toDouble()
+    var unit = 0
+    while (value >= 1024 && unit < units.size - 1) {
+        value /= 1024
+        unit++
+    }
+    return if (unit == 0) "${value.toLong()} ${units[unit]}" else String.format("%.1f %s", value, units[unit])
 }

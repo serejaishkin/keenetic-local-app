@@ -81,6 +81,23 @@ object SystemDetailParser {
         return null
     }
 
+    fun parseServiceFlags(root: JsonElement?): ServiceFlags {
+        if (root == null || !root.isJsonObject) return ServiceFlags()
+        val svc = findKey(root, "service")
+            ?: (root as? JsonObject)?.takeIf { it.has("ftp") || it.has("ssh") || it.has("ntp") }
+            ?: return ServiceFlags()
+        return ServiceFlags(
+            ftp = bool(svc, "ftp"),
+            ssh = bool(svc, "ssh"),
+            telnet = bool(svc, "telnet"),
+            ntp = bool(svc, "ntp"),
+            httpProxy = bool(svc, "http-proxy")
+        )
+    }
+
+    private fun bool(o: JsonObject, field: String): Boolean =
+        o.get(field)?.takeIf { it.isJsonPrimitive }?.asBoolean ?: false
+
     private fun str(o: JsonObject, field: String): String? =
         o.get(field)?.takeIf { it.isJsonPrimitive }?.asString
 }

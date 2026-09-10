@@ -16,9 +16,13 @@ import com.keenetic.local.api.ComponentInfo
 import com.keenetic.local.ui.RouterViewModel
 import com.keenetic.local.ui.theme.KeeneticColors
 
+import androidx.compose.foundation.clickable
+
 @Composable
 fun ComponentsScreen(viewModel: RouterViewModel, onBack: () -> Unit = {}) {
     val componentList by viewModel.componentList.collectAsState()
+    var selectedComponent by remember { mutableStateOf<ComponentInfo?>(null) }
+    var feedbackMessage by remember { mutableStateOf<String?>(null) }
 
     LaunchedEffect(Unit) {
         viewModel.loadComponents()
@@ -45,6 +49,24 @@ fun ComponentsScreen(viewModel: RouterViewModel, onBack: () -> Unit = {}) {
                     fontWeight = FontWeight.Bold,
                     color = KeeneticColors.TextPrimary
                 )
+                Spacer(modifier = Modifier.weight(1f))
+                IconButton(onClick = { viewModel.loadComponents() }) {
+                    Icon(Icons.Default.Refresh, contentDescription = "Обновить", tint = KeeneticColors.Primary)
+                }
+            }
+        }
+
+        if (feedbackMessage != null) {
+            item {
+                Snackbar(
+                    action = {
+                        TextButton(onClick = { feedbackMessage = null }) {
+                            Text("OK", color = KeeneticColors.Primary)
+                        }
+                    }
+                ) {
+                    Text(feedbackMessage ?: "")
+                }
             }
         }
 
@@ -59,14 +81,94 @@ fun ComponentsScreen(viewModel: RouterViewModel, onBack: () -> Unit = {}) {
         }
 
         items(componentList) { component ->
-            ComponentCard(component)
+            ComponentCard(component = component, onClick = { selectedComponent = component })
         }
+    }
+
+    // Component Action & Detail Modal Dialog
+    selectedComponent?.let { comp ->
+        AlertDialog(
+            onDismissRequest = { selectedComponent = null },
+            title = {
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Icon(Icons.Default.Extension, contentDescription = null, tint = KeeneticColors.Primary)
+                    Text(comp.title.ifBlank { comp.name }, fontWeight = FontWeight.Bold, color = KeeneticColors.TextPrimary)
+                }
+            },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Text(comp.description.ifBlank { "Системный компонент KeeneticOS" }, style = MaterialTheme.typography.bodyMedium, color = KeeneticColors.TextSecondary)
+                    HorizontalDivider(color = KeeneticColors.Divider)
+                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                        Text("Имя пакета", style = MaterialTheme.typography.bodySmall, color = KeeneticColors.TextSecondary)
+                        Text(comp.name, style = MaterialTheme.typography.bodySmall, color = KeeneticColors.TextPrimary, fontWeight = FontWeight.Bold)
+                    }
+                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                        Text("Версия ПО", style = MaterialTheme.typography.bodySmall, color = KeeneticColors.TextSecondary)
+                        Text(comp.version.ifBlank { "Н/Д" }, style = MaterialTheme.typography.bodySmall, color = KeeneticColors.TextPrimary)
+                    }
+                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                        Text("Статус установки", style = MaterialTheme.typography.bodySmall, color = KeeneticColors.TextSecondary)
+                        Text(
+                            if (comp.installed) "Установлен" else if (comp.available) "Доступен к установке" else "Недоступен",
+                            style = MaterialTheme.typography.bodySmall,
+                            fontWeight = FontWeight.Bold,
+                            color = when {
+                                comp.installed -> KeeneticColors.Success
+                                comp.available -> KeeneticColors.Warning
+                                else -> KeeneticColors.TextSecondary
+                            }
+                        )
+                    }
+
+                    HorizontalDivider(color = KeeneticColors.Divider)
+
+                    if (comp.installed) {
+                        Button(
+                            onClick = {
+                                viewModel.removeComponent(comp.name)
+                                feedbackMessage = "Отправлена команда на удаление компонента «${comp.name}»"
+                                selectedComponent = null
+                            },
+                            colors = ButtonDefaults.buttonColors(containerColor = KeeneticColors.Error),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Icon(Icons.Default.Delete, contentDescription = null, modifier = Modifier.size(16.dp))
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text("Удалить компонент")
+                        }
+                    } else if (comp.available) {
+                        Button(
+                            onClick = {
+                                viewModel.installComponent(comp.name)
+                                feedbackMessage = "Отправлена команда на установку компонента «${comp.name}»"
+                                selectedComponent = null
+                            },
+                            colors = ButtonDefaults.buttonColors(containerColor = KeeneticColors.Primary),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Icon(Icons.Default.Download, contentDescription = null, modifier = Modifier.size(16.dp))
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text("Установить компонент")
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { selectedComponent = null }) {
+                    Text("Закрыть", color = KeeneticColors.TextPrimary)
+                }
+            }
+        )
     }
 }
 
 @Composable
-private fun ComponentCard(component: ComponentInfo) {
+private fun ComponentCard(component: ComponentInfo, onClick: () -> Unit = {}) {
     Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onClick() },
         shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(containerColor = KeeneticColors.Surface)
     ) {

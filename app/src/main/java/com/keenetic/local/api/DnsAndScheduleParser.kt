@@ -14,6 +14,17 @@ data class DnsServerInfo(
     val interfaceName: String? = null
 )
 
+data class DohServerInfo(
+    val url: String,
+    val interfaceName: String? = null
+)
+
+data class DotServerInfo(
+    val address: String? = null,
+    val fqdn: String? = null,
+    val interfaceName: String? = null
+)
+
 /**
  * Разбор `show sc schedule` и `show sc ip name-server` /
  * `show sc dns-proxy https upstream` - подтверждено реальным HAR.
@@ -33,8 +44,23 @@ object DnsAndScheduleParser {
         }
     }
 
+    /**
+     * Plain DNS-серверы. Реальная структура show/ip/name-server:
+     *   "name-server": { "server": [ { "address": "...", "service": "Dhcp::...", "interface": "..." } ] }
+     * Ручные `ip name-server` в show/sc/ip/name-server:
+     *   "name-server": [ { "address": "...", "domain": "", "interface": "..." } ]
+     * Учитываем оба варианта.
+     */
     fun parseNameServers(root: JsonElement?): List<DnsServerInfo> {
-        val arr = findArrayKey(root, "name-server") ?: return emptyList()
+        val arr = when {
+            root?.isJsonArray == true -> root.asJsonArray.toList()
+            else -> {
+                val ns = findKey(root, "name-server")
+                ns?.get("server")?.takeIf { it.isJsonArray }?.asJsonArray?.toList()
+                    ?: findArrayKey(root, "name-server")
+                    ?: return emptyList()
+            }
+        }
         return arr.mapNotNull { el ->
             if (!el.isJsonObject) return@mapNotNull null
             val o = el.asJsonObject
@@ -42,14 +68,72 @@ object DnsAndScheduleParser {
                 address = o.get("address")?.takeIf { it.isJsonPrimitive }?.asString,
                 interfaceName = o.get("interface")?.takeIf { it.isJsonPrimitive }?.asString
             )
-        }
+        }.distinctBy { it.address to it.interfaceName }
     }
 
     fun parseDohUpstream(root: JsonElement?): List<String> {
-        val arr = findArrayKey(root, "upstream") ?: return emptyList()
+        return parseDohServers(root).map {
+            val intf = it.interfaceName
+            if (intf.isNullOrBlank()) it.url else "${it.url} ($intf)"
+        }
+    }
+
+    fun parseDohServers(root: JsonElement?): List<DohServerInfo> {
+        val arr = when {
+            root?.isJsonArray == true -> root.asJsonArray.toList()
+            else -> findArrayKey(root, "upstream") ?: return emptyList()
+        }
         return arr.mapNotNull { el ->
             if (!el.isJsonObject) return@mapNotNull null
-            el.asJsonObject.get("url")?.takeIf { it.isJsonPrimitive }?.asString
+            val o = el.asJsonObject
+            val url = o.get("url")?.takeIf { it.isJsonPrimitive }?.asString ?: return@mapNotNull null
+            DohServerInfo(
+                url = url,
+                interfaceName = o.get("interface")?.takeIf { it.isJsonPrimitive }?.asString
+            )
+        }.distinctBy { it.url to it.interfaceName }
+    }
+
+    fun parseDotUpstream(root: JsonElement?): List<String> {
+        return parseDotServers(root).map {
+            val intf = it.interfaceName
+            val label = if (it.fqdn.isNullOrBlank()) it.address ?: "" else it.fqdn!!
+            if (intf.isNullOrBlank()) label else "$label ($intf)"
+        }
+    }
+
+    fun parseDotServers(root: JsonElement?): List<DotServerInfo> {
+        val arr = when {
+            root?.isJsonArray == true -> root.asJsonArray.toList()
+            else -> findArrayKey(root, "upstream") ?: return emptyList()
+        }
+        return arr.mapNotNull { el ->
+            if (!el.isJsonObject) return@mapNotNull null
+            val o = el.asJsonObject
+            val fqdn = o.get("fqdn")?.takeIf { it.isJsonPrimitive }?.asString
+            val address = o.get("address")?.takeIf { it.isJsonPrimitive }?.asString
+            if (fqdn.isNullOrBlank() && address.isNullOrBlank()) return@mapNotNull null
+            DotServerInfo(
+                address = address,
+                fqdn = fqdn,
+                interfaceName = o.get("interface")?.takeIf { it.isJsonPrimitive }?.asString
+            )
+        }.distinctBy { it.address to it.fqdn to it.interfaceName }
+    }
+
+    /** Ручные plain DNS (show/sc/ip/name-server) - массив {address, domain, interface}. */
+    fun parseScNameServers(root: JsonElement?): List<DnsServerInfo> {
+        val arr = when {
+            root?.isJsonArray == true -> root.asJsonArray.toList()
+            else -> findArrayKey(root, "name-server") ?: return emptyList()
+        }
+        return arr.mapNotNull { el ->
+            if (!el.isJsonObject) return@mapNotNull null
+            val o = el.asJsonObject
+            DnsServerInfo(
+                address = o.get("address")?.takeIf { it.isJsonPrimitive }?.asString,
+                interfaceName = o.get("interface")?.takeIf { it.isJsonPrimitive }?.asString
+            )
         }
     }
 

@@ -18,6 +18,7 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import com.keenetic.local.api.DnsServerInfo
+import com.keenetic.local.api.RouterInterface
 import com.keenetic.local.ui.RouterViewModel
 import com.keenetic.local.ui.theme.KeeneticColors
 
@@ -552,10 +553,16 @@ fun DohSettingsScreen(viewModel: RouterViewModel, onBack: () -> Unit = {}) {
 fun DnsSettingsScreen(viewModel: RouterViewModel, onBack: () -> Unit = {}) {
     val nameServers by viewModel.nameServers.collectAsState()
     val dohUpstream by viewModel.dohUpstream.collectAsState()
+    val dotUpstream by viewModel.dotUpstream.collectAsState()
+    val interfaces by viewModel.interfaces.collectAsState()
+    val dnsIntercept by viewModel.dnsInterceptEnabled.collectAsState()
 
     LaunchedEffect(Unit) {
         viewModel.loadNameServers()
         viewModel.loadDohUpstream()
+        viewModel.loadDotUpstream()
+        viewModel.loadInterfaces()
+        viewModel.loadDnsIntercept()
     }
 
     Column(
@@ -571,11 +578,51 @@ fun DnsSettingsScreen(viewModel: RouterViewModel, onBack: () -> Unit = {}) {
         }
         Text("Управление DNS-серверами, фильтрами и DoH", style = MaterialTheme.typography.bodySmall, color = KeeneticColors.TextSecondary)
         Spacer(modifier = Modifier.height(16.dp))
-        DnsStatusCard(nameServers = nameServers, dohUpstream = dohUpstream)
+        DnsStatusCard(
+            nameServers = nameServers,
+            dohUpstream = dohUpstream,
+            dotUpstream = dotUpstream,
+            interfaces = interfaces
+        )
+        Spacer(modifier = Modifier.height(16.dp))
+        DnsInterceptCard(viewModel)
         Spacer(modifier = Modifier.height(16.dp))
         DohDnsCard(viewModel)
         Spacer(modifier = Modifier.height(16.dp))
         DnsFiltersCard()
+    }
+}
+
+@Composable
+fun DnsInterceptCard(viewModel: RouterViewModel) {
+    val enabled by viewModel.dnsInterceptEnabled.collectAsState()
+
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = KeeneticColors.Surface),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text("Перехват DNS-запросов", fontWeight = FontWeight.SemiBold)
+                Text(
+                    "Направляет все DNS-запросы устройств через роутер (dns-proxy). Выключено — устройства используют DNS провайдера напрямую.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = KeeneticColors.TextSecondary
+                )
+            }
+            Switch(
+                checked = enabled == true,
+                onCheckedChange = { viewModel.setDnsIntercept(it) },
+                enabled = enabled != null
+            )
+        }
     }
 }
 
@@ -642,10 +689,12 @@ fun DohDnsCard(viewModel: RouterViewModel) {
     var expanded by remember { mutableStateOf(false) }
     var dohUrl by remember { mutableStateOf("") }
     var targetInterface by remember { mutableStateOf("") }
-    val dohUpstream by viewModel.dohUpstream.collectAsState()
+    val dohServers by viewModel.dohServers.collectAsState()
+    val dotServers by viewModel.dotServers.collectAsState()
 
     LaunchedEffect(Unit) {
         viewModel.loadDohUpstream()
+        viewModel.loadDotUpstream()
     }
 
     Card(
@@ -665,11 +714,42 @@ fun DohDnsCard(viewModel: RouterViewModel) {
                 }
             }
 
-            if (dohUpstream.isNotEmpty()) {
+            if (dohServers.isNotEmpty()) {
                 Spacer(modifier = Modifier.height(4.dp))
                 Text("Текущий DoH-сервер:", style = MaterialTheme.typography.labelSmall, color = KeeneticColors.TextSecondary)
-                dohUpstream.forEach {
-                    Text(it, style = MaterialTheme.typography.bodySmall)
+                dohServers.forEach {
+                    val intf = it.interfaceName
+                    val label = if (intf.isNullOrBlank()) it.url else "${it.url} ($intf)"
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(label, style = MaterialTheme.typography.bodySmall, modifier = Modifier.weight(1f))
+                        IconButton(onClick = { viewModel.removeDohServer(it.url) }) {
+                            Icon(Icons.Default.Delete, contentDescription = "Удалить", tint = KeeneticColors.Error, modifier = Modifier.size(18.dp))
+                        }
+                    }
+                }
+            }
+
+            if (dotServers.isNotEmpty()) {
+                Spacer(modifier = Modifier.height(4.dp))
+                Text("Текущий DoT-сервер:", style = MaterialTheme.typography.labelSmall, color = KeeneticColors.TextSecondary)
+                dotServers.forEach {
+                    val intf = it.interfaceName
+                    val label = if (it.fqdn.isNullOrBlank()) it.address ?: "" else it.fqdn!!
+                    val text = if (intf.isNullOrBlank()) label else "$label ($intf)"
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(text, style = MaterialTheme.typography.bodySmall, modifier = Modifier.weight(1f))
+                        IconButton(onClick = { it.address?.let { a -> viewModel.removeDotServer(a) } }) {
+                            Icon(Icons.Default.Delete, contentDescription = "Удалить", tint = KeeneticColors.Error, modifier = Modifier.size(18.dp))
+                        }
+                    }
                 }
             }
 
@@ -683,7 +763,7 @@ fun DohDnsCard(viewModel: RouterViewModel) {
             if (expanded) {
                 Spacer(modifier = Modifier.height(12.dp))
                 Text(
-                    "Задаёт один сервер DoH, заменяя текущий список. Если у тебя настроено несколько DoH-серверов сразу - эта настройка их перезапишет.",
+                    "Добавьте сервер DoH/DoT. Существующие серверы при этом сохраняются.",
                     style = MaterialTheme.typography.labelSmall,
                     color = KeeneticColors.TextSecondary
                 )
@@ -707,19 +787,92 @@ fun DohDnsCard(viewModel: RouterViewModel) {
                 )
                 Spacer(modifier = Modifier.height(12.dp))
                 Button(
-                    onClick = { viewModel.setCustomDoh(dohUrl, targetInterface.takeIf { it.isNotBlank() }) },
+                    onClick = {
+                        viewModel.addDohServer(dohUrl.trim(), targetInterface.takeIf { it.isNotBlank() }?.trim())
+                        dohUrl = ""
+                        targetInterface = ""
+                    },
                     enabled = dohUrl.startsWith("https://"),
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    Text("Применить")
+                    Text("Добавить DoH")
                 }
+                Spacer(modifier = Modifier.height(8.dp))
+                AddDotServerSection(viewModel)
             }
         }
     }
 }
 
 @Composable
-fun DnsStatusCard(nameServers: List<DnsServerInfo>, dohUpstream: List<String>) {
+internal fun AddDotServerSection(viewModel: RouterViewModel) {
+    var dotAddress by remember { mutableStateOf("") }
+    var dotFqdn by remember { mutableStateOf("") }
+    var dotInterface by remember { mutableStateOf("") }
+
+    Column {
+        Spacer(modifier = Modifier.height(4.dp))
+        HorizontalDivider(color = KeeneticColors.Divider)
+        Spacer(modifier = Modifier.height(12.dp))
+        Text(
+            "DNS-over-TLS (DoT)",
+            style = MaterialTheme.typography.labelSmall,
+            color = KeeneticColors.TextSecondary
+        )
+        Spacer(modifier = Modifier.height(8.dp))
+        OutlinedTextField(
+            value = dotAddress,
+            onValueChange = { dotAddress = it },
+            label = { Text("Адрес сервера DoT") },
+            placeholder = { Text("например 77.88.8.8 или 45.155.204.190") },
+            singleLine = true,
+            modifier = Modifier.fillMaxWidth()
+        )
+        Spacer(modifier = Modifier.height(8.dp))
+        OutlinedTextField(
+            value = dotFqdn,
+            onValueChange = { dotFqdn = it },
+            label = { Text("FQDN / SNI (необязательно)") },
+            placeholder = { Text("например common.dot.dns.yandex.net") },
+            singleLine = true,
+            modifier = Modifier.fillMaxWidth()
+        )
+        Spacer(modifier = Modifier.height(8.dp))
+        OutlinedTextField(
+            value = dotInterface,
+            onValueChange = { dotInterface = it },
+            label = { Text("Интерфейс (необязательно)") },
+            placeholder = { Text("например Proxy0") },
+            singleLine = true,
+            modifier = Modifier.fillMaxWidth()
+        )
+        Spacer(modifier = Modifier.height(12.dp))
+        Button(
+            onClick = {
+                viewModel.addDotServer(
+                    address = dotAddress.trim(),
+                    fqdn = dotFqdn.takeIf { it.isNotBlank() }?.trim(),
+                    interfaceName = dotInterface.takeIf { it.isNotBlank() }?.trim()
+                )
+                dotAddress = ""
+                dotFqdn = ""
+                dotInterface = ""
+            },
+            enabled = dotAddress.isNotBlank(),
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Text("Добавить DoT")
+        }
+    }
+}
+
+@Composable
+fun DnsStatusCard(
+    nameServers: List<DnsServerInfo>,
+    dohUpstream: List<String>,
+    dotUpstream: List<String>,
+    interfaces: List<RouterInterface> = emptyList()
+) {
     Card(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(containerColor = KeeneticColors.Surface),
@@ -733,11 +886,18 @@ fun DnsStatusCard(nameServers: List<DnsServerInfo>, dohUpstream: List<String>) {
                 dohUpstream.forEach { Text(it, style = MaterialTheme.typography.bodySmall) }
                 Spacer(modifier = Modifier.height(8.dp))
             }
+            if (dotUpstream.isNotEmpty()) {
+                Text("DoT-серверы:", style = MaterialTheme.typography.labelSmall, color = KeeneticColors.TextSecondary)
+                dotUpstream.forEach { Text(it, style = MaterialTheme.typography.bodySmall) }
+                Spacer(modifier = Modifier.height(8.dp))
+            }
             if (nameServers.isNotEmpty()) {
-                Text("DNS-серверы:", style = MaterialTheme.typography.labelSmall, color = KeeneticColors.TextSecondary)
+                Text("Серверы по адресу (plain DNS):", style = MaterialTheme.typography.labelSmall, color = KeeneticColors.TextSecondary)
                 nameServers.forEach {
+                    val intfName = interfaces.firstOrNull { i -> i.id == it.interfaceName }?.description
+                        ?.takeIf { d -> d.isNotBlank() } ?: it.interfaceName
                     Text(
-                        "${it.address ?: "?"} (${it.interfaceName ?: "?"})",
+                        "${it.address ?: "?"} (${intfName ?: "?"})",
                         style = MaterialTheme.typography.bodySmall
                     )
                 }

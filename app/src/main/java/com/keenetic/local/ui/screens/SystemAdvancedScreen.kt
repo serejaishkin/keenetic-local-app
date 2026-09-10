@@ -1,5 +1,6 @@
 package com.keenetic.local.ui.screens
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -23,10 +24,12 @@ fun SystemAdvancedScreen(viewModel: RouterViewModel, onBack: () -> Unit = {}) {
     val backupStatus by viewModel.backupStatus.collectAsState()
     val systemMode by viewModel.systemMode.collectAsState()
     var hostnameInput by remember { mutableStateOf(systemInfo?.hostname ?: "Keenetic") }
-    var showSaveDialog by remember { mutableStateOf(false) }
-    var dialogMessage by remember { mutableStateOf("") }
+    var showNtpDialog by remember { mutableStateOf(false) }
+    var showTimezoneDialog by remember { mutableStateOf(false) }
+    var showLedModeDialog by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) {
+        viewModel.loadSystemInfo()
         viewModel.loadEnvironmentInfo()
         viewModel.loadNtpStatus()
         viewModel.loadLedConfig()
@@ -90,7 +93,7 @@ fun SystemAdvancedScreen(viewModel: RouterViewModel, onBack: () -> Unit = {}) {
                     HorizontalDivider(color = KeeneticColors.Divider)
                     InfoRow("Температура", "${environmentInfo.temperature}°C")
                     InfoRow("Скорость вентилятора", "${environmentInfo.fanSpeed} RPM")
-                    InfoRow("Uptime", formatUptime(environmentInfo.uptime))
+                    InfoRow("Uptime", formatUptime(systemInfo?.uptime ?: environmentInfo.uptime))
                 }
             }
         }
@@ -108,7 +111,8 @@ fun SystemAdvancedScreen(viewModel: RouterViewModel, onBack: () -> Unit = {}) {
                         Text("NTP синхронизация", color = KeeneticColors.TextPrimary)
                         Switch(checked = ntpStatus.enabled, onCheckedChange = { viewModel.setNtpEnabled(it) })
                     }
-                    InfoRow("Сервер", ntpStatus.server)
+                    InfoRow("Сервер NTP", ntpStatus.server.ifBlank { "0.pool.ntp.org (по умолчанию)" }, onClick = { showNtpDialog = true })
+                    InfoRow("Часовой пояс", systemInfo?.clockTime?.ifBlank { "MSK / UTC" } ?: "Изменить часовой пояс", onClick = { showTimezoneDialog = true })
                     InfoRow("Последняя синхронизация", ntpStatus.lastSync)
                 }
             }
@@ -127,7 +131,7 @@ fun SystemAdvancedScreen(viewModel: RouterViewModel, onBack: () -> Unit = {}) {
                         Text("Индикаторы включены", color = KeeneticColors.TextPrimary)
                         Switch(checked = ledConfig.enabled, onCheckedChange = { viewModel.setLedEnabled(it) })
                     }
-                    InfoRow("Режим", ledConfig.mode)
+                    InfoRow("Режим работы LED", ledConfig.mode.ifBlank { "Стандартный" }, onClick = { showLedModeDialog = true })
                 }
             }
         }
@@ -162,13 +166,127 @@ fun SystemAdvancedScreen(viewModel: RouterViewModel, onBack: () -> Unit = {}) {
             }
         }
     }
+    if (showNtpDialog) {
+        var ntpServerInput by remember { mutableStateOf(ntpStatus.server) }
+        AlertDialog(
+            onDismissRequest = { showNtpDialog = false },
+            title = { Text("Настройка сервера NTP", fontWeight = FontWeight.Bold, color = KeeneticColors.TextPrimary) },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Text("Укажите доменное имя или IP-адрес сервера точного времени:", style = MaterialTheme.typography.bodySmall, color = KeeneticColors.TextSecondary)
+                    OutlinedTextField(
+                        value = ntpServerInput,
+                        onValueChange = { ntpServerInput = it },
+                        label = { Text("NTP сервер") },
+                        placeholder = { Text("pool.ntp.org или time.google.com") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        viewModel.setNtpServer(ntpServerInput)
+                        showNtpDialog = false
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = KeeneticColors.Primary)
+                ) {
+                    Text("Сохранить")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showNtpDialog = false }) {
+                    Text("Отмена", color = KeeneticColors.TextSecondary)
+                }
+            }
+        )
+    }
+
+    if (showTimezoneDialog) {
+        var tzInput by remember { mutableStateOf("MSK-3") }
+        AlertDialog(
+            onDismissRequest = { showTimezoneDialog = false },
+            title = { Text("Выбор часового пояса", fontWeight = FontWeight.Bold, color = KeeneticColors.TextPrimary) },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Text("Укажите смещение или имя часового пояса (например MSK-3, UTC, EET-2):", style = MaterialTheme.typography.bodySmall, color = KeeneticColors.TextSecondary)
+                    OutlinedTextField(
+                        value = tzInput,
+                        onValueChange = { tzInput = it },
+                        label = { Text("Timezone (например MSK-3)") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        viewModel.setTimezone(tzInput)
+                        showTimezoneDialog = false
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = KeeneticColors.Primary)
+                ) {
+                    Text("Сохранить")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showTimezoneDialog = false }) {
+                    Text("Отмена", color = KeeneticColors.TextSecondary)
+                }
+            }
+        )
+    }
+
+    if (showLedModeDialog) {
+        AlertDialog(
+            onDismissRequest = { showLedModeDialog = false },
+            title = { Text("Режим индикаторов (LED)", fontWeight = FontWeight.Bold, color = KeeneticColors.TextPrimary) },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    listOf("enabled" to "Стандартный (все индикаторы)", "night" to "Ночной режим (приглушённые)", "disabled" to "Выключены все").forEach { (modeKey, modeName) ->
+                        Button(
+                            onClick = {
+                                viewModel.setLedMode(modeKey)
+                                showLedModeDialog = false
+                            },
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = if (ledConfig.mode == modeKey) KeeneticColors.Primary else KeeneticColors.SurfaceElevated,
+                                contentColor = if (ledConfig.mode == modeKey) KeeneticColors.Background else KeeneticColors.TextPrimary
+                            ),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text(modeName)
+                        }
+                    }
+                }
+            },
+            confirmButton = {},
+            dismissButton = {
+                TextButton(onClick = { showLedModeDialog = false }) { Text("Закрыть", color = KeeneticColors.TextSecondary) }
+            }
+        )
+    }
 }
 
 @Composable
-private fun InfoRow(label: String, value: String) {
-    Row(modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp), horizontalArrangement = Arrangement.SpaceBetween) {
+private fun InfoRow(label: String, value: String, onClick: (() -> Unit)? = null) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .then(if (onClick != null) Modifier.clickable { onClick() } else Modifier)
+            .padding(vertical = 6.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
         Text(label, style = MaterialTheme.typography.bodyMedium, color = KeeneticColors.TextSecondary)
-        Text(value, style = MaterialTheme.typography.bodyMedium, color = KeeneticColors.TextPrimary, fontWeight = FontWeight.Medium)
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+            Text(value, style = MaterialTheme.typography.bodyMedium, color = if (onClick != null) KeeneticColors.Primary else KeeneticColors.TextPrimary, fontWeight = FontWeight.Medium)
+            if (onClick != null) {
+                Icon(Icons.Default.Edit, contentDescription = "Изменить", tint = KeeneticColors.Primary, modifier = Modifier.size(16.dp))
+            }
+        }
     }
 }
 

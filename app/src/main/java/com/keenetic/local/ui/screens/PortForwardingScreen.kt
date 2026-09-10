@@ -9,6 +9,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Router
 import androidx.compose.material3.*
@@ -25,6 +26,7 @@ import com.keenetic.local.ui.theme.KeeneticColors
 fun PortForwardingScreen(viewModel: RouterViewModel, onBack: () -> Unit = {}) {
     val rules by viewModel.portForwardingRules.collectAsState()
     var selectedRule by remember { mutableStateOf<PortForwardingRule?>(null) }
+    var editingRule by remember { mutableStateOf<PortForwardingRule?>(null) }
     var showAddDialog by remember { mutableStateOf(false) }
     var feedbackMessage by remember { mutableStateOf<String?>(null) }
 
@@ -215,6 +217,25 @@ fun PortForwardingScreen(viewModel: RouterViewModel, onBack: () -> Unit = {}) {
 
                     OutlinedButton(
                         onClick = {
+                            ruleName = rule.name
+                            ruleProto = rule.proto
+                            ruleSrcPort = rule.srcPort
+                            ruleDstIp = rule.dstIp
+                            ruleDstPort = rule.dstPort
+                            editingRule = rule
+                            selectedRule = null
+                            showAddDialog = true
+                        },
+                        colors = ButtonDefaults.outlinedButtonColors(contentColor = KeeneticColors.Primary),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Icon(Icons.Default.Edit, contentDescription = null, modifier = Modifier.size(16.dp))
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text("Редактировать правило")
+                    }
+
+                    OutlinedButton(
+                        onClick = {
                             viewModel.deletePortForwardingRule(rule.id)
                             feedbackMessage = "Правило «${rule.name}» удалено"
                             selectedRule = null
@@ -236,14 +257,21 @@ fun PortForwardingScreen(viewModel: RouterViewModel, onBack: () -> Unit = {}) {
         )
     }
 
-    // Add New Rule Dialog
+    // Add / Edit Rule Dialog
     if (showAddDialog) {
         AlertDialog(
-            onDismissRequest = { showAddDialog = false },
+            onDismissRequest = {
+                showAddDialog = false
+                editingRule = null
+            },
             title = {
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     Icon(Icons.Default.Add, contentDescription = null, tint = KeeneticColors.Primary)
-                    Text("Новое правило NAT", fontWeight = FontWeight.Bold, color = KeeneticColors.TextPrimary)
+                    Text(
+                        if (editingRule != null) "Редактирование правила NAT" else "Новое правило NAT",
+                        fontWeight = FontWeight.Bold,
+                        color = KeeneticColors.TextPrimary
+                    )
                 }
             },
             text = {
@@ -297,18 +325,19 @@ fun PortForwardingScreen(viewModel: RouterViewModel, onBack: () -> Unit = {}) {
                     onClick = {
                         if (ruleName.isNotBlank() && ruleSrcPort.isNotBlank() && ruleDstIp.isNotBlank()) {
                             val newRule = PortForwardingRule(
-                                id = (rules.size + 1).toString(),
+                                id = editingRule?.id ?: (rules.size + 1).toString(),
                                 name = ruleName,
                                 proto = ruleProto,
                                 srcPort = ruleSrcPort,
                                 dstIp = ruleDstIp,
                                 dstPort = ruleDstPort.ifBlank { ruleSrcPort },
-                                interfaceName = ruleIface,
+                                interfaceName = editingRule?.interfaceName ?: ruleIface,
                                 enabled = true
                             )
                             viewModel.addPortForwardingRule(newRule)
-                            feedbackMessage = "Правило «$ruleName» добавлено"
+                            feedbackMessage = if (editingRule != null) "Правило «$ruleName» обновлено" else "Правило «$ruleName» добавлено"
                             showAddDialog = false
+                            editingRule = null
                             ruleName = ""
                             ruleSrcPort = ""
                             ruleDstPort = ""
@@ -316,7 +345,7 @@ fun PortForwardingScreen(viewModel: RouterViewModel, onBack: () -> Unit = {}) {
                     },
                     colors = ButtonDefaults.buttonColors(containerColor = KeeneticColors.Primary)
                 ) {
-                    Text("Создать")
+                    Text(if (editingRule != null) "Сохранить" else "Создать")
                 }
             },
             dismissButton = {

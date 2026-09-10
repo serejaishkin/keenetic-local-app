@@ -576,27 +576,6 @@ data class DyndnsUpdater(
     val status: String = ""
 )
 
-data class NextdnsProfileFull(
-    val id: String = "",
-    val name: String = "",
-    val enabled: Boolean = false,
-    val configured: Boolean = false
-)
-
-data class SafednsProfileFull(
-    val id: String = "",
-    val name: String = "",
-    val enabled: Boolean = false,
-    val configured: Boolean = false
-)
-
-data class SkydnsProfileFull(
-    val id: String = "",
-    val name: String = "",
-    val enabled: Boolean = false,
-    val configured: Boolean = false
-)
-
 data class UpnpRedirect(
     val name: String = "",
     val proto: String = "",
@@ -675,6 +654,14 @@ data class HttpProxySettings(
     val port: Int = 3128
 )
 
+data class ServiceFlags(
+    val ftp: Boolean = false,
+    val ssh: Boolean = false,
+    val telnet: Boolean = false,
+    val ntp: Boolean = false,
+    val httpProxy: Boolean = false
+)
+
 data class Ipv6Address(
     val address: String = "",
     val prefix: Int = 0,
@@ -734,6 +721,19 @@ data class MediaPartition(
     val size: Long = 0,
     val free: Long = 0,
     val state: String = ""
+)
+
+data class VpnConnection(
+    val id: String,
+    val name: String,
+    val type: String,
+    val isUp: Boolean,
+    val state: String,
+    val ip: String? = null,
+    val protocol: String? = null,
+    val upstream: String? = null,
+    val rxBytes: Long = 0,
+    val txBytes: Long = 0
 )
 
 data class ComponentInfo(

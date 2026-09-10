@@ -9,6 +9,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Security
 import androidx.compose.material3.*
@@ -25,6 +26,7 @@ import com.keenetic.local.ui.theme.KeeneticColors
 fun FirewallScreen(viewModel: RouterViewModel, onBack: () -> Unit = {}) {
     val rules by viewModel.firewallRules.collectAsState()
     var selectedRule by remember { mutableStateOf<FirewallRule?>(null) }
+    var editingRule by remember { mutableStateOf<FirewallRule?>(null) }
     var showAddDialog by remember { mutableStateOf(false) }
     var feedbackMessage by remember { mutableStateOf<String?>(null) }
 
@@ -235,6 +237,27 @@ fun FirewallScreen(viewModel: RouterViewModel, onBack: () -> Unit = {}) {
 
                     OutlinedButton(
                         onClick = {
+                            ruleAction = if (rule.action.equals("permit", ignoreCase = true)) "permit" else "deny"
+                            ruleProto = rule.proto
+                            ruleSrcIp = rule.srcIp
+                            ruleDstIp = rule.dstIp
+                            ruleDstPort = rule.dstPort
+                            ruleIface = rule.interfaceName
+                            ruleComment = rule.comment
+                            editingRule = rule
+                            selectedRule = null
+                            showAddDialog = true
+                        },
+                        colors = ButtonDefaults.outlinedButtonColors(contentColor = KeeneticColors.Primary),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Icon(Icons.Default.Edit, contentDescription = null, modifier = Modifier.size(16.dp))
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text("Редактировать правило")
+                    }
+
+                    OutlinedButton(
+                        onClick = {
                             viewModel.deleteFirewallRule(rule.id)
                             feedbackMessage = "Правило удалено"
                             selectedRule = null
@@ -256,14 +279,21 @@ fun FirewallScreen(viewModel: RouterViewModel, onBack: () -> Unit = {}) {
         )
     }
 
-    // Add New Firewall Rule Dialog
+    // Add / Edit Firewall Rule Dialog
     if (showAddDialog) {
         AlertDialog(
-            onDismissRequest = { showAddDialog = false },
+            onDismissRequest = {
+                showAddDialog = false
+                editingRule = null
+            },
             title = {
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     Icon(Icons.Default.Add, contentDescription = null, tint = KeeneticColors.Primary)
-                    Text("Новое правило Firewall", fontWeight = FontWeight.Bold, color = KeeneticColors.TextPrimary)
+                    Text(
+                        if (editingRule != null) "Редактирование правила Firewall" else "Новое правило Firewall",
+                        fontWeight = FontWeight.Bold,
+                        color = KeeneticColors.TextPrimary
+                    )
                 }
             },
             text = {
@@ -330,24 +360,25 @@ fun FirewallScreen(viewModel: RouterViewModel, onBack: () -> Unit = {}) {
                 Button(
                     onClick = {
                         val newRule = FirewallRule(
-                            id = (rules.size + 1).toString(),
+                            id = editingRule?.id ?: (rules.size + 1).toString(),
                             action = ruleAction,
                             proto = ruleProto,
                             srcIp = ruleSrcIp,
                             dstIp = ruleDstIp,
                             dstPort = ruleDstPort,
-                            interfaceName = ruleIface,
+                            interfaceName = editingRule?.interfaceName ?: ruleIface,
                             enabled = true,
                             comment = ruleComment
                         )
                         viewModel.addFirewallRule(newRule)
-                        feedbackMessage = "Правило безопасности добавлено"
+                        feedbackMessage = if (editingRule != null) "Правило безопасности обновлено" else "Правило безопасности добавлено"
                         showAddDialog = false
+                        editingRule = null
                         ruleComment = ""
                     },
                     colors = ButtonDefaults.buttonColors(containerColor = KeeneticColors.Primary)
                 ) {
-                    Text("Создать")
+                    Text(if (editingRule != null) "Сохранить" else "Создать")
                 }
             },
             dismissButton = {
