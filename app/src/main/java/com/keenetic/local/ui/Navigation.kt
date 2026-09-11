@@ -44,7 +44,15 @@ sealed class Screen(val route: String, val title: String) {
     data object CableDiagnostics : Screen("cable_diagnostics", "Диагностика кабеля")
     data object InternetDetailed : Screen("internet_detailed", "Интернет (подробно)")
     data object Mws : Screen("mws", "Mesh Wi-Fi")
+    data object MobileTraffic : Screen("mobile_traffic", "Квота мобильного трафика")
+    data object OtherConnections : Screen("other_connections", "Другие подключения")
+    data object Priorities : Screen("priorities", "Приоритеты подключений")
+    data object WifiSystem : Screen("wifi_system", "Общие параметры Wi-Fi")
     data object ObjectGroup : Screen("object_group", "FQDN группы")
+    data object SystemMonitor : Screen("system_monitor", "Системный монитор")
+    data object IntelliQos : Screen("intelliqos", "IntelliQoS")
+    data object WifiAcl : Screen("wifi_acl", "Контроль доступа Wi-Fi")
+    data object TrafficMonitor : Screen("traffic_monitor", "Монитор трафика")
 }
 
 @Composable
@@ -163,8 +171,32 @@ fun KeeneticNavHost(
         composable(Screen.Mws.route) {
             MwsScreen(viewModel = viewModel, onBack = { navController.popBackStack() })
         }
+        composable(Screen.MobileTraffic.route) {
+            MobileTrafficScreen(viewModel = viewModel, onBack = { navController.popBackStack() })
+        }
+        composable(Screen.OtherConnections.route) {
+            OtherConnectionsScreen(viewModel = viewModel, onBack = { navController.popBackStack() })
+        }
+        composable(Screen.Priorities.route) {
+            PrioritiesScreen(viewModel = viewModel, onBack = { navController.popBackStack() })
+        }
+        composable(Screen.WifiSystem.route) {
+            WifiSystemScreen(viewModel = viewModel, onBack = { navController.popBackStack() })
+        }
         composable(Screen.ObjectGroup.route) {
             ObjectGroupScreen(viewModel = viewModel, onBack = { navController.popBackStack() })
+        }
+        composable(Screen.SystemMonitor.route) {
+            SystemMonitorScreen(viewModel = viewModel, onBack = { navController.popBackStack() })
+        }
+        composable(Screen.IntelliQos.route) {
+            IntelliQosScreen(viewModel = viewModel, onBack = { navController.popBackStack() })
+        }
+        composable(Screen.WifiAcl.route) {
+            WifiAclScreen(viewModel = viewModel, onBack = { navController.popBackStack() })
+        }
+        composable(Screen.TrafficMonitor.route) {
+            TrafficMonitorScreen(viewModel = viewModel, onBack = { navController.popBackStack() })
         }
     }
 }

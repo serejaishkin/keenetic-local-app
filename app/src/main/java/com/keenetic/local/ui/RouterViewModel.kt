@@ -2223,9 +2223,152 @@ class RouterViewModel : ViewModel() {
         }
     }
 
+    private val _mobileTraffic = MutableStateFlow(MobileTraffic())
+    val mobileTraffic: StateFlow<MobileTraffic> = _mobileTraffic.asStateFlow()
+
+    fun resolveModemInterfaceId(): String? {
+        return _interfaces.value.firstOrNull {
+            it.type.lowercase().contains("modem")
+        }?.id ?: _interfaces.value.firstOrNull {
+            it.id.lowercase().contains("mobile") ||
+                it.id.lowercase().contains("modem") ||
+                it.id.lowercase().contains("lte") ||
+                it.id.lowercase().contains("cellular")
+        }?.id
+    }
+
+    fun loadMobileTraffic(interfaceId: String? = null) {
+        viewModelScope.launch {
+            try {
+                val id = interfaceId ?: resolveModemInterfaceId() ?: return@launch
+                val res = repository.queryShow("interface/$id")
+                if (res != null) {
+                    _mobileTraffic.value = InterfaceMapper.toMobileTraffic(res)
+                }
+            } catch (e: Exception) {
+                AppLogger.logError("loadMobileTraffic", e)
+            }
+        }
+    }
+
+    fun updateMobileTraffic(
+        enable: Boolean,
+        limit: Long,
+        unit: String,
+        dayOfMonth: Int,
+        cycleResetEnabled: Boolean,
+        threshold: Int,
+        smsWarningEnabled: Boolean,
+        smsLimitEnabled: Boolean,
+        smsPhone: String,
+        smsMessage: String,
+        disconnect: Boolean
+    ) {
+        viewModelScope.launch {
+            try {
+                val modemInterface = resolveModemInterfaceId() ?: return@launch
+                val phoneList = listOf(smsPhone.ifBlank { "sms" })
+                val actions = mutableListOf<Map<String, Any>>()
+                if (smsWarningEnabled) {
+                    actions.add(
+                        mapOf(
+                            "trigger" to "threshold",
+                            "sms-alert" to mapOf("message" to smsMessage, "phone" to phoneList)
+                        )
+                    )
+                }
+                if (smsLimitEnabled || disconnect) {
+                    val limitAction = linkedMapOf<String, Any>(
+                        "trigger" to "limit",
+                        "sms-alert" to mapOf("message" to smsMessage, "phone" to phoneList)
+                    )
+                    if (disconnect) limitAction["disconnect"] = true
+                    actions.add(limitAction)
+                }
+
+                val traffic = linkedMapOf<String, Any>()
+                traffic["enable"] = enable
+                traffic["limit"] = limit
+                traffic["unit"] = unit
+                traffic["multiplier"] = unitMultiplier(unit)
+                if (cycleResetEnabled) traffic["monthly"] = mapOf("day-of-month" to dayOfMonth)
+                traffic["threshold"] = threshold
+                if (actions.isNotEmpty()) traffic["action"] = actions
+
+                val cmd = mapOf("interface" to mapOf("name" to modemInterface, "traffic-counter" to traffic))
+                repository.executeRciWithSave(listOf(cmd))
+                loadMobileTraffic(modemInterface)
+            } catch (e: Exception) {
+                AppLogger.logError("updateMobileTraffic", e)
+            }
+        }
+    }
+
+private val _intelliQos = MutableStateFlow(IntelliQosConfig())
+    val intelliQos: StateFlow<IntelliQosConfig> = _intelliQos.asStateFlow()
+
+    fun loadIntelliQos() {
+        viewModelScope.launch {
+            try {
+                val res = repository.queryShow("ntce/qos")
+                val obj = res?.takeIf { it.isJsonObject }?.asJsonObject ?: return@launch
+                val catArr = obj.get("category")?.takeIf { it.isJsonArray }?.asJsonArray
+                val categories = catArr?.mapNotNull { el ->
+                    if (!el.isJsonObject) return@mapNotNull null
+                    val o = el.asJsonObject
+                    val id = o.get("category")?.takeIf { it.isJsonPrimitive }?.runCatching { asInt }?.getOrDefault(0) ?: 0
+                    val pr = o.get("priority")?.takeIf { it.isJsonPrimitive }?.runCatching { asInt }?.getOrDefault(5) ?: 5
+                    IntelliQosCategory(id = id, name = intelliQosCategoryName(id), priority = pr)
+                } ?: emptyList()
+                val enabled = obj.get("enable")?.takeIf { it.isJsonPrimitive }?.runCatching { asBoolean }?.getOrDefault(false) ?: false
+                _intelliQos.value = IntelliQosConfig(classifyEnabled = enabled, qosEnabled = enabled, categories = categories)
+            } catch (e: Exception) {
+                AppLogger.logError("loadIntelliQos", e)
+            }
+        }
+    }
+
+    fun setIntelliQos(enableService: Boolean, enableQos: Boolean) {
+        viewModelScope.launch {
+            try {
+                val cmds = mutableListOf<Map<String, Any>>()
+                cmds.add(mapOf("ntce" to mapOf("enable" to enableService)))
+                cmds.add(mapOf("ntce" to mapOf("qos" to mapOf("enable" to enableQos))))
+                repository.executeRciWithSave(cmds)
+                loadIntelliQos()
+            } catch (e: Exception) {
+                AppLogger.logError("setIntelliQos", e)
+            }
+        }
+    }
+
+    fun setIntelliQosPriority(category: Int, priority: Int) {
+        viewModelScope.launch {
+            try {
+                val cmd = mapOf("ntce" to mapOf("qos" to mapOf("category" to category, "priority" to priority)))
+                repository.executeRciWithSave(listOf(cmd))
+                loadIntelliQos()
+            } catch (e: Exception) {
+                AppLogger.logError("setIntelliQosPriority", e)
+            }
+        }
+    }
+
+    fun setWifiAclMode(interfaceId: String, mode: String) {
+        viewModelScope.launch {
+            try {
+                val cmd = mapOf("interface" to mapOf(interfaceId to mapOf("mac-access" to mode)))
+                repository.executeRciWithSave(listOf(cmd))
+                loadInterfaces()
+            } catch (e: Exception) {
+                AppLogger.logError("setWifiAclMode", e)
+            }
+        }
+    }
+
     fun renameDevice(mac: String, newName: String) {
         _clients.value = _clients.value.map {
-            if (it.mac == mac) it.copy(displayName = newName) else it
+            if (it.mac == mac) it.copy(displayName = newName.ifBlank { it.displayName }) else it
         }
         viewModelScope.launch {
             try {
@@ -2473,8 +2616,8 @@ class RouterViewModel : ViewModel() {
     }
 
     fun toggleWifiBand(band: String, enabled: Boolean) {
-        val is24G = band.contains("2.4") || band.contains("Master1", ignoreCase = true)
-        val masterRadio = if (is24G) "WifiMaster1" else "WifiMaster0"
+        val is24G = band.contains("2.4")
+        val masterRadio = if (is24G) "WifiMaster0" else "WifiMaster1"
         val apName = "$masterRadio/AccessPoint0"
         val label = if (is24G) "2.4 ГГц" else "5 ГГц"
 
@@ -2509,7 +2652,9 @@ class RouterViewModel : ViewModel() {
         newSsid: String,
         newPassword: String,
         channel: Int?,
-        txPowerPercent: Int?
+        txPowerPercent: Int?,
+        security: String? = null,
+        bridge: String? = null
     ) {
         val is24G = band.contains("2.4") || band.contains("Master1", ignoreCase = true)
         val masterRadio = if (is24G) "WifiMaster1" else "WifiMaster0"
@@ -2531,14 +2676,39 @@ class RouterViewModel : ViewModel() {
                 if (newSsid.isNotBlank()) {
                     commands.add(mapOf("interface" to mapOf("name" to apName, "ssid" to newSsid)))
                 }
-                if (newPassword.isNotBlank()) {
+                val pskModes = listOf("wpa", "wpa2", "wpa2+3", "wpa3")
+                if (security != null && security in pskModes && newPassword.isBlank()) {
+                    _wifiActionMessage.value = "Выберите тип защиты $label и укажите новый пароль сети"
+                    return@launch
+                }
+                if (security != null) {
+                    val encryption = mutableMapOf<String, Any>("enable" to mapOf("no" to (security == "open")))
+                    encryption["wpa"] = mapOf("no" to (security != "wpa" && security != "wpa2+3"))
+                    val wpa2On = security in listOf("wpa2", "wpa2+3")
+                    encryption["wpa2"] = mapOf("no" to !wpa2On)
+                    encryption["wpa3"] = mapOf("no" to (security != "wpa3" && security != "wpa2+3"))
+                    encryption["owe"] = mapOf("no" to (security != "owe"))
+                    val authentication = if (security in pskModes) {
+                        mapOf("wpa-psk" to mapOf("no" to false, "psk" to newPassword))
+                    } else {
+                        mapOf("wpa-psk" to mapOf("no" to true))
+                    }
+                    val patch = mutableMapOf<String, Any>("name" to apName)
+                    patch["encryption"] = encryption
+                    patch["authentication"] = authentication
+                    commands.add(mapOf("interface" to patch))
+                }
+                if (newPassword.isNotBlank() && security == null) {
                     commands.add(mapOf("interface" to mapOf("name" to apName, "wpa-psk" to newPassword)))
+                }
+                if (bridge != null && bridge != "keep") {
+                    commands.add(mapOf("interface" to mapOf("name" to apName, "bridge" to bridge)))
                 }
                 if (channel != null && channel > 0) {
                     commands.add(mapOf("interface" to mapOf("name" to masterRadio, "channel" to channel)))
                 }
                 if (txPowerPercent != null) {
-                    commands.add(mapOf("interface" to mapOf("name" to masterRadio, "tx-power" to txPowerPercent)))
+                    commands.add(mapOf("interface" to mapOf("name" to masterRadio, "power" to txPowerPercent)))
                 }
                 if (commands.isNotEmpty()) {
                     val success = repository.executeRciWithSave(commands)
@@ -2547,6 +2717,26 @@ class RouterViewModel : ViewModel() {
                 }
             } catch (e: Exception) {
                 AppLogger.logError("updateWifiNetworkConfig", e)
+                _wifiActionMessage.value = "Ошибка сохранения Wi-Fi: ${e.message}"
+            }
+        }
+    }
+
+    fun updateWifiInterface(name: String, vararg patches: Map<String, Any>) {
+        viewModelScope.launch {
+            try {
+                val commands = patches.map { patch ->
+                    val fields = HashMap<String, Any>()
+                    fields["name"] = name
+                    fields.putAll(patch)
+                    mapOf("interface" to fields)
+                }
+                if (commands.isEmpty()) return@launch
+                val success = repository.executeRciWithSave(commands)
+                _wifiActionMessage.value = if (success) "Параметры Wi-Fi ${name} применены" else "Параметры Wi-Fi применяются; обновите список"
+                loadInterfaces()
+            } catch (e: Exception) {
+                AppLogger.logError("updateWifiInterface", e)
                 _wifiActionMessage.value = "Ошибка сохранения Wi-Fi: ${e.message}"
             }
         }
@@ -4297,6 +4487,22 @@ class RouterViewModel : ViewModel() {
                 loadComponents()
             } catch (e: Exception) {
                 AppLogger.logError("removeComponent", e)
+            }
+        }
+    }
+
+    fun saveInterfacePriorities(orders: Map<String, Int>) {
+        viewModelScope.launch {
+            try {
+                val cmds = orders.map { (id, order) ->
+                    mapOf("interface" to mapOf(id to mapOf("order" to order)))
+                }
+                if (cmds.isNotEmpty()) {
+                    repository.executeRciWithSave(cmds)
+                    loadInterfaces()
+                }
+            } catch (e: Exception) {
+                AppLogger.logError("saveInterfacePriorities", e)
             }
         }
     }

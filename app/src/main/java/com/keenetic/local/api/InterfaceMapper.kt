@@ -67,7 +67,34 @@ object InterfaceMapper {
                     rxBytes = rxBytes,
                     txBytes = txBytes,
                     rxSpeedKbps = rxSpeed,
-                    txSpeedKbps = txSpeed
+                    txSpeedKbps = txSpeed,
+                    order = intVal(obj, "order"),
+                    channel = intVal(obj, "channel"),
+                    channelWidth = runCatching { nested(obj, "channel", "width")?.asInt ?: 0 }.getOrDefault(0),
+                    autoRescan = elementStr(nested(obj, "channel", "auto-rescan", "interval")) ?: "",
+                    powerPercent = intVal(obj, "power").takeIf { it > 0 } ?: 100,
+                    country = elementStr(nested(obj, "country-code", "code")) ?: "",
+                    standard = elementStr(nested(obj, "compatibility", "0", "annex")) ?: "",
+                    txBurst = boolVal(obj, "tx-burst"),
+                    beamforming = boolVal(nested(obj, "beamforming", "explicit"), null),
+                    qam256 = boolVal(obj, "vht"),
+                    downlinkOfdma = boolVal(obj, "downlink-ofdma"),
+                    uplinkOfdma = boolVal(obj, "uplink-ofdma"),
+                    downlinkMumimo = boolVal(obj, "downlink-mumimo"),
+                    uplinkMumimo = boolVal(obj, "uplink-mumimo"),
+                    targetWaketime = boolVal(obj, "target-waketime"),
+                    atfDisabled = boolVal(nested(obj, "atf", "disable"), null).let { disabled -> if (nested(obj, "atf") == null) true else disabled },
+                    atfInbound = boolVal(nested(obj, "atf", "inbound"), null),
+                    bandSteeringEnabled = boolVal(nested(obj, "band-steering", "enable"), null),
+                    preferBand = elementStr(nested(obj, "band-steering", "prefer-band")) ?: "no-priority",
+                    ssidHidden = boolVal(nested(obj, "ssid", "hide"), null),
+                    wpsEnabled = boolVal(nested(obj, "wps", "enable"), null),
+                    ftEnabled = boolVal(nested(obj, "ft", "enable"), null),
+                    mdid = elementStr(nested(obj, "ft", "mdid")) ?: "",
+                    iappKey = elementStr(nested(obj, "ft", "iapp", "key")) ?: "",
+                    rrmEnabled = boolVal(nested(obj, "rrm", "enable"), null),
+                    peerIsolation = boolVal(obj, "peer-isolation"),
+                    macAccessMode = elementStr(obj.get("mac-access")) ?: "none"
                 )
             }
             .sortedWith(compareBy({ it.type != "Bridge" && it.type != "Ethernet" }, { it.id }))
@@ -79,7 +106,8 @@ object InterfaceMapper {
 
         val vpnTypes = setOf(
             "proxy", "wireguard", "openvpn", "pptp", "l2tp", "sstp",
-            "ike", "openconnect", "zerotier", "gre", "ipip", "eoip"
+            "ike", "openconnect", "zerotier", "gre", "ipip", "eoip",
+            "ppp", "pppoe", "ipv6to4", "6to4", "tunnel", "listener"
         )
 
         return rawMap.entries
@@ -272,6 +300,30 @@ object InterfaceMapper {
         return if (el.isJsonPrimitive) el.asString else null
     }
 
+    private fun elementStr(el: JsonElement?): String? =
+        el?.takeIf { it.isJsonPrimitive }?.asJsonPrimitive?.let { p ->
+            when {
+                p.isString -> p.asString
+                p.isBoolean -> p.asBoolean.toString()
+                p.isNumber -> p.asString
+                else -> null
+            }
+        }
+
+    private fun nested(obj: JsonElement?, vararg path: String): JsonElement? {
+        var cur: JsonElement? = obj
+        for (p in path) {
+            val o = cur as? JsonObject ?: return null
+            cur = o.get(p)
+        }
+        return cur
+    }
+
+    private fun boolVal(el: JsonElement?, field: String? = null): Boolean {
+        val target = if (field != null) (el as? JsonObject)?.get(field) else el
+        return elementStr(target)?.let { it == "true" || it == "yes" || it == "1" } ?: false
+    }
+
     private fun longVal(obj: JsonObject?, field: String): Long {
         val el = obj?.get(field) ?: return 0L
         return runCatching { el.asLong }.getOrDefault(0L)
@@ -281,6 +333,70 @@ object InterfaceMapper {
         val el = obj?.get(field) ?: return 0
         return runCatching { el.asInt }.getOrDefault(0)
     }
+
+    fun toMobileTraffic(element: JsonElement?): MobileTraffic {
+        if (element == null || element.isJsonNull) return MobileTraffic()
+        val obj = when {
+            element.isJsonObject && element.asJsonObject.has("interface") ->
+                firstEntry(element.asJsonObject.getAsJsonObject("interface"))
+            element.isJsonObject -> element.asJsonObject
+            else -> null
+        } ?: return MobileTraffic()
+        val tc = obj.getAsJsonObject("traffic-counter") ?: return MobileTraffic()
+
+        val actionArr = runCatching { tc.getAsJsonArray("action") }.getOrNull()
+        var smsWarning = false
+        var smsLimit = false
+        var disconnect = false
+        var smsPhone = ""
+        var smsMessage = ""
+        if (actionArr != null) {
+            for (el in actionArr) {
+                if (!el.isJsonObject) continue
+                val act = el.asJsonObject
+                val trigger = str(act, "trigger") ?: ""
+                val sms = runCatching { act.getAsJsonObject("sms-alert") }.getOrNull()
+                val phoneList = sms?.get("phone")?.takeIf { it.isJsonArray }?.asJsonArray
+                val phone = phoneList?.firstOrNull()?.takeIf { it.isJsonPrimitive }?.asString ?: ""
+                val message = str(sms, "message") ?: ""
+                if (phone.isNotBlank()) {
+                    smsPhone = phone
+                    smsMessage = message
+                }
+                when (trigger) {
+                    "threshold" -> smsWarning = true
+                    "limit" -> {
+                        smsLimit = true
+                        disconnect = act.getOrNull("disconnect")?.asBoolean == true
+                    }
+                }
+            }
+        }
+
+        val monthly = runCatching { tc.getAsJsonObject("monthly") }.getOrNull()
+        val multiplier = runCatching { tc.get("multiplier").asLong }.getOrDefault(1048576L)
+
+        return MobileTraffic(
+            enable = tc.getOrNull("enable")?.asBoolean == true,
+            limit = runCatching { tc.get("limit").asLong }.getOrDefault(0L),
+            unit = str(tc, "unit") ?: "MB",
+            multiplier = multiplier,
+            dayOfMonth = (runCatching { monthly?.get("day-of-month")?.asInt }.getOrDefault(1)) ?: 1,
+            cycleResetEnabled = monthly != null,
+            threshold = runCatching { tc.get("threshold").asInt }.getOrDefault(90),
+            smsWarningEnabled = smsWarning,
+            smsLimitEnabled = smsLimit,
+            smsPhone = smsPhone,
+            smsMessage = smsMessage,
+            disconnect = disconnect
+        )
+    }
+
+    private fun JsonObject.getOrNull(field: String): JsonElement? =
+        if (has(field)) get(field) else null
+
+    private fun firstEntry(obj: JsonObject): JsonObject? =
+        obj.entrySet().firstOrNull()?.value?.takeIf { it.isJsonObject }?.asJsonObject
 
     fun toSwitchPorts(element: JsonElement?): List<SwitchPort> {
         if (element == null || element.isJsonNull) return emptyList()

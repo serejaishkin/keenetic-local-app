@@ -86,8 +86,108 @@ data class RouterInterface(
     val rxBytes: Long = 0,
     val txBytes: Long = 0,
     val rxSpeedKbps: Long = 0,
-    val txSpeedKbps: Long = 0
+    val txSpeedKbps: Long = 0,
+    val order: Int = 0,
+    val channel: Int = 0,
+    val channelWidth: Int = 0,
+    val autoRescan: String = "",
+    val powerPercent: Int = 100,
+    val country: String = "",
+    val standard: String = "",
+    val txBurst: Boolean = false,
+    val beamforming: Boolean = false,
+    val qam256: Boolean = false,
+    val downlinkOfdma: Boolean = false,
+    val uplinkOfdma: Boolean = false,
+    val downlinkMumimo: Boolean = false,
+    val uplinkMumimo: Boolean = false,
+    val targetWaketime: Boolean = false,
+    val atfDisabled: Boolean = true,
+    val atfInbound: Boolean = false,
+    val bandSteeringEnabled: Boolean = false,
+    val preferBand: String = "no-priority",
+    val ssidHidden: Boolean = false,
+    val wpsEnabled: Boolean = false,
+    val ftEnabled: Boolean = false,
+    val mdid: String = "",
+    val iappKey: String = "",
+    val rrmEnabled: Boolean = false,
+    val peerIsolation: Boolean = false,
+    val macAccessMode: String = "none"
 )
+
+data class IntelliQosCategory(
+    val id: Int = 0,
+    val name: String = "",
+    val priority: Int = 5
+)
+
+data class IntelliQosConfig(
+    val classifyEnabled: Boolean = false,
+    val qosEnabled: Boolean = false,
+    val categories: List<IntelliQosCategory> = emptyList()
+)
+
+data class MobileTraffic(
+    val enable: Boolean = false,
+    val limit: Long = 0,
+    val unit: String = "MB",
+    val multiplier: Long = 1048576,
+    val dayOfMonth: Int = 1,
+    val cycleResetEnabled: Boolean = false,
+    val threshold: Int = 90,
+    val smsWarningEnabled: Boolean = false,
+    val smsLimitEnabled: Boolean = false,
+    val smsPhone: String = "",
+    val smsMessage: String = "",
+    val disconnect: Boolean = false
+)
+
+fun unitMultiplier(unit: String): Long = when (unit.uppercase()) {
+    "B" -> 1L
+    "KB" -> 1024L
+    "GB" -> 1073741824L
+    "TB" -> 1099511627776L
+    else -> 1048576L
+}
+
+fun intelliQosCategoryName(id: Int): String = when (id) {
+    0 -> "Без категории"
+    2048 -> "Общие"
+    2049 -> "Обмен файлами (P2P)"
+    2050 -> "Игры"
+    2051 -> "Туннели"
+    2052 -> "Работа и бизнес"
+    2053 -> "Интернет-магазины"
+    2054 -> "Конференц-связь и телефония"
+    2055 -> "Мессенджеры"
+    2056 -> "Потоковое видео"
+    2057 -> "Мобильные приложения"
+    2058 -> "Удалённое управление"
+    2059 -> "Почта"
+    2060 -> "Сетевые сервисы"
+    2061 -> "Системные обновления"
+    2062 -> "Интернет-серфинг"
+    2063 -> "Другое"
+    2111 -> "Криптовалюты"
+    2121 -> "Социальные сети"
+    2202 -> "Онлайн-игры"
+    2211 -> "Интернет рекламы"
+    2301 -> "Стриминг"
+    2333 -> "Облачные сервисы"
+    else -> "Категория $id"
+}
+
+fun intelliQosPriorityName(priority: Int): String = when (priority) {
+    1 -> "Наивысший"
+    2 -> "Критический"
+    3 -> "Высокий"
+    4 -> "Повышенный"
+    5 -> "Нормальный (по умолчанию)"
+    6 -> "Низкий"
+    7 -> "Минимальный"
+    else -> "Уровень $priority"
+}
 
 data class WifiNetworkInfo(
     val id: String,

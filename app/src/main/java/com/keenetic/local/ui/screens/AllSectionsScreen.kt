@@ -41,9 +41,15 @@ fun AllSectionsScreen(
                 SectionItem("Проводной интернет (ISP)", Screen.Internet.route, "WAN/LAN и сетевые интерфейсы"),
                 SectionItem("Интернет (подробно)", Screen.InternetDetailed.route, "IP, шлюз, DNS, скорость"),
                 SectionItem("Wi-Fi сети", Screen.WiFi.route, "Беспроводные точки доступа 2.4/5 GHz"),
+                SectionItem("Общие параметры Wi-Fi", Screen.WifiSystem.route, "Каналы, мощность, роуминг, изоляция"),
+                SectionItem("Контроль доступа Wi-Fi", Screen.WifiAcl.route, "Черные и белые списки"),
                 SectionItem("WPS", Screen.Wps.route, "Быстрое подключение по PIN"),
                 SectionItem("Mesh Wi-Fi (MWS)", Screen.Mws.route, "Mesh-сеть из нескольких роутеров"),
                 SectionItem("Мобильный интернет", Screen.Mobile.route, "USB-модемы и 4G/LTE"),
+                SectionItem("Квота мобильного трафика", Screen.MobileTraffic.route, "Лимиты, SMS, отключение сети"),
+                SectionItem("Другие подключения", Screen.OtherConnections.route, "WireGuard, L2TP, PPTP, ZeroTier, Proxy"),
+                SectionItem("Приоритеты подключений", Screen.Priorities.route, "Порядок интернет-каналов"),
+                SectionItem("IntelliQoS", Screen.IntelliQos.route, "Классификация и приоритизация трафика"),
                 SectionItem("VPN-сервер и клиенты", Screen.VpnAdvanced.route, "WireGuard, SSTP, OpenVPN, L2TP"),
                 SectionItem("VPN Серверы (детально)", Screen.VpnServers.route, "WireGuard, L2TP, IKEv2, SSTP, IPsec")
             )
@@ -59,6 +65,7 @@ fun AllSectionsScreen(
                 SectionItem("FQDN группы", Screen.ObjectGroup.route, "Доменные имена в группах"),
                 SectionItem("Статическая маршрутизация", Screen.StaticRoutes.route, "Таблица маршрутов и шлюзы"),
                 SectionItem("LAN сегменты", Screen.LanSegments.route, "Подсети и изоляция клиентов"),
+                SectionItem("Контроль доступа Wi-Fi", Screen.WifiAcl.route, "Черные и белые списки MAC"),
                 SectionItem("IPv6", Screen.Ipv6.route, "Адреса, префиксы, маршруты IPv6")
             )
         ),
@@ -71,7 +78,8 @@ fun AllSectionsScreen(
                 SectionItem("Торрент-клиент", Screen.TorrentDetail.route, "Статус и настройки торрента"),
                 SectionItem("Облачные сервисы", Screen.Cloud.route, "Keenetic Cloud и NDMP"),
                 SectionItem("USB и накопители", Screen.UsbDevices.route, "Диски, SMB, FTP, DLNA"),
-                SectionItem("Сетевые сервисы", Screen.SshSnmp.route, "SSH, SNMP, FTP, Telnet, Proxy")
+                SectionItem("Сетевые сервисы", Screen.SshSnmp.route, "SSH, SNMP, FTP, Telnet, Proxy"),
+                SectionItem("IntelliQoS", Screen.IntelliQos.route, "Классификация и приоритизация трафика")
             )
         ),
         SectionCategory(
@@ -88,10 +96,12 @@ fun AllSectionsScreen(
                 SectionItem("Диагностика кабеля", Screen.CableDiagnostics.route, "Длина и состояние кабелей")
             )
         ),
-        SectionCategory(
+SectionCategory(
             title = "Мониторинг",
             icon = Icons.Default.Monitor,
             items = listOf(
+                SectionItem("Системный монитор", Screen.SystemMonitor.route, "CPU, RAM, радио, интерфейсы, клиенты"),
+                SectionItem("Монитор трафика", Screen.TrafficMonitor.route, "Текущая скорость на интерфейсах"),
                 SectionItem("Мониторинг сети", Screen.NetworkMonitor.route, "Conntrack, ARP, IP-правила"),
                 SectionItem("Список устройств", Screen.DeviceListDetailed.route, "Все подключённые устройства"),
                 SectionItem("Устройства (обзор)", Screen.Devices.route, "Подключённые клиенты")

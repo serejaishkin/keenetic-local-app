@@ -6,6 +6,8 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -505,14 +507,25 @@ fun WiFiScreen(
 
     // WiFi Band Configuration Dialog
     editingNetwork?.let { net ->
-        val is24 = net.band.contains("2.4") || net.id.contains("WifiMaster1")
+        val is24 = net.band.contains("2.4") || net.id.contains("WifiMaster0", ignoreCase = true)
         var newSsid by remember(net.id) { mutableStateOf(net.ssid) }
         var newPassword by remember(net.id) { mutableStateOf("") }
         var isPassVisible by remember(net.id) { mutableStateOf(false) }
         var selectedChannel by remember(net.id) { mutableStateOf(if (net.channel > 0) net.channel.toString() else "auto") }
         var txPower by remember(net.id) { mutableStateOf("100") }
+        var selectedSecurity by remember(net.id) { mutableStateOf<String?>(null) }
+        var selectedBridge by remember(net.id) { mutableStateOf("keep") }
 
         val availableChannels = if (is24) listOf("auto", "1", "6", "11") else listOf("auto", "36", "40", "44", "48", "149", "153")
+        val securityOptions = listOf(
+            "open" to "Без защиты",
+            "wpa" to "WPA-PSK",
+            "wpa2" to "WPA2-PSK",
+            "wpa2+3" to "WPA2 + WPA3",
+            "wpa3" to "WPA3-PSK",
+            "owe" to "OWE"
+        )
+        val bridgeOptions = listOf("keep" to "Не менять", "Bridge0" to "Домашняя сеть (Bridge0)", "Bridge1" to "Гостевая сеть (Bridge1)")
 
         AlertDialog(
             onDismissRequest = { editingNetwork = null },
@@ -580,6 +593,46 @@ fun WiFiScreen(
                             )
                         }
                     }
+
+                    Text("Тип защиты (пусто = без изменений):", style = MaterialTheme.typography.bodySmall, color = KeeneticColors.TextSecondary)
+                    Row(
+                        modifier = Modifier.horizontalScroll(rememberScrollState()),
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        FilterChip(
+                            selected = selectedSecurity == null,
+                            onClick = { selectedSecurity = null },
+                            label = { Text("Без изменений") }
+                        )
+                        securityOptions.forEach { (sec, secLabel) ->
+                            FilterChip(
+                                selected = selectedSecurity == sec,
+                                onClick = { selectedSecurity = sec },
+                                label = { Text(secLabel) }
+                            )
+                        }
+                    }
+
+                    Text("Сегмент:", style = MaterialTheme.typography.bodySmall, color = KeeneticColors.TextSecondary)
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        bridgeOptions.forEach { (bri, briLabel) ->
+                            FilterChip(
+                                selected = selectedBridge == bri,
+                                onClick = { selectedBridge = bri },
+                                label = { Text(briLabel.replace(" (Bridge0)", "").replace(" (Bridge1)", "")) }
+                            )
+                        }
+                    }
+                    if (selectedSecurity in listOf("wpa", "wpa2", "wpa2+3", "wpa3") && newPassword.isBlank()) {
+                        Text(
+                            "Для выбранного типа защиты укажите новый пароль сети",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.error
+                        )
+                    }
                 }
             },
             confirmButton = {
@@ -592,7 +645,9 @@ fun WiFiScreen(
                             newSsid = newSsid,
                             newPassword = newPassword,
                             channel = chInt,
-                            txPowerPercent = pwrInt
+                            txPowerPercent = pwrInt,
+                            security = selectedSecurity,
+                            bridge = selectedBridge
                         )
                         editingNetwork = null
                     },
