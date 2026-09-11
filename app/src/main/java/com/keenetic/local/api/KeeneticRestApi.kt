@@ -268,7 +268,37 @@ data class StaticRoute(
     val gateway: String,
     val interfaceName: String,
     val auto: Boolean = false,
-    val comment: String = ""
+    val comment: String = "",
+    val index: String = "",
+    val type: String = "network",
+    val prefix: String = "",
+    val reject: Boolean = false,
+    val enabled: Boolean = true
+)
+
+data class DnsRouteData(
+    val id: String = "",
+    val index: String = "",
+    val group: String = "",
+    val gateway: String = "",
+    val interfaceName: String = "",
+    val reject: Boolean = false,
+    val enabled: Boolean = true
+)
+
+data class FqdnGroup(
+    val name: String = "",
+    val description: String = "",
+    val domains: List<String> = emptyList()
+)
+
+data class RouterRouteEntry(
+    val id: String = "",
+    val destination: String = "",
+    val gateway: String = "",
+    val interfaceName: String = "",
+    val isStatic: Boolean = false,
+    val isRejecting: Boolean = false
 )
 
 data class LanSegment(

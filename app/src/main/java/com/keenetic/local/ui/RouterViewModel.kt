@@ -148,6 +148,21 @@ class RouterViewModel : ViewModel() {
     private val _staticRoutes = MutableStateFlow<List<StaticRoute>>(emptyList())
     val staticRoutes: StateFlow<List<StaticRoute>> = _staticRoutes.asStateFlow()
 
+    private val _ipv6StaticRoutes = MutableStateFlow<List<StaticRoute>>(emptyList())
+    val ipv6StaticRoutes: StateFlow<List<StaticRoute>> = _ipv6StaticRoutes.asStateFlow()
+
+    private val _dnsRoutes = MutableStateFlow<List<DnsRouteData>>(emptyList())
+    val dnsRoutes: StateFlow<List<DnsRouteData>> = _dnsRoutes.asStateFlow()
+
+    private val _fqdnGroups = MutableStateFlow<List<FqdnGroup>>(emptyList())
+    val fqdnGroups: StateFlow<List<FqdnGroup>> = _fqdnGroups.asStateFlow()
+
+    private val _currentIpv4Routes = MutableStateFlow<List<RouterRouteEntry>>(emptyList())
+    val currentIpv4Routes: StateFlow<List<RouterRouteEntry>> = _currentIpv4Routes.asStateFlow()
+
+    private val _currentIpv6Routes = MutableStateFlow<List<RouterRouteEntry>>(emptyList())
+    val currentIpv6Routes: StateFlow<List<RouterRouteEntry>> = _currentIpv6Routes.asStateFlow()
+
     private val _lanSegments = MutableStateFlow<List<LanSegment>>(emptyList())
     val lanSegments: StateFlow<List<LanSegment>> = _lanSegments.asStateFlow()
 
@@ -598,8 +613,12 @@ class RouterViewModel : ViewModel() {
         )
 
         _staticRoutes.value = listOf(
-            StaticRoute("1", "10.8.0.0", "255.255.255.0", "10.8.0.1", "Wireguard0", false, "Маршрут к ресурсам офиса"),
-            StaticRoute("2", "192.168.2.0", "255.255.255.0", "192.168.1.254", "Bridge0", false, "Гостевая подсеть")
+            StaticRoute("1", "10.8.0.0", "255.255.255.0", "10.8.0.1", "Wireguard0", false, "Маршрут к ресурсам офиса", index = "1", type = "network"),
+            StaticRoute("2", "192.168.2.0", "255.255.255.0", "192.168.1.254", "Bridge0", false, "Гостевая подсеть", index = "2", type = "network")
+        )
+
+        _ipv6StaticRoutes.value = listOf(
+            StaticRoute("2001:db8::/64", "2001:db8::", "64", "6000::1", "Home", false, "Маршрут IPv6", index = "1", type = "node", prefix = "2001:db8::/64")
         )
 
         _lanSegments.value = listOf(
@@ -1529,49 +1548,458 @@ class RouterViewModel : ViewModel() {
     }
 
     fun loadStaticRoutes() {
+        if (_isDemoMode.value && _staticRoutes.value.isNotEmpty()) return
         viewModelScope.launch {
             try {
-                val res = repository.queryShow("ip/route")
+                val res = repository.queryShow("sc/ip")
                 if (res != null) {
-                    val list = mutableListOf<StaticRoute>()
-                    val arr = when {
-                        res.isJsonArray -> res.asJsonArray
-                        res.isJsonObject && res.asJsonObject.has("route") && res.asJsonObject.get("route").isJsonArray ->
-                            res.asJsonObject.getAsJsonArray("route")
-                        res.isJsonObject -> {
-                            val jsonArr = com.google.gson.JsonArray()
-                            res.asJsonObject.entrySet().forEach { (_, v) ->
-                                if (v.isJsonObject) jsonArr.add(v)
-                                else if (v.isJsonArray) v.asJsonArray.forEach { jsonArr.add(it) }
-                            }
-                            jsonArr
-                        }
-                        else -> null
-                    }
-                    arr?.forEach {
-                        if (it.isJsonObject) {
-                            val o = it.asJsonObject
-                            val dest = o.get("destination")?.takeIf { p -> p.isJsonPrimitive }?.asString
-                                ?: o.get("network")?.takeIf { p -> p.isJsonPrimitive }?.asString ?: ""
-                            val mask = o.get("mask")?.takeIf { p -> p.isJsonPrimitive }?.asString ?: "255.255.255.0"
-                            val gw = o.get("gateway")?.takeIf { p -> p.isJsonPrimitive }?.asString ?: ""
-                            val iface = o.get("interface")?.takeIf { p -> p.isJsonPrimitive }?.asString ?: ""
-                            val auto = o.get("auto")?.takeIf { p -> p.isJsonPrimitive }?.runCatching { asBoolean }?.getOrDefault(false) ?: false
-                            val comment = o.get("comment")?.takeIf { p -> p.isJsonPrimitive }?.asString ?: ""
-
-                            if (dest.isNotBlank()) {
-                                list.add(StaticRoute(id = "${dest}_$iface", network = dest, mask = mask, gateway = gw, interfaceName = iface, auto = auto, comment = comment))
-                            }
-                        }
-                    }
-                    if (list.isNotEmpty() || !_isDemoMode.value) {
-                        _staticRoutes.value = list
-                    }
+                    _staticRoutes.value = parseStaticRouteList(res, ipv6 = false)
                 }
             } catch (e: Exception) {
                 AppLogger.logError("loadStaticRoutes", e)
             }
         }
+    }
+
+    fun loadIpv6StaticRoutes() {
+        if (_isDemoMode.value && _ipv6StaticRoutes.value.isNotEmpty()) return
+        viewModelScope.launch {
+            try {
+                val res = repository.queryShow("sc/ipv6/static")
+                if (res != null) {
+                    _ipv6StaticRoutes.value = parseStaticRouteList(res, ipv6 = true)
+                }
+            } catch (e: Exception) {
+                AppLogger.logError("loadIpv6StaticRoutes", e)
+            }
+        }
+    }
+
+    private fun parseStaticRouteList(element: com.google.gson.JsonElement?, ipv6: Boolean): List<StaticRoute> {
+        val list = mutableListOf<StaticRoute>()
+        if (element == null || element.isJsonNull) return list
+
+        fun addRoute(o: com.google.gson.JsonObject, forcedId: String?) {
+            fun str(key: String): String =
+                o.get(key)?.takeIf { it.isJsonPrimitive }?.asString ?: ""
+            fun bool(key: String): Boolean =
+                o.get(key)?.takeIf { it.isJsonPrimitive }?.runCatching { asBoolean }?.getOrDefault(false) ?: false
+
+            val index = str("index").ifBlank { forcedId.orEmpty() }
+            val host = str("host")
+            val networkAddr = str("network")
+            val mask = str("mask").ifBlank { "255.255.255.0" }
+            val prefix = str("prefix")
+            val isDefault = bool("default") || (host.isBlank() && networkAddr.isBlank() && prefix.isBlank())
+            val gateway = str("gateway")
+            val iface = str("interface")
+            val comment = str("comment")
+            val auto = bool("auto")
+            val reject = bool("reject")
+            val enabled = !bool("disable")
+
+            val type = when {
+                isDefault -> "default"
+                host.isNotBlank() -> "host"
+                ipv6 || prefix.isNotBlank() -> "node"
+                else -> "network"
+            }
+
+            list.add(
+                StaticRoute(
+                    id = index.ifBlank { "${prefix.ifBlank { networkAddr.ifBlank { host } }}_$iface" },
+                    network = networkAddr.ifBlank { host },
+                    mask = mask,
+                    gateway = gateway,
+                    interfaceName = iface,
+                    auto = auto,
+                    comment = comment,
+                    index = index,
+                    type = type,
+                    prefix = prefix,
+                    reject = reject,
+                    enabled = enabled
+                )
+            )
+        }
+
+        if (element.isJsonArray) {
+            element.asJsonArray.forEach { item ->
+                if (item.isJsonObject) addRoute(item.asJsonObject, null)
+            }
+        } else if (element.isJsonObject) {
+            val root = element.asJsonObject
+            if (root.has("static") && root.get("static").isJsonObject) {
+                root.getAsJsonObject("static").entrySet().forEach { (k, v) ->
+                    if (v.isJsonObject) addRoute(v.asJsonObject, k)
+                }
+            } else if (root.has("route") && root.get("route").isJsonArray) {
+                root.getAsJsonArray("route").forEach { item ->
+                    if (item.isJsonObject) addRoute(item.asJsonObject, null)
+                }
+            } else {
+                root.entrySet().forEach { (k, v) ->
+                    if (v.isJsonObject) addRoute(v.asJsonObject, k)
+                }
+            }
+        }
+        return list
+    }
+
+    private fun buildIpv4RouteData(route: StaticRoute): Map<String, Any> {
+        val m = mutableMapOf<String, Any>()
+        when (route.type) {
+            "host" -> m["host"] = route.network
+            "default" -> m["default"] = true
+            else -> {
+                m["network"] = route.network
+                m["mask"] = route.mask.ifBlank { "255.255.255.0" }
+            }
+        }
+        if (route.gateway.isNotBlank()) m["gateway"] = route.gateway
+        if (route.interfaceName.isNotBlank() && route.interfaceName != "Auto") m["interface"] = route.interfaceName
+        if (route.comment.isNotBlank()) m["comment"] = route.comment
+        m["auto"] = route.auto
+        m["reject"] = route.reject
+        m["disable"] = !route.enabled
+        return m
+    }
+
+    private fun buildIpv6RouteData(route: StaticRoute): Map<String, Any> {
+        val m = mutableMapOf<String, Any>()
+        if (route.type == "default") {
+            m["default"] = true
+        } else {
+            m["prefix"] = route.prefix.ifBlank { route.network }
+        }
+        if (route.gateway.isNotBlank()) m["gateway"] = route.gateway
+        if (route.interfaceName.isNotBlank() && route.interfaceName != "Auto") m["interface"] = route.interfaceName
+        if (route.comment.isNotBlank()) m["comment"] = route.comment
+        m["auto"] = route.auto
+        m["reject"] = route.reject
+        m["disable"] = !route.enabled
+        return m
+    }
+
+    fun saveStaticRoute(route: StaticRoute) {
+        viewModelScope.launch {
+            try {
+                val data = buildIpv4RouteData(route).toMutableMap()
+                if (route.index.isNotBlank()) data["index"] = route.index
+                repository.executeRciWithSave(listOf(mapOf("ip.static" to data)))
+                loadStaticRoutes()
+            } catch (e: Exception) {
+                AppLogger.logError("saveStaticRoute", e)
+            }
+        }
+    }
+
+    fun deleteStaticRoute(route: StaticRoute?) {
+        val index = route?.index
+        if (index.isNullOrBlank()) return
+        viewModelScope.launch {
+            try {
+                repository.executeRciWithSave(listOf(mapOf("ip.static" to mapOf("index" to index, "no" to true))))
+                loadStaticRoutes()
+            } catch (e: Exception) {
+                AppLogger.logError("deleteStaticRoute", e)
+            }
+        }
+    }
+
+    fun toggleStaticRoute(route: StaticRoute, enabled: Boolean) {
+        if (route.index.isBlank()) return
+        viewModelScope.launch {
+            try {
+                repository.executeRciWithSave(
+                    listOf(mapOf("ip.static" to mapOf("disable" to mapOf("index" to route.index, "no" to enabled))))
+                )
+                loadStaticRoutes()
+            } catch (e: Exception) {
+                AppLogger.logError("toggleStaticRoute", e)
+            }
+        }
+    }
+
+    fun saveIpv6StaticRoute(route: StaticRoute) {
+        viewModelScope.launch {
+            try {
+                val data = buildIpv6RouteData(route).toMutableMap()
+                if (route.index.isNotBlank()) data["index"] = route.index
+                repository.executeRciWithSave(listOf(mapOf("ipv6.static" to data)))
+                loadIpv6StaticRoutes()
+            } catch (e: Exception) {
+                AppLogger.logError("saveIpv6StaticRoute", e)
+            }
+        }
+    }
+
+    fun deleteIpv6StaticRoute(route: StaticRoute?) {
+        val index = route?.index
+        if (index.isNullOrBlank()) return
+        viewModelScope.launch {
+            try {
+                repository.executeRciWithSave(listOf(mapOf("ipv6.static" to mapOf("index" to index, "no" to true))))
+                loadIpv6StaticRoutes()
+            } catch (e: Exception) {
+                AppLogger.logError("deleteIpv6StaticRoute", e)
+            }
+        }
+    }
+
+    fun toggleIpv6StaticRoute(route: StaticRoute, enabled: Boolean) {
+        if (route.index.isBlank()) return
+        viewModelScope.launch {
+            try {
+                repository.executeRciWithSave(
+                    listOf(mapOf("ipv6.static" to mapOf("disable" to mapOf("index" to route.index, "no" to enabled))))
+                )
+                loadIpv6StaticRoutes()
+            } catch (e: Exception) {
+                AppLogger.logError("toggleIpv6StaticRoute", e)
+            }
+        }
+    }
+
+    fun loadViaInterfaces() {
+        viewModelScope.launch {
+            try {
+                val res = repository.queryShow("interface")
+                if (res != null) {
+                    _vpnViaInterfaces.value = InterfaceMapper.suitableViaInterfaces(res)
+                }
+            } catch (e: Exception) {
+                AppLogger.logError("loadViaInterfaces", e)
+            }
+        }
+    }
+
+    fun loadDnsRoutes() {
+        viewModelScope.launch {
+            try {
+                val res = repository.queryShow("sc/dns-proxy/route")
+                if (res != null) {
+                    _dnsRoutes.value = parseDnsRouteList(res)
+                }
+            } catch (e: Exception) {
+                AppLogger.logError("loadDnsRoutes", e)
+            }
+        }
+    }
+
+    private fun parseDnsRouteList(element: com.google.gson.JsonElement?): List<DnsRouteData> {
+        val list = mutableListOf<DnsRouteData>()
+        if (element == null || element.isJsonNull) return list
+
+        fun addRoute(o: com.google.gson.JsonObject) {
+            fun str(key: String): String =
+                o.get(key)?.takeIf { it.isJsonPrimitive }?.asString ?: ""
+            fun bool(key: String): Boolean =
+                o.get(key)?.takeIf { it.isJsonPrimitive }?.runCatching { asBoolean }?.getOrDefault(false) ?: false
+            val index = str("index")
+            val group = str("group")
+            if (group.isBlank()) return
+            list.add(
+                DnsRouteData(
+                    id = index.ifBlank { group },
+                    index = index,
+                    group = group,
+                    gateway = str("gateway"),
+                    interfaceName = str("interface"),
+                    reject = bool("reject"),
+                    enabled = !bool("disable")
+                )
+            )
+        }
+
+        if (element.isJsonArray) {
+            element.asJsonArray.forEach { item -> if (item.isJsonObject) addRoute(item.asJsonObject) }
+        } else if (element.isJsonObject) {
+            element.asJsonObject.entrySet().forEach { (k, v) ->
+                if (v.isJsonObject) addRoute(v.asJsonObject)
+                else if (v.isJsonArray) v.asJsonArray.forEach { item -> if (item.isJsonObject) addRoute(item.asJsonObject) }
+            }
+        }
+        return list
+    }
+
+    fun saveDnsRoute(route: DnsRouteData) {
+        viewModelScope.launch {
+            try {
+                val data = mutableMapOf<String, Any>()
+                data["group"] = route.group
+                if (route.gateway.isNotBlank()) data["gateway"] = route.gateway
+                if (route.interfaceName.isNotBlank() && route.interfaceName != "Auto") data["interface"] = route.interfaceName
+                data["auto"] = false
+                data["reject"] = route.reject
+                if (route.index.isNotBlank()) {
+                    data["index"] = route.index
+                } else {
+                    data["disable"] = !route.enabled
+                }
+                repository.executeRciWithSave(listOf(mapOf("dns-proxy.route" to data)))
+                loadDnsRoutes()
+            } catch (e: Exception) {
+                AppLogger.logError("saveDnsRoute", e)
+            }
+        }
+    }
+
+    fun deleteDnsRoute(route: DnsRouteData?) {
+        val index = route?.index
+        if (index.isNullOrBlank()) return
+        viewModelScope.launch {
+            try {
+                repository.executeRciWithSave(listOf(mapOf("dns-proxy.route" to mapOf("index" to index, "no" to true))))
+                loadDnsRoutes()
+            } catch (e: Exception) {
+                AppLogger.logError("deleteDnsRoute", e)
+            }
+        }
+    }
+
+    fun toggleDnsRoute(route: DnsRouteData, enabled: Boolean) {
+        if (route.index.isBlank()) return
+        viewModelScope.launch {
+            try {
+                repository.executeRciWithSave(
+                    listOf(mapOf("dns-proxy.route" to mapOf("disable" to mapOf("index" to route.index, "no" to enabled))))
+                )
+                loadDnsRoutes()
+            } catch (e: Exception) {
+                AppLogger.logError("toggleDnsRoute", e)
+            }
+        }
+    }
+
+    fun loadFqdnGroups() {
+        viewModelScope.launch {
+            try {
+                val res = repository.queryShow("sc/object-group/fqdn")
+                if (res != null) {
+                    val list = mutableListOf<FqdnGroup>()
+                    if (res.isJsonObject) {
+                        res.asJsonObject.entrySet().forEach { (name, value) ->
+                            if (value.isJsonObject) {
+                                val o = value.asJsonObject
+                                val desc = o.get("description")?.takeIf { it.isJsonPrimitive }?.asString ?: name
+                                val include = mutableListOf<String>()
+                                o.get("include")?.takeIf { it.isJsonArray }?.asJsonArray?.forEach { item ->
+                                    if (item.isJsonObject) {
+                                        item.asJsonObject.get("address")?.takeIf { it.isJsonPrimitive }?.asString?.let { include.add(it) }
+                                    }
+                                }
+                                list.add(FqdnGroup(name = name, description = desc, domains = include))
+                            }
+                        }
+                    } else if (res.isJsonArray) {
+                        res.asJsonArray.forEach { item ->
+                            if (item.isJsonObject) {
+                                val o = item.asJsonObject
+                                val name = o.get("name")?.takeIf { it.isJsonPrimitive }?.asString ?: o.get("group")?.takeIf { it.isJsonPrimitive }?.asString ?: ""
+                                if (name.isNotBlank()) {
+                                    val desc = o.get("description")?.takeIf { it.isJsonPrimitive }?.asString ?: name
+                                    val include = mutableListOf<String>()
+                                    o.get("include")?.takeIf { it.isJsonArray }?.asJsonArray?.forEach { i ->
+                                        if (i.isJsonObject) i.asJsonObject.get("address")?.takeIf { it.isJsonPrimitive }?.asString?.let { include.add(it) }
+                                    }
+                                    list.add(FqdnGroup(name = name, description = desc, domains = include))
+                                }
+                            }
+                        }
+                    }
+                    _fqdnGroups.value = list
+                }
+            } catch (e: Exception) {
+                AppLogger.logError("loadFqdnGroups", e)
+            }
+        }
+    }
+
+    fun createFqdnGroup(name: String, description: String, domains: List<String>) {
+        if (name.isBlank()) return
+        viewModelScope.launch {
+            try {
+                val include = domains.filter { it.isNotBlank() }.distinct().map { mapOf("address" to it) }
+                val groupData = mutableMapOf<String, Any>()
+                groupData["description"] = description.ifBlank { name }
+                groupData["include"] = include
+                repository.executeRciWithSave(listOf(mapOf("object-group.fqdn" to mapOf(name to groupData))))
+                loadFqdnGroups()
+            } catch (e: Exception) {
+                AppLogger.logError("createFqdnGroup", e)
+            }
+        }
+    }
+
+    fun deleteFqdnGroup(name: String) {
+        if (name.isBlank()) return
+        viewModelScope.launch {
+            try {
+                repository.executeRciWithSave(listOf(mapOf("object-group.fqdn" to mapOf("name" to name, "no" to true))))
+                loadFqdnGroups()
+            } catch (e: Exception) {
+                AppLogger.logError("deleteFqdnGroup", e)
+            }
+        }
+    }
+
+    fun loadCurrentRoutes() {
+        viewModelScope.launch {
+            try {
+                val res = repository.queryShow("ip/route")
+                if (res != null) {
+                    _currentIpv4Routes.value = parseCurrentRouteList(res)
+                }
+                val res6 = repository.queryShow("ipv6/route")
+                if (res6 != null) {
+                    _currentIpv6Routes.value = parseCurrentRouteList(res6)
+                }
+            } catch (e: Exception) {
+                AppLogger.logError("loadCurrentRoutes", e)
+            }
+        }
+    }
+
+    private fun parseCurrentRouteList(element: com.google.gson.JsonElement?): List<RouterRouteEntry> {
+        val list = mutableListOf<RouterRouteEntry>()
+        if (element == null || element.isJsonNull) return list
+
+        fun addRoute(o: com.google.gson.JsonObject) {
+            fun str(key: String): String =
+                o.get(key)?.takeIf { it.isJsonPrimitive }?.asString ?: ""
+            fun bool(key: String): Boolean =
+                o.get(key)?.takeIf { it.isJsonPrimitive }?.runCatching { asBoolean }?.getOrDefault(false) ?: false
+            val dest = str("destination").ifBlank { str("network") }
+            if (dest.isBlank()) return
+            list.add(
+                RouterRouteEntry(
+                    id = "${dest}_${str("interface")}",
+                    destination = dest,
+                    gateway = str("gateway"),
+                    interfaceName = str("interface"),
+                    isStatic = bool("static"),
+                    isRejecting = bool("rejecting")
+                )
+            )
+        }
+
+        if (element.isJsonArray) {
+            element.asJsonArray.forEach { item -> if (item.isJsonObject) addRoute(item.asJsonObject) }
+        } else if (element.isJsonObject) {
+            val root = element.asJsonObject
+            if (root.has("route") && root.get("route").isJsonArray) {
+                root.getAsJsonArray("route").forEach { item -> if (item.isJsonObject) addRoute(item.asJsonObject) }
+            } else if (root.has("route6") && root.get("route6").isJsonArray) {
+                root.getAsJsonArray("route6").forEach { item -> if (item.isJsonObject) addRoute(item.asJsonObject) }
+            } else {
+                root.entrySet().forEach { (_, v) ->
+                    if (v.isJsonObject) addRoute(v.asJsonObject)
+                    else if (v.isJsonArray) v.asJsonArray.forEach { item -> if (item.isJsonObject) addRoute(item.asJsonObject) }
+                }
+            }
+        }
+        return list
     }
 
     fun loadUsers() {
@@ -3083,34 +3511,6 @@ private val _intelliQos = MutableStateFlow(IntelliQosConfig())
 
     fun deleteFirewallRule(id: String) {
         _firewallRules.value = _firewallRules.value.filter { it.id != id }
-    }
-
-    fun addStaticRoute(route: StaticRoute) {
-        _staticRoutes.value =
-            if (_staticRoutes.value.any { it.id == route.id }) {
-                _staticRoutes.value.map { if (it.id == route.id) route else it }
-            } else {
-                _staticRoutes.value + route
-            }
-        viewModelScope.launch {
-            try {
-                val routeMap = mutableMapOf<String, Any>(
-                    "network" to route.network,
-                    "mask" to route.mask,
-                    "interface" to route.interfaceName
-                )
-                if (route.gateway.isNotBlank()) routeMap["gateway"] = route.gateway
-                if (route.comment.isNotBlank()) routeMap["comment"] = route.comment
-                val cmd = mapOf("ip" to mapOf("route" to routeMap))
-                repository.executeRciWithSave(listOf(cmd))
-            } catch (e: Exception) {
-                AppLogger.logError("addStaticRoute", e)
-            }
-        }
-    }
-
-    fun deleteStaticRoute(id: String) {
-        _staticRoutes.value = _staticRoutes.value.filter { it.id != id }
     }
 
     fun loadDnsFilters() {
