@@ -137,7 +137,7 @@ fun DdnsScreen(viewModel: RouterViewModel, onBack: () -> Unit = {}) {
                         DropdownMenu(
                             expanded = expandedProvider,
                             onDismissRequest = { expandedProvider = false },
-                            modifier = Modifier.verticalScroll(rememberScrollState()).heightIn(max = 400.dp)
+                            modifier = Modifier.heightIn(max = 400.dp).verticalScroll(rememberScrollState())
                         ) {
                             ddnsProviders.forEach { (key, label) ->
                                 DropdownMenuItem(

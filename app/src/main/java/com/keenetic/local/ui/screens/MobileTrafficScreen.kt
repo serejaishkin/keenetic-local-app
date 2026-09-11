@@ -163,7 +163,7 @@ fun MobileTrafficScreen(viewModel: RouterViewModel, onBack: () -> Unit = {}) {
                                 DropdownMenu(
                                     expanded = expandedUnit,
                                     onDismissRequest = { expandedUnit = false },
-                                    modifier = Modifier.verticalScroll(rememberScrollState()).heightIn(max = 400.dp)
+                                    modifier = Modifier.heightIn(max = 400.dp).verticalScroll(rememberScrollState())
                                 ) {
                                     UNITS.forEach { u ->
                                         DropdownMenuItem(

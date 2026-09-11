@@ -399,7 +399,7 @@ fun MobileScreen(viewModel: RouterViewModel, onBack: () -> Unit = {}) {
             },
             text = {
                 Column(
-                    modifier = Modifier.verticalScroll(rememberScrollState()).heightIn(max = 480.dp),
+                    modifier = Modifier.heightIn(max = 480.dp).verticalScroll(rememberScrollState()),
                     verticalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
                     OutlinedTextField(
@@ -479,7 +479,7 @@ fun MobileScreen(viewModel: RouterViewModel, onBack: () -> Unit = {}) {
                                 modifier = Modifier.weight(1f)
                             )
                         }
-                        DropdownMenu(expanded = ttlExpanded, onDismissRequest = { ttlExpanded = false }, modifier = Modifier.verticalScroll(rememberScrollState()).heightIn(max = 400.dp)) {
+                        DropdownMenu(expanded = ttlExpanded, onDismissRequest = { ttlExpanded = false }, modifier = Modifier.heightIn(max = 400.dp).verticalScroll(rememberScrollState())) {
                             DropdownMenuItem(text = { Text("Отключено") }, onClick = { ttl = "DISABLED"; ttlExpanded = false })
                             DropdownMenuItem(text = { Text("Входящий") }, onClick = { ttl = "INCOMING"; ttlExpanded = false })
                             DropdownMenuItem(text = { Text("Исходящий") }, onClick = { ttl = "OUTGOING"; ttlExpanded = false })

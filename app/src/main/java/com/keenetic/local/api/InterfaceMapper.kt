@@ -235,6 +235,16 @@ object InterfaceMapper {
             .distinctBy { it.ssid + it.band }
     }
 
+    fun interfaceObject(element: JsonElement?, id: String): JsonObject? {
+        if (element == null || element.isJsonNull) return null
+        return extractEntries(element)[id]
+    }
+
+    fun interfaceNames(element: JsonElement?): List<String> {
+        if (element == null || element.isJsonNull) return emptyList()
+        return extractEntries(element).keys.toList()
+    }
+
     private fun extractEntries(element: JsonElement): Map<String, JsonObject> {
         val map = mutableMapOf<String, JsonObject>()
         when {

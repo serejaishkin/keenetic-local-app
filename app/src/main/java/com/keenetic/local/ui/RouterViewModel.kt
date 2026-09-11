@@ -1217,6 +1217,97 @@ class RouterViewModel : ViewModel() {
         }
     }
 
+    private val _vpnConnDetail = MutableStateFlow<com.google.gson.JsonObject?>(null)
+    val vpnConnDetail: StateFlow<com.google.gson.JsonObject?> = _vpnConnDetail.asStateFlow()
+
+    private val _vpnConnDetailId = MutableStateFlow<String?>(null)
+    val vpnConnDetailId: StateFlow<String?> = _vpnConnDetailId.asStateFlow()
+
+    private val _vpnViaInterfaces = MutableStateFlow<List<String>>(emptyList())
+    val vpnViaInterfaces: StateFlow<List<String>> = _vpnViaInterfaces.asStateFlow()
+
+    fun loadVpnConnDetail(id: String) {
+        viewModelScope.launch {
+            try {
+                _vpnConnDetail.value = null
+                _vpnConnDetailId.value = null
+                val res = repository.queryShow("interface")
+                if (res != null) {
+                    _vpnViaInterfaces.value = InterfaceMapper.interfaceNames(res)
+                    val obj = InterfaceMapper.interfaceObject(res, id)
+                    if (obj != null) {
+                        val cfg = obj.get("sc")?.takeIf { it.isJsonObject }?.asJsonObject ?: obj
+                        _vpnConnDetail.value = cfg
+                        _vpnConnDetailId.value = id
+                    }
+                }
+            } catch (e: Exception) {
+                AppLogger.logError("loadVpnConnDetail", e)
+            }
+        }
+    }
+
+    fun updateVpnConnection(id: String, fields: Map<String, Any>) {
+        if (fields.isEmpty()) {
+            loadVpnConnDetail(id)
+            return
+        }
+        viewModelScope.launch {
+            try {
+                val cmd = mapOf("interface" to mapOf(id to fields))
+                repository.executeRciWithSave(listOf(cmd))
+                loadVpnConnections()
+                loadVpnConnDetail(id)
+            } catch (e: Exception) {
+                AppLogger.logError("updateVpnConnection", e)
+            }
+        }
+    }
+
+    fun addVpnConnection(type: String, description: String) {
+        val id = nextVpnConnectionId(type, _vpnConnections.value.map { it.id })
+        if (id == null) {
+            AppLogger.logError("addVpnConnection", IllegalStateException("no free id for $type"))
+            return
+        }
+        viewModelScope.launch {
+            try {
+                val fields = linkedMapOf<String, Any>("description" to description.ifBlank { id })
+                val cmd = mapOf("interface" to mapOf(id to fields))
+                repository.executeRciWithSave(listOf(cmd))
+                _vpnConnections.value = InterfaceMapper.toVpnConnections(repository.queryShow("interface"))
+            } catch (e: Exception) {
+                AppLogger.logError("addVpnConnection", e)
+            }
+        }
+    }
+
+    private fun nextVpnConnectionId(type: String, existing: List<String>): String? {
+        val (prefix, startIndex) = when (type.lowercase()) {
+            "pppoe" -> "PPPoE" to 0
+            "pptp" -> "Pptp" to 0
+            "l2tp" -> "L2tp" to 0
+            "sstp" -> "Sstp" to 0
+            "wireguard", "wg", "awg" -> "Wireguard" to 0
+            "openvpn" -> "OpenVPN" to 0
+            "ike", "ikev2" -> "Ike" to 0
+            "openconnect" -> "OpenConnect" to 0
+            "zerotier" -> "ZeroTier" to 0
+            "gre" -> "Gre" to 0
+            "ipip" -> "IPIP" to 0
+            "eoip" -> "EoIP" to 0
+            "ipsec" -> "Ipsec" to 0
+            "proxy" -> "Proxy" to 0
+            else -> return null
+        }
+        val used = existing.mapTo(HashSet()) { it.lowercase() }
+        for (i in startIndex..99) {
+            val candidate = prefix + i
+            if (candidate.lowercase() !in used) return candidate
+        }
+        return null
+    }
+
     fun loadDhcpBindings() {
         viewModelScope.launch {
             try {

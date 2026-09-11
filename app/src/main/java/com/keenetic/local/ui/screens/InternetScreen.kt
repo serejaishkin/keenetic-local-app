@@ -381,7 +381,7 @@ fun InternetScreen(viewModel: RouterViewModel, onBack: () -> Unit = {}) {
                                         modifier = Modifier.weight(1f)
                                     )
                                 }
-                                DropdownMenu(expanded = expandedOrder, onDismissRequest = { expandedOrder = false }, modifier = Modifier.verticalScroll(rememberScrollState()).heightIn(max = 400.dp)) {
+                                DropdownMenu(expanded = expandedOrder, onDismissRequest = { expandedOrder = false }, modifier = Modifier.heightIn(max = 400.dp).verticalScroll(rememberScrollState())) {
                                     DropdownMenuItem(text = { Text("Основное подключение") }, onClick = { connOrder = "0"; expandedOrder = false })
                                     DropdownMenuItem(text = { Text("Резервное 1") }, onClick = { connOrder = "1"; expandedOrder = false })
                                     DropdownMenuItem(text = { Text("Резервное 2") }, onClick = { connOrder = "2"; expandedOrder = false })
@@ -404,7 +404,7 @@ fun InternetScreen(viewModel: RouterViewModel, onBack: () -> Unit = {}) {
                                         modifier = Modifier.weight(1f)
                                     )
                                 }
-                                DropdownMenu(expanded = expandedMac, onDismissRequest = { expandedMac = false }, modifier = Modifier.verticalScroll(rememberScrollState()).heightIn(max = 400.dp)) {
+                                DropdownMenu(expanded = expandedMac, onDismissRequest = { expandedMac = false }, modifier = Modifier.heightIn(max = 400.dp).verticalScroll(rememberScrollState())) {
                                     DropdownMenuItem(text = { Text("По умолчанию") }, onClick = { connMacMode = "DEFAULT"; expandedMac = false })
                                     DropdownMenuItem(text = { Text("Вручную (MAC)") }, onClick = { connMacMode = "MANUAL"; expandedMac = false })
                                     DropdownMenuItem(text = { Text("Взять с вашего ПК (CLONE)") }, onClick = { connMacMode = "CLONE"; expandedMac = false })
@@ -457,7 +457,7 @@ fun InternetScreen(viewModel: RouterViewModel, onBack: () -> Unit = {}) {
                                             modifier = Modifier.weight(1f)
                                         )
                                     }
-                                    DropdownMenu(expanded = expandedAuth, onDismissRequest = { expandedAuth = false }, modifier = Modifier.verticalScroll(rememberScrollState()).heightIn(max = 400.dp)) {
+                                    DropdownMenu(expanded = expandedAuth, onDismissRequest = { expandedAuth = false }, modifier = Modifier.heightIn(max = 400.dp).verticalScroll(rememberScrollState())) {
                                         DropdownMenuItem(text = { Text("Авто") }, onClick = { pppoeAuth = "auto"; expandedAuth = false })
                                         DropdownMenuItem(text = { Text("PAP") }, onClick = { pppoeAuth = "pap"; expandedAuth = false })
                                         DropdownMenuItem(text = { Text("CHAP") }, onClick = { pppoeAuth = "chap"; expandedAuth = false })

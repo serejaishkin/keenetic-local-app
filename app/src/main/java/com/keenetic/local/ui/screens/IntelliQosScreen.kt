@@ -158,7 +158,7 @@ private fun CategoryRow(
                 DropdownMenu(
                     expanded = expanded,
                     onDismissRequest = { expanded = false },
-                    modifier = Modifier.verticalScroll(rememberScrollState()).heightIn(max = 400.dp)
+                    modifier = Modifier.heightIn(max = 400.dp).verticalScroll(rememberScrollState())
                 ) {
                     PRIORITY_LEVELS.forEach { p ->
                         DropdownMenuItem(

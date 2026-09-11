@@ -125,7 +125,7 @@ fun PrioritiesScreen(viewModel: RouterViewModel, onBack: () -> Unit = {}) {
                         DropdownMenu(
                             expanded = expandedFor == itf.id,
                             onDismissRequest = { expandedFor = null },
-                            modifier = Modifier.verticalScroll(rememberScrollState()).heightIn(max = 400.dp)
+                            modifier = Modifier.heightIn(max = 400.dp).verticalScroll(rememberScrollState())
                         ) {
                             PRIORITY_OPTIONS.forEach { (value, label) ->
                                 DropdownMenuItem(
