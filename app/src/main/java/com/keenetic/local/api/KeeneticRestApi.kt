@@ -588,6 +588,25 @@ data class WireguardPeerFull(
     val latestHandshake: Long = 0
 )
 
+data class PptpServer(
+    val enabled: Boolean = false,
+    val interfaceName: String = "",
+    val poolStart: String = "",
+    val poolSize: String = "",
+    val nat: Boolean = false,
+    val multiLogin: Boolean = false,
+    val encryption: Boolean = false
+)
+
+data class OcServer(
+    val enabled: Boolean = false,
+    val interfaceName: String = "",
+    val poolStart: String = "",
+    val poolSize: String = "",
+    val nat: Boolean = false,
+    val camouflage: Boolean = false
+)
+
 data class L2tpServer(
     val enabled: Boolean = false,
     val interfaceName: String = "",

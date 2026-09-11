@@ -1233,7 +1233,7 @@ class RouterViewModel : ViewModel() {
                 _vpnConnDetailId.value = null
                 val res = repository.queryShow("interface")
                 if (res != null) {
-                    _vpnViaInterfaces.value = InterfaceMapper.interfaceNames(res)
+                    _vpnViaInterfaces.value = InterfaceMapper.suitableViaInterfaces(res)
                     val obj = InterfaceMapper.interfaceObject(res, id)
                     if (obj != null) {
                         val cfg = obj.get("sc")?.takeIf { it.isJsonObject }?.asJsonObject ?: obj
@@ -3732,6 +3732,12 @@ private val _intelliQos = MutableStateFlow(IntelliQosConfig())
     private val _ipRules = MutableStateFlow<List<IpRule>>(emptyList())
     val ipRules: StateFlow<List<IpRule>> = _ipRules.asStateFlow()
 
+    private val _pptpServer = MutableStateFlow(PptpServer())
+    val pptpServer: StateFlow<PptpServer> = _pptpServer.asStateFlow()
+
+    private val _ocServer = MutableStateFlow(OcServer())
+    val ocServer: StateFlow<OcServer> = _ocServer.asStateFlow()
+
     private val _wireguardServer = MutableStateFlow(WireguardServerStatus())
     val wireguardServer: StateFlow<WireguardServerStatus> = _wireguardServer.asStateFlow()
 
@@ -4077,6 +4083,32 @@ private val _intelliQos = MutableStateFlow(IntelliQosConfig())
         }
     }
 
+    fun loadPptpServer() {
+        viewModelScope.launch {
+            try {
+                val res = repository.queryShow("sc/vpn-server")
+                if (res != null) {
+                    _pptpServer.value = VpnDetailParser.parsePptpServer(res)
+                }
+            } catch (e: Exception) {
+                AppLogger.logError("loadPptpServer", e)
+            }
+        }
+    }
+
+    fun loadOcServer() {
+        viewModelScope.launch {
+            try {
+                val res = repository.queryShow("sc/oc-server")
+                if (res != null) {
+                    _ocServer.value = VpnDetailParser.parseOcServer(res)
+                }
+            } catch (e: Exception) {
+                AppLogger.logError("loadOcServer", e)
+            }
+        }
+    }
+
     fun loadWireguardServer() {
         viewModelScope.launch {
             try {
@@ -4139,6 +4171,16 @@ private val _intelliQos = MutableStateFlow(IntelliQosConfig())
             } catch (e: Exception) {
                 AppLogger.logError("loadIpsecStatus", e)
             }
+        }
+    }
+
+    suspend fun saveVpnServerConfig(writePath: String, config: Map<String, Any>): Boolean {
+        return try {
+            val cmd = mapOf(writePath to mapOf("config" to config))
+            repository.executeRciWithSave(listOf(cmd))
+        } catch (e: Exception) {
+            AppLogger.logError("saveVpnServerConfig($writePath)", e)
+            false
         }
     }
 

@@ -5,6 +5,37 @@ import com.google.gson.JsonObject
 
 object VpnDetailParser {
 
+    fun parsePptpServer(root: JsonElement?): PptpServer {
+        if (root == null || !root.isJsonObject) return PptpServer()
+        val srv = findKey(root, "vpn-server") ?: findKey(root, "pptp-server") ?: findKey(root, "pptp") ?: return PptpServer()
+        val cfg = srv.getAsJsonObject("config") ?: srv
+        val poolRange = srv.getAsJsonObject("pool-range")
+        return PptpServer(
+            enabled = cfg.get("enable")?.takeIf { it.isJsonPrimitive }?.asBoolean ?: false,
+            interfaceName = str(srv, "interface") ?: str(cfg, "interface") ?: "",
+            poolStart = poolRange?.let { str(it, "begin") } ?: str(cfg, "pool-start") ?: str(srv, "pool-start") ?: "",
+            poolSize = poolRange?.let { str(it, "size") } ?: str(cfg, "pool-size") ?: str(srv, "pool-size") ?: "",
+            nat = cfg.get("nat")?.takeIf { it.isJsonPrimitive }?.asBoolean ?: srv.get("nat")?.takeIf { it.isJsonPrimitive }?.asBoolean ?: false,
+            multiLogin = cfg.get("multi-login")?.takeIf { it.isJsonPrimitive }?.asBoolean ?: srv.get("multi-login")?.takeIf { it.isJsonPrimitive }?.asBoolean ?: false,
+            encryption = cfg.get("encryption")?.takeIf { it.isJsonPrimitive }?.asBoolean ?: cfg.get("isEncryptionEnabled")?.takeIf { it.isJsonPrimitive }?.asBoolean ?: srv.get("encryption")?.takeIf { it.isJsonPrimitive }?.asBoolean ?: false
+        )
+    }
+
+    fun parseOcServer(root: JsonElement?): OcServer {
+        if (root == null || !root.isJsonObject) return OcServer()
+        val srv = findKey(root, "oc-server") ?: findKey(root, "openconnect-server") ?: findKey(root, "openconnect") ?: return OcServer()
+        val cfg = srv.getAsJsonObject("config") ?: srv
+        val poolRange = srv.getAsJsonObject("pool-range")
+        return OcServer(
+            enabled = cfg.get("enable")?.takeIf { it.isJsonPrimitive }?.asBoolean ?: false,
+            interfaceName = str(srv, "interface") ?: str(cfg, "interface") ?: "",
+            poolStart = poolRange?.let { str(it, "begin") } ?: str(cfg, "pool-start") ?: str(srv, "pool-start") ?: "",
+            poolSize = poolRange?.let { str(it, "size") } ?: str(cfg, "pool-size") ?: str(srv, "pool-size") ?: "",
+            nat = cfg.get("nat")?.takeIf { it.isJsonPrimitive }?.asBoolean ?: srv.get("nat")?.takeIf { it.isJsonPrimitive }?.asBoolean ?: false,
+            camouflage = cfg.get("camouflage")?.takeIf { it.isJsonPrimitive }?.asBoolean ?: srv.get("camouflage")?.takeIf { it.isJsonPrimitive }?.asBoolean ?: false
+        )
+    }
+
     fun parseWireguardServer(root: JsonElement?): WireguardServerStatus {
         if (root == null || !root.isJsonObject) return WireguardServerStatus()
         val wg = findKey(root, "wireguard-server") ?: findKey(root, "wireguard") ?: return WireguardServerStatus()

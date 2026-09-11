@@ -245,6 +245,24 @@ object InterfaceMapper {
         return extractEntries(element).keys.toList()
     }
 
+    private val VIA_TYPES = setOf(
+        "isp", "pppoe", "pptp", "l2tp", "sstp", "wireguard", "awg", "wg",
+        "openvpn", "openconnect", "ike", "ikev2", "ipsec", "l2tp", "gre",
+        "ipip", "eoip", "usbmodem", "lte", "cellular", "mobile", "wwan",
+        "modem", "ppp"
+    )
+
+    fun suitableViaInterfaces(element: JsonElement?): List<String> {
+        if (element == null || element.isJsonNull) return emptyList()
+        return extractEntries(element)
+            .filter { (_, obj) ->
+                val t = str(obj, "type")?.lowercase() ?: ""
+                t in VIA_TYPES
+            }
+            .keys
+            .toList()
+    }
+
     private fun extractEntries(element: JsonElement): Map<String, JsonObject> {
         val map = mutableMapOf<String, JsonObject>()
         when {
