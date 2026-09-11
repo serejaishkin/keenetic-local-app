@@ -489,7 +489,10 @@ data class LedConfig(
 )
 
 data class SystemMode(
-    val mode: String = "router"
+    val mode: String = "router",
+    val supported: String = "",
+    val hwControlled: Boolean = false,
+    val hwLocked: Boolean = false
 )
 
 data class IfaceStat(

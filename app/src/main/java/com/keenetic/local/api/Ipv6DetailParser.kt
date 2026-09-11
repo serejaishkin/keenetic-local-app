@@ -8,13 +8,17 @@ object Ipv6DetailParser {
     fun parseAddresses(root: JsonElement?): List<Ipv6Address> {
         if (root == null || !root.isJsonObject) return emptyList()
         val list = mutableListOf<Ipv6Address>()
-        val ipv6 = findKey(root, "ipv6") ?: return emptyList()
-        ipv6.getAsJsonArray("address")?.forEach { a ->
+        val rootObj = root.asJsonObject
+        val addressArray = rootObj.getAsJsonArray("address")
+            ?: findKey(root, "ipv6")?.getAsJsonArray("address")
+            ?: return emptyList()
+        addressArray.forEach { a ->
             if (a.isJsonObject) {
                 val o = a.asJsonObject
                 list.add(Ipv6Address(
                     address = str(o, "address") ?: "",
-                    prefix = o.get("prefix")?.takeIf { it.isJsonPrimitive }?.asInt ?: 0,
+                    prefix = o.get("prefix-length")?.takeIf { it.isJsonPrimitive }?.asInt
+                        ?: o.get("prefix")?.takeIf { it.isJsonPrimitive }?.asInt ?: 0,
                     interfaceName = str(o, "interface") ?: "",
                     flags = str(o, "flags") ?: ""
                 ))

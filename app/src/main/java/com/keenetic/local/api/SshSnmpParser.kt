@@ -36,9 +36,12 @@ object SshSnmpParser {
 
     fun parseFtp(root: JsonElement?): FtpSettings {
         if (root == null || !root.isJsonObject) return FtpSettings()
-        val ftp = findKey(root, "ftp") ?: return FtpSettings()
+        val rootObj = root.asJsonObject
+        val ftp = rootObj.getAsJsonObject("ftp") ?: rootObj
         return FtpSettings(
-            enabled = ftp.get("enable")?.takeIf { it.isJsonPrimitive }?.asBoolean ?: false,
+            enabled = ftp.get("enabled")?.takeIf { it.isJsonPrimitive }?.asBoolean
+                ?: ftp.get("enable")?.takeIf { it.isJsonPrimitive }?.asBoolean
+                ?: false,
             port = ftp.get("port")?.takeIf { it.isJsonPrimitive }?.asInt ?: 21,
             anonymousAccess = ftp.get("anonymous-access")?.takeIf { it.isJsonPrimitive }?.asBoolean ?: false
         )

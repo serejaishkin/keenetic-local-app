@@ -1435,55 +1435,31 @@ class RouterViewModel : ViewModel() {
         if (_isDemoMode.value && _firewallRules.value.isNotEmpty()) return
         viewModelScope.launch {
             try {
-                val res = repository.queryShow("ip/rule")
-                if (res != null) {
+                val text = repository.queryShowText("ip/rule")
+                if (text != null) {
                     val list = mutableListOf<FirewallRule>()
-                    fun parseRule(o: com.google.gson.JsonObject, defaultIface: String = "ISP") {
-                        val action = o.get("action")?.takeIf { p -> p.isJsonPrimitive }?.asString ?: "permit"
-                        val proto = o.get("proto")?.takeIf { p -> p.isJsonPrimitive }?.asString
-                            ?: o.get("protocol")?.takeIf { p -> p.isJsonPrimitive }?.asString ?: "IP"
-                        val src = o.get("src")?.takeIf { p -> p.isJsonPrimitive }?.asString
-                            ?: o.get("source")?.takeIf { p -> p.isJsonPrimitive }?.asString ?: "any"
-                        val dst = o.get("dst")?.takeIf { p -> p.isJsonPrimitive }?.asString
-                            ?: o.get("destination")?.takeIf { p -> p.isJsonPrimitive }?.asString ?: "any"
-                        val dstPort = o.get("dst-port")?.takeIf { p -> p.isJsonPrimitive }?.asString
-                            ?: o.get("port")?.takeIf { p -> p.isJsonPrimitive }?.asString ?: "any"
-                        val iface = o.get("interface")?.takeIf { p -> p.isJsonPrimitive }?.asString ?: defaultIface
-                        val comment = o.get("comment")?.takeIf { p -> p.isJsonPrimitive }?.asString ?: ""
-                        val enabled = o.get("enable")?.takeIf { p -> p.isJsonPrimitive }?.runCatching { asBoolean }?.getOrDefault(true) ?: true
-
+                    val lineRegex = Regex("""^\s*(\d+)\s*:\s*from\s+(\S+)\s+to\s+(\S+)\s+lookup\s+(\S+)\s*(?:\((\d+)\))?\s*(.*)$""")
+                    text.lines().forEach { line ->
+                        val m = lineRegex.find(line) ?: return@forEach
+                        val priority = m.groupValues[1]
+                        val src = m.groupValues[2]
+                        val dst = m.groupValues[3]
+                        val table = m.groupValues[4]
+                        val tableId = m.groupValues[5]
+                        val rest = m.groupValues[6]
                         list.add(
                             FirewallRule(
-                                id = (list.size + 1).toString(),
-                                action = action,
-                                proto = proto.uppercase(),
+                                id = priority,
+                                action = if ("blackhole" in rest) "reject" else "permit",
+                                proto = "IP",
                                 srcIp = src,
                                 dstIp = dst,
-                                dstPort = dstPort,
-                                interfaceName = iface,
-                                enabled = enabled,
-                                comment = comment
+                                dstPort = "any",
+                                interfaceName = table,
+                                enabled = true,
+                                comment = rest.trim()
                             )
                         )
-                    }
-
-                    if (res.isJsonArray) {
-                        res.asJsonArray.forEach { if (it.isJsonObject) parseRule(it.asJsonObject) }
-                    } else if (res.isJsonObject) {
-                        val root = res.asJsonObject
-                        if (root.has("rule") && root.get("rule").isJsonArray) {
-                            root.getAsJsonArray("rule").forEach { if (it.isJsonObject) parseRule(it.asJsonObject) }
-                        } else if (root.has("access-list") && root.get("access-list").isJsonArray) {
-                            root.getAsJsonArray("access-list").forEach { if (it.isJsonObject) parseRule(it.asJsonObject) }
-                        } else {
-                            root.entrySet().forEach { (aclName, el) ->
-                                if (el.isJsonArray) {
-                                    el.asJsonArray.forEach { if (it.isJsonObject) parseRule(it.asJsonObject, aclName) }
-                                } else if (el.isJsonObject && el.asJsonObject.has("rule") && el.asJsonObject.get("rule").isJsonArray) {
-                                    el.asJsonObject.getAsJsonArray("rule").forEach { if (it.isJsonObject) parseRule(it.asJsonObject, aclName) }
-                                }
-                            }
-                        }
                     }
                     if (list.isNotEmpty() || !_isDemoMode.value) {
                         _firewallRules.value = list

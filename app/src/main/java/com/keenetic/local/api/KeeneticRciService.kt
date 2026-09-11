@@ -595,6 +595,14 @@ interface KeeneticRciService {
     ): Response<JsonElement>
 
     /**
+     * Direct query to /rci/show/{path} returning raw text (for non-JSON responses like "ip/rule").
+     */
+    @GET("rci/show/{path}")
+    suspend fun queryShowRaw(
+        @Path(value = "path", encoded = true) path: String
+    ): Response<ResponseBody>
+
+    /**
      * Generic query for any raw URL on the router.
      */
     @GET

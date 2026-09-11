@@ -423,6 +423,25 @@ open class KeeneticRciRepository(
     }
 
     /**
+     * Query RCI show path returning raw text string (for non-JSON responses like "ip/rule").
+     */
+    suspend fun queryShowText(path: String): String? {
+        val normalizedPath = normalizeShowPath(path)
+        return try {
+            val service = getService()
+            val res = service.queryShowRaw(normalizedPath)
+            if (res.isSuccessful) {
+                res.body()?.string()
+            } else {
+                null
+            }
+        } catch (e: Exception) {
+            AppLogger.logError("queryShowText($normalizedPath)", e)
+            null
+        }
+    }
+
+    /**
      * Compatibility aliases left in older UI/parser code. These are normalized before
      * both GET /rci/show and POST /rci/ are attempted so the two transports use
      * exactly the same valid RCI tree.
