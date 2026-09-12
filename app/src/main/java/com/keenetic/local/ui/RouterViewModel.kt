@@ -1555,7 +1555,8 @@ class RouterViewModel : ViewModel() {
         if (_isDemoMode.value && _ipv6StaticRoutes.value.isNotEmpty()) return
         viewModelScope.launch {
             try {
-                val res = repository.queryShow("sc/ipv6/static")
+                // Verified: user IPv6 routes live in sc/ipv6 -> route[] (sc/ipv6/static is empty)
+                val res = repository.queryShow("sc/ipv6")
                 if (res != null) {
                     _ipv6StaticRoutes.value = parseStaticRouteList(res, ipv6 = true)
                 }
@@ -1676,7 +1677,8 @@ class RouterViewModel : ViewModel() {
             try {
                 val data = buildIpv4RouteData(route).toMutableMap()
                 if (route.index.isNotBlank()) data["index"] = route.index
-                repository.executeRciWithSave(listOf(mapOf("ip.static" to data)))
+                // Verified on KN-2311: POST {"ip": {"route": {...}}} (dotted "ip.static" -> "not found")
+                repository.executeRciWithSave(listOf(mapOf("ip" to mapOf("route" to data))))
                 loadStaticRoutes()
             } catch (e: Exception) {
                 AppLogger.logError("saveStaticRoute", e)
@@ -1689,7 +1691,7 @@ class RouterViewModel : ViewModel() {
         if (index.isNullOrBlank()) return
         viewModelScope.launch {
             try {
-                repository.executeRciWithSave(listOf(mapOf("ip.static" to mapOf("index" to index, "no" to true))))
+                repository.executeRciWithSave(listOf(mapOf("ip" to mapOf("route" to mapOf("index" to index, "no" to true)))))
                 loadStaticRoutes()
             } catch (e: Exception) {
                 AppLogger.logError("deleteStaticRoute", e)
@@ -1702,7 +1704,7 @@ class RouterViewModel : ViewModel() {
         viewModelScope.launch {
             try {
                 repository.executeRciWithSave(
-                    listOf(mapOf("ip.static" to mapOf("disable" to mapOf("index" to route.index, "no" to enabled))))
+                    listOf(mapOf("ip" to mapOf("route" to mapOf("disable" to mapOf("index" to route.index, "no" to enabled)))))
                 )
                 loadStaticRoutes()
             } catch (e: Exception) {
@@ -1716,7 +1718,7 @@ class RouterViewModel : ViewModel() {
             try {
                 val data = buildIpv6RouteData(route).toMutableMap()
                 if (route.index.isNotBlank()) data["index"] = route.index
-                repository.executeRciWithSave(listOf(mapOf("ipv6.static" to data)))
+                repository.executeRciWithSave(listOf(mapOf("ipv6" to mapOf("route" to data))))
                 loadIpv6StaticRoutes()
             } catch (e: Exception) {
                 AppLogger.logError("saveIpv6StaticRoute", e)
@@ -1729,7 +1731,7 @@ class RouterViewModel : ViewModel() {
         if (index.isNullOrBlank()) return
         viewModelScope.launch {
             try {
-                repository.executeRciWithSave(listOf(mapOf("ipv6.static" to mapOf("index" to index, "no" to true))))
+                repository.executeRciWithSave(listOf(mapOf("ipv6" to mapOf("route" to mapOf("index" to index, "no" to true)))))
                 loadIpv6StaticRoutes()
             } catch (e: Exception) {
                 AppLogger.logError("deleteIpv6StaticRoute", e)
@@ -1742,7 +1744,7 @@ class RouterViewModel : ViewModel() {
         viewModelScope.launch {
             try {
                 repository.executeRciWithSave(
-                    listOf(mapOf("ipv6.static" to mapOf("disable" to mapOf("index" to route.index, "no" to enabled))))
+                    listOf(mapOf("ipv6" to mapOf("route" to mapOf("disable" to mapOf("index" to route.index, "no" to enabled)))))
                 )
                 loadIpv6StaticRoutes()
             } catch (e: Exception) {
