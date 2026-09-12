@@ -2026,6 +2026,7 @@ class RouterViewModel : ViewModel() {
         viewModelScope.launch {
             try {
                 val res = repository.queryShow("usb") ?: repository.queryShow("media")
+                _usbDevicesRaw.value = if (res != null) ApiCallState.Success(res) else ApiCallState.Error("Нет данных")
                 if (res != null) {
                     val list = mutableListOf<UsbStorageDevice>()
                     fun numLong(o: com.google.gson.JsonObject, key: String): Long =
