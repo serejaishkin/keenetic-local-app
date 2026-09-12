@@ -2430,7 +2430,20 @@ class RouterViewModel : ViewModel() {
     }
 
     fun ejectUsbDevice(name: String) {
-        _usbStorageList.value = _usbStorageList.value.filter { it.name != name }
+        viewModelScope.launch {
+            try {
+                // Web: ejectApi.perform({name}) -> POST system.eject
+                val ok = repository.executeRciWithSave(
+                    listOf(mapOf("system" to mapOf("eject" to mapOf("name" to name))))
+                )
+                if (ok) {
+                    _usbStorageList.value = _usbStorageList.value.filter { it.name != name }
+                    loadUsbDevices()
+                }
+            } catch (e: Exception) {
+                AppLogger.logError("ejectUsbDevice", e)
+            }
+        }
     }
 
     fun setFirmwareChannel(channel: String) {
@@ -2756,10 +2769,12 @@ class RouterViewModel : ViewModel() {
     fun toggleUsbService(serviceName: String, enabled: Boolean) {
         viewModelScope.launch {
             try {
+                // Web: serviceApi.write({[name]: bool}) on the service tree (sc/service);
+                // same convention as ssh/ftp/telnet/http-proxy/ntp toggles in this codebase.
                 val cmd = when (serviceName.lowercase()) {
-                    "smb", "cifs" -> if (enabled) mapOf("cifs" to mapOf("enable" to true)) else mapOf("no" to mapOf("cifs" to true))
-                    "dlna", "media" -> if (enabled) mapOf("media" to mapOf("enable" to true)) else mapOf("no" to mapOf("media" to true))
-                    "ftp" -> if (enabled) mapOf("ftp" to mapOf("enable" to true)) else mapOf("no" to mapOf("ftp" to true))
+                    "smb", "cifs" -> mapOf("service" to mapOf("cifs" to enabled))
+                    "ftp" -> mapOf("service" to mapOf("ftp" to enabled))
+                    "dlna", "media" -> mapOf("service" to mapOf("dlna" to enabled))
                     else -> emptyMap()
                 }
                 if (cmd.isNotEmpty()) {
