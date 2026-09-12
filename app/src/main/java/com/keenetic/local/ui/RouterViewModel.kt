@@ -2027,10 +2027,65 @@ class RouterViewModel : ViewModel() {
             try {
                 val res = repository.queryShow("usb") ?: repository.queryShow("media")
                 _usbDevicesRaw.value = if (res != null) ApiCallState.Success(res) else ApiCallState.Error("Нет данных")
+                val mediaRes = repository.queryShow("media")
+                val cifsRes = repository.queryShow("cifs")
+                // mount-id (без ":") -> (smb-метка, активна)
+                val cifsShares = mutableMapOf<String, Pair<String, Boolean>>()
+                cifsRes?.takeIf { it.isJsonObject }?.asJsonObject?.get("share")?.takeIf { it.isJsonArray }?.asJsonArray?.forEach {
+                    if (it.isJsonObject) {
+                        val o = it.asJsonObject
+                        val mount = o.get("mount")?.takeIf { p -> p.isJsonPrimitive }?.asString?.trimEnd(':') ?: return@forEach
+                        val label = o.get("label")?.takeIf { p -> p.isJsonPrimitive }?.asString ?: ""
+                        val active = o.get("active")?.takeIf { p -> p.isJsonPrimitive }?.runCatching { asBoolean }?.getOrDefault(true) ?: true
+                        cifsShares[mount] = label to active
+                    }
+                }
                 if (res != null) {
                     val list = mutableListOf<UsbStorageDevice>()
                     fun numLong(o: com.google.gson.JsonObject, key: String): Long =
-                        o.get(key)?.takeIf { p -> p.isJsonPrimitive }?.runCatching { asLong }?.getOrDefault(0L) ?: 0L
+                        o.get(key)?.takeIf { p -> p.isJsonPrimitive }?.runCatching {
+                            try { asLong } catch (_: Exception) { asString.toLongOrNull() ?: 0L }
+                        }?.getOrDefault(0L) ?: 0L
+                    fun strOf(o: com.google.gson.JsonObject, key: String): String? =
+                        o.get(key)?.takeIf { p -> p.isJsonPrimitive }?.asString
+                    // Богатый источник: media -> разделы с реальными размерами
+                    fun parseMediaDrive(key: String, o: com.google.gson.JsonObject): Boolean {
+                        val partObj = o.get("partition")?.takeIf { it.isJsonObject }?.asJsonObject ?: return false
+                        var added = false
+                        partObj.entrySet().forEach { (_, v) ->
+                            if (!v.isJsonObject) return@forEach
+                            val po = v.asJsonObject
+                            if ((strOf(po, "fstype") ?: "") == "swap") return@forEach
+                            if ((strOf(po, "state") ?: "") != "MOUNTED") return@forEach
+                            val uuid = strOf(po, "uuid") ?: ""
+                            val label = strOf(po, "label")?.ifBlank { null } ?: key
+                            val share = cifsShares[uuid]
+                            val total = numLong(po, "total").let { if (it > 0) it else numLong(po, "size") }
+                            val free = numLong(po, "free")
+                            list.add(UsbStorageDevice(
+                                name = key,
+                                label = share?.first?.ifBlank { null } ?: label,
+                                vendor = strOf(o, "manufacturer") ?: strOf(o, "vendor") ?: "Generic",
+                                model = strOf(o, "product") ?: strOf(o, "model") ?: "",
+                                sizeBytes = total,
+                                freeBytes = free,
+                                filesystem = strOf(po, "fstype") ?: "ext4",
+                                mountPoint = "/tmp/mnt/$label",
+                                shareSmb = share?.second ?: false
+                            ))
+                            added = true
+                        }
+                        return added
+                    }
+                    var mediaUsed = false
+                    mediaRes?.takeIf { it.isJsonObject }?.asJsonObject?.entrySet()?.forEach { (k, v) ->
+                        if (v.isJsonObject) {
+                            val o = v.asJsonObject
+                            val bus = o.get("bus")?.takeIf { p -> p.isJsonPrimitive }?.asString ?: ""
+                            if (bus == "usb" && parseMediaDrive(k, o)) mediaUsed = true
+                        }
+                    }
+                    if (!mediaUsed) {
                     fun parseUsb(key: String, o: com.google.gson.JsonObject) {
                         val partObj = o.get("partition")?.takeIf { it.isJsonObject }?.asJsonObject
                         val firstPart = partObj?.entrySet()?.firstOrNull()?.value?.takeIf { it.isJsonObject }?.asJsonObject
@@ -2088,6 +2143,7 @@ class RouterViewModel : ViewModel() {
                     }
                     if (list.isNotEmpty() || !_isDemoMode.value) {
                         _usbStorageList.value = list
+                    }
                     }
                 }
             } catch (e: Exception) {
