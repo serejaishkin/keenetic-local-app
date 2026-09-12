@@ -53,6 +53,7 @@ sealed class Screen(val route: String, val title: String) {
     data object IntelliQos : Screen("intelliqos", "IntelliQoS")
     data object WifiAcl : Screen("wifi_acl", "Контроль доступа Wi-Fi")
     data object TrafficMonitor : Screen("traffic_monitor", "Монитор трафика")
+    data object FileBrowser : Screen("file_browser", "Файлы")
 }
 
 @Composable
@@ -100,7 +101,17 @@ fun KeeneticNavHost(
             MobileScreen(viewModel = viewModel, onBack = { navController.popBackStack() })
         }
         composable(Screen.UsbDevices.route) {
-            UsbStorageScreen(viewModel = viewModel, onBack = { navController.popBackStack() })
+            UsbStorageScreen(
+                viewModel = viewModel,
+                onBack = { navController.popBackStack() },
+                onOpenFiles = { startPath ->
+                    viewModel.openFileBrowser(startPath)
+                    navController.navigate(Screen.FileBrowser.route)
+                }
+            )
+        }
+        composable(Screen.FileBrowser.route) {
+            FileBrowserScreen(viewModel = viewModel, onBack = { navController.popBackStack() })
         }
         composable(Screen.UserAccounts.route) {
             UserAccountsScreen(viewModel = viewModel, onBack = { navController.popBackStack() })

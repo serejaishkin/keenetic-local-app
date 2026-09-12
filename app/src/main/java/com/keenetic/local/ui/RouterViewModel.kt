@@ -180,6 +180,18 @@ class RouterViewModel : ViewModel() {
     private val _usbStorageList = MutableStateFlow<List<UsbStorageDevice>>(emptyList())
     val usbStorageList: StateFlow<List<UsbStorageDevice>> = _usbStorageList.asStateFlow()
 
+    private val _fileBrowserPath = MutableStateFlow("")
+    val fileBrowserPath: StateFlow<String> = _fileBrowserPath.asStateFlow()
+
+    private val _fileBrowserEntries = MutableStateFlow<List<FileEntry>>(emptyList())
+    val fileBrowserEntries: StateFlow<List<FileEntry>> = _fileBrowserEntries.asStateFlow()
+
+    private val _fileBrowserLoading = MutableStateFlow(false)
+    val fileBrowserLoading: StateFlow<Boolean> = _fileBrowserLoading.asStateFlow()
+
+    private val _fileBrowserError = MutableStateFlow<String?>(null)
+    val fileBrowserError: StateFlow<String?> = _fileBrowserError.asStateFlow()
+
     private val _systemLogs = MutableStateFlow<List<SystemLogEntry>>(emptyList())
     val systemLogs: StateFlow<List<SystemLogEntry>> = _systemLogs.asStateFlow()
 
@@ -2073,7 +2085,8 @@ class RouterViewModel : ViewModel() {
                                 freeBytes = free,
                                 filesystem = fstype.ifBlank { "ext4" },
                                 mountPoint = if (isSwap) "" else "/tmp/mnt/$label",
-                                shareSmb = if (isSwap) false else share?.second ?: false
+                                shareSmb = if (isSwap) false else share?.second ?: false,
+                                uuid = uuid
                             ))
                             added = true
                         }
@@ -2150,6 +2163,68 @@ class RouterViewModel : ViewModel() {
                 AppLogger.logError("loadUsbDevices", e)
             }
         }
+    }
+
+    fun openFileBrowser(startPath: String = "") {
+        _fileBrowserPath.value = startPath
+        browseFiles(startPath)
+    }
+
+    fun browseFiles(directory: String) {
+        viewModelScope.launch {
+            _fileBrowserLoading.value = true
+            _fileBrowserError.value = null
+            try {
+                val resp = repository.executeRci(listOf(mapOf("ls" to mapOf("directory" to directory))))
+                val body = resp.body()
+                val list = mutableListOf<FileEntry>()
+                val lsObj = body?.takeIf { it.isJsonArray }?.asJsonArray?.firstOrNull()
+                    ?.takeIf { it.isJsonObject }?.asJsonObject?.get("ls")
+                    ?.takeIf { it.isJsonObject }?.asJsonObject
+                val rel = lsObj?.get("rel")?.takeIf { it.isJsonPrimitive }?.asString ?: directory
+                lsObj?.get("entry")?.takeIf { it.isJsonObject }?.asJsonObject?.entrySet()?.forEach { (name, v) ->
+                    if (!v.isJsonObject) return@forEach
+                    val o = v.asJsonObject
+                    fun s(k: String): String? = o.get(k)?.takeIf { it.isJsonPrimitive }?.asString
+                    fun n(k: String): Long = o.get(k)?.takeIf { it.isJsonPrimitive }?.runCatching {
+                        try { asLong } catch (_: Exception) { asString.toLongOrNull() ?: 0L }
+                    }?.getOrDefault(0L) ?: 0L
+                    val type = s("type") ?: ""
+                    val childPath = if (rel.isBlank()) name else "$rel/$name"
+                    list.add(FileEntry(
+                        name = name,
+                        fullPath = childPath,
+                        isDirectory = type == "D" || type == "V",
+                        isVolume = type == "V",
+                        sizeBytes = n("size"),
+                        label = s("label") ?: "",
+                        fstype = s("fstype") ?: "",
+                        mounted = (s("mounted") ?: "yes") == "yes",
+                        totalBytes = n("total"),
+                        freeBytes = n("free")
+                    ))
+                }
+                _fileBrowserPath.value = rel
+                _fileBrowserEntries.value = list.sortedWith(
+                    compareByDescending<FileEntry> { it.isVolume }
+                        .thenByDescending { it.isDirectory }
+                        .thenBy { it.name.lowercase() }
+                )
+                if (list.isEmpty()) _fileBrowserError.value = "Папка пуста"
+            } catch (e: Exception) {
+                AppLogger.logError("browseFiles", e)
+                _fileBrowserError.value = "Ошибка чтения: ${e.message}"
+            } finally {
+                _fileBrowserLoading.value = false
+            }
+        }
+    }
+
+    fun fileBrowserUp() {
+        val cur = _fileBrowserPath.value
+        if (cur.isBlank()) return
+        val parent = cur.trimEnd(':').substringBeforeLast("/", "")
+        browseFiles(parent)
     }
 
     fun loadFirmwareStatus() {

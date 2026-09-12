@@ -18,7 +18,7 @@ import com.keenetic.local.ui.RouterViewModel
 import com.keenetic.local.ui.theme.KeeneticColors
 
 @Composable
-fun UsbStorageScreen(viewModel: RouterViewModel, onBack: () -> Unit = {}) {
+fun UsbStorageScreen(viewModel: RouterViewModel, onBack: () -> Unit = {}, onOpenFiles: (String) -> Unit = {}) {
     val usbDevices by viewModel.usbStorageList.collectAsState()
     var selectedDevice by remember { mutableStateOf<UsbStorageDevice?>(null) }
     var smbEnabled by remember { mutableStateOf(true) }
@@ -151,6 +151,11 @@ fun UsbStorageScreen(viewModel: RouterViewModel, onBack: () -> Unit = {}) {
                             }
                             IconButton(onClick = { viewModel.ejectUsbDevice(dev.name) }) {
                                 Icon(Icons.Default.Eject, contentDescription = "Извлечь", tint = KeeneticColors.Error)
+                            }
+                            if (dev.uuid.isNotBlank()) {
+                                IconButton(onClick = { onOpenFiles("${dev.uuid}:") }) {
+                                    Icon(Icons.Default.Folder, contentDescription = "Файлы", tint = KeeneticColors.Primary)
+                                }
                             }
                         }
 

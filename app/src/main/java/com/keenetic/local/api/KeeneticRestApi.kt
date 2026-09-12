@@ -343,17 +343,31 @@ data class UsbStorageDevice(
     val mountPoint: String,
     val shareSmb: Boolean = true,
     val shareFtp: Boolean = false,
-    val shareDlna: Boolean = false
+    val shareDlna: Boolean = false,
+    val uuid: String = ""
 )
 
 data class FirmwareStatus(
-    val title: String,
-    val model: String,
-    val channel: String,
-    val updateAvailable: Boolean,
-    val availableVersion: String,
-    val changelog: String,
-    val autoUpdate: Boolean
+    val title: String = "KeeneticOS",
+    val model: String = "Keenetic",
+    val channel: String = "Release",
+    val updateAvailable: Boolean = false,
+    val availableVersion: String = "",
+    val changelog: String = "",
+    val autoUpdate: Boolean = true
+)
+
+data class FileEntry(
+    val name: String = "",
+    val fullPath: String = "",
+    val isDirectory: Boolean = false,
+    val isVolume: Boolean = false,
+    val sizeBytes: Long = 0L,
+    val label: String = "",
+    val fstype: String = "",
+    val mounted: Boolean = true,
+    val totalBytes: Long = 0L,
+    val freeBytes: Long = 0L
 )
 
 data class DiagnosticsResult(
