@@ -158,33 +158,54 @@ object DeviceListParser {
     fun parseMedia(root: JsonElement?): List<MediaStorage> {
         if (root == null || !root.isJsonObject) return emptyList()
         val list = mutableListOf<MediaStorage>()
-        val media = findKey(root, "media") ?: return emptyList()
-        for ((key, value) in media.entrySet()) {
+        fun parsePartitions(o: JsonObject): MutableList<MediaPartition> {
+            val partitions = mutableListOf<MediaPartition>()
+            fun addPart(po: JsonObject) {
+                partitions.add(MediaPartition(
+                    uuid = str(po, "uuid") ?: "",
+                    label = str(po, "label") ?: "",
+                    fstype = str(po, "fstype") ?: "",
+                    size = po.get("total")?.takeIf { it.isJsonPrimitive }?.runCatching { asLong }?.getOrDefault(0L)
+                        ?: po.get("size")?.takeIf { it.isJsonPrimitive }?.runCatching { asLong }?.getOrDefault(0L) ?: 0L,
+                    free = po.get("free")?.takeIf { it.isJsonPrimitive }?.runCatching { asLong }?.getOrDefault(0L) ?: 0L,
+                    state = str(po, "state") ?: ""
+                ))
+            }
+            val partEl = o.get("partition")
+            when {
+                partEl != null && partEl.isJsonArray ->
+                    partEl.asJsonArray.forEach { if (it.isJsonObject) addPart(it.asJsonObject) }
+                partEl != null && partEl.isJsonObject ->
+                    partEl.asJsonObject.entrySet().forEach { (_, v) -> if (v.isJsonObject) addPart(v.asJsonObject) }
+            }
+            return partitions
+        }
+        fun addDrive(key: String, o: JsonObject) {
+            val partitions = parsePartitions(o)
+            val first = partitions.firstOrNull()
+            list.add(MediaStorage(
+                name = key,
+                label = first?.label ?: str(o, "product") ?: key,
+                mounted = str(o, "state") ?: "",
+                fstype = first?.fstype ?: "",
+                total = o.get("size")?.takeIf { it.isJsonPrimitive }?.runCatching { asLong }?.getOrDefault(0L)
+                    ?: partitions.sumOf { it.size },
+                free = partitions.sumOf { it.free },
+                partitions = partitions
+            ))
+        }
+        val rootObj = root.asJsonObject
+        val media = findKey(root, "media")
+        if (media != null) {
+            for ((key, value) in media.entrySet()) {
+                if (value.isJsonObject) addDrive(key, value.asJsonObject)
+            }
+            if (list.isNotEmpty()) return list
+        }
+        for ((key, value) in rootObj.entrySet()) {
             if (value.isJsonObject) {
                 val o = value.asJsonObject
-                val partitions = mutableListOf<MediaPartition>()
-                o.getAsJsonArray("partition")?.forEach { p ->
-                    if (p.isJsonObject) {
-                        val po = p.asJsonObject
-                        partitions.add(MediaPartition(
-                            uuid = str(po, "uuid") ?: "",
-                            label = str(po, "label") ?: "",
-                            fstype = str(po, "fstype") ?: "",
-                            size = po.get("size")?.takeIf { it.isJsonPrimitive }?.asLong ?: 0,
-                            free = po.get("free")?.takeIf { it.isJsonPrimitive }?.asLong ?: 0,
-                            state = str(po, "state") ?: ""
-                        ))
-                    }
-                }
-                list.add(MediaStorage(
-                    name = key,
-                    label = str(o, "label") ?: "",
-                    mounted = str(o, "mounted") ?: "",
-                    fstype = str(o, "fstype") ?: "",
-                    total = o.get("total")?.takeIf { it.isJsonPrimitive }?.asLong ?: 0,
-                    free = o.get("free")?.takeIf { it.isJsonPrimitive }?.asLong ?: 0,
-                    partitions = partitions
-                ))
+                if (o.has("partition") || o.has("bus") || o.has("state")) addDrive(key, o)
             }
         }
         return list

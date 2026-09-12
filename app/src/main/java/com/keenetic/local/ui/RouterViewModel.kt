@@ -2028,14 +2028,22 @@ class RouterViewModel : ViewModel() {
                 val res = repository.queryShow("usb") ?: repository.queryShow("media")
                 if (res != null) {
                     val list = mutableListOf<UsbStorageDevice>()
-                    fun parseUsb(o: com.google.gson.JsonObject) {
-                        val name = o.get("name")?.takeIf { p -> p.isJsonPrimitive }?.asString ?: "USB Drive"
-                        val label = o.get("label")?.takeIf { p -> p.isJsonPrimitive }?.asString ?: name
-                        val vendor = o.get("vendor")?.takeIf { p -> p.isJsonPrimitive }?.asString ?: "Generic"
-                        val model = o.get("model")?.takeIf { p -> p.isJsonPrimitive }?.asString ?: ""
-                        val size = o.get("size")?.takeIf { p -> p.isJsonPrimitive }?.runCatching { asLong }?.getOrDefault(0L) ?: 0L
-                        val free = o.get("free")?.takeIf { p -> p.isJsonPrimitive }?.runCatching { asLong }?.getOrDefault(0L) ?: (size / 2)
-                        val fs = o.get("filesystem")?.takeIf { p -> p.isJsonPrimitive }?.asString ?: "NTFS"
+                    fun numLong(o: com.google.gson.JsonObject, key: String): Long =
+                        o.get(key)?.takeIf { p -> p.isJsonPrimitive }?.runCatching { asLong }?.getOrDefault(0L) ?: 0L
+                    fun parseUsb(key: String, o: com.google.gson.JsonObject) {
+                        val partObj = o.get("partition")?.takeIf { it.isJsonObject }?.asJsonObject
+                        val firstPart = partObj?.entrySet()?.firstOrNull()?.value?.takeIf { it.isJsonObject }?.asJsonObject
+                        val name = key.ifBlank { o.get("name")?.takeIf { p -> p.isJsonPrimitive }?.asString ?: "USB Drive" }
+                        val label = firstPart?.get("label")?.takeIf { p -> p.isJsonPrimitive }?.asString
+                            ?: o.get("label")?.takeIf { p -> p.isJsonPrimitive }?.asString ?: name
+                        val vendor = o.get("manufacturer")?.takeIf { p -> p.isJsonPrimitive }?.asString
+                            ?: o.get("vendor")?.takeIf { p -> p.isJsonPrimitive }?.asString ?: "Generic"
+                        val model = o.get("product")?.takeIf { p -> p.isJsonPrimitive }?.asString
+                            ?: o.get("model")?.takeIf { p -> p.isJsonPrimitive }?.asString ?: ""
+                        val size = numLong(o, "size")
+                        val free = (firstPart?.let { numLong(it, "free") } ?: 0L).let { if (it > 0) it else size / 2 }
+                        val fs = firstPart?.get("fstype")?.takeIf { p -> p.isJsonPrimitive }?.asString
+                            ?: o.get("filesystem")?.takeIf { p -> p.isJsonPrimitive }?.asString ?: "ext4"
                         val mount = o.get("mount")?.takeIf { p -> p.isJsonPrimitive }?.asString ?: "/tmp/mnt/$label"
 
                         list.add(
@@ -2054,17 +2062,26 @@ class RouterViewModel : ViewModel() {
                     }
 
                     if (res.isJsonArray) {
-                        res.asJsonArray.forEach { if (it.isJsonObject) parseUsb(it.asJsonObject) }
+                        res.asJsonArray.forEach { if (it.isJsonObject) parseUsb("", it.asJsonObject) }
                     } else if (res.isJsonObject) {
                         val obj = res.asJsonObject
-                        if (obj.has("device") && obj.get("device").isJsonArray) {
-                            obj.getAsJsonArray("device").forEach { if (it.isJsonObject) parseUsb(it.asJsonObject) }
+                        val devEl = obj.get("device")
+                        if (devEl != null && devEl.isJsonObject) {
+                            devEl.asJsonObject.entrySet().forEach { (k, v) ->
+                                if (v.isJsonObject) parseUsb(k, v.asJsonObject)
+                            }
+                        } else if (obj.has("device") && obj.get("device").isJsonArray) {
+                            obj.getAsJsonArray("device").forEach { if (it.isJsonObject) parseUsb("", it.asJsonObject) }
                         } else if (obj.has("media") && obj.get("media").isJsonArray) {
-                            obj.getAsJsonArray("media").forEach { if (it.isJsonObject) parseUsb(it.asJsonObject) }
+                            obj.getAsJsonArray("media").forEach { if (it.isJsonObject) parseUsb("", it.asJsonObject) }
                         } else {
-                            obj.entrySet().forEach { (_, v) ->
-                                if (v.isJsonObject) parseUsb(v.asJsonObject)
-                                else if (v.isJsonArray) v.asJsonArray.forEach { if (it.isJsonObject) parseUsb(it.asJsonObject) }
+                            obj.entrySet().forEach { (k, v) ->
+                                if (v.isJsonObject) {
+                                    val o = v.asJsonObject
+                                    if (o.has("partition") || o.has("bus") || o.has("manufacturer")) parseUsb(k, o)
+                                    else parseUsb("", o)
+                                }
+                                else if (v.isJsonArray) v.asJsonArray.forEach { if (it.isJsonObject) parseUsb("", it.asJsonObject) }
                             }
                         }
                     }

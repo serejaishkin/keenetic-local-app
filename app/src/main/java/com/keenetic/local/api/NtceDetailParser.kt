@@ -6,8 +6,25 @@ import com.google.gson.JsonObject
 object NtceDetailParser {
 
     fun parseApplications(root: JsonElement?): List<NtceApp> {
-        if (root == null || !root.isJsonObject) return emptyList()
+        if (root == null) return emptyList()
         val list = mutableListOf<NtceApp>()
+        fun addApp(o: JsonObject) {
+            list.add(NtceApp(
+                name = str(o, "short") ?: str(o, "long") ?: "",
+                category = str(o, "group-long") ?: str(o, "category") ?: "",
+                priority = o.get("priority")?.takeIf { it.isJsonPrimitive }?.asInt ?: 0
+            ))
+        }
+        if (root.isJsonArray) {
+            root.asJsonArray.forEach { if (it.isJsonObject) addApp(it.asJsonObject) }
+            return list
+        }
+        if (!root.isJsonObject) return emptyList()
+        val obj = root.asJsonObject
+        obj.get("application")?.takeIf { it.isJsonArray }?.asJsonArray?.forEach {
+            if (it.isJsonObject) addApp(it.asJsonObject)
+        }
+        if (list.isNotEmpty()) return list
         val apps = findKey(root, "applications") ?: findKey(root, "app") ?: return emptyList()
         for ((key, value) in apps.entrySet()) {
             if (value.isJsonObject) {
@@ -23,8 +40,27 @@ object NtceDetailParser {
     }
 
     fun parseHosts(root: JsonElement?): List<NtceHost> {
-        if (root == null || !root.isJsonObject) return emptyList()
+        if (root == null) return emptyList()
         val list = mutableListOf<NtceHost>()
+        fun addHost(o: JsonObject) {
+            list.add(NtceHost(
+                ip = str(o, "ip") ?: "",
+                mac = str(o, "mac") ?: "",
+                hostname = str(o, "hostname") ?: str(o, "name") ?: "",
+                os = str(o, "os") ?: "",
+                priority = o.get("priority")?.takeIf { it.isJsonPrimitive }?.asInt ?: 0
+            ))
+        }
+        if (root.isJsonArray) {
+            root.asJsonArray.forEach { if (it.isJsonObject) addHost(it.asJsonObject) }
+            return list
+        }
+        if (!root.isJsonObject) return emptyList()
+        val obj = root.asJsonObject
+        obj.get("host")?.takeIf { it.isJsonArray }?.asJsonArray?.forEach {
+            if (it.isJsonObject) addHost(it.asJsonObject)
+        }
+        if (list.isNotEmpty()) return list
         val hosts = findKey(root, "hosts") ?: findKey(root, "host") ?: return emptyList()
         for ((key, value) in hosts.entrySet()) {
             if (value.isJsonObject) {
@@ -42,8 +78,24 @@ object NtceDetailParser {
     }
 
     fun parseOses(root: JsonElement?): List<NtceOs> {
-        if (root == null || !root.isJsonObject) return emptyList()
+        if (root == null) return emptyList()
         val list = mutableListOf<NtceOs>()
+        fun addOs(o: JsonObject) {
+            list.add(NtceOs(
+                name = str(o, "long") ?: str(o, "short") ?: "",
+                hostsCount = o.get("hosts-count")?.takeIf { it.isJsonPrimitive }?.asInt ?: 0
+            ))
+        }
+        if (root.isJsonArray) {
+            root.asJsonArray.forEach { if (it.isJsonObject) addOs(it.asJsonObject) }
+            return list
+        }
+        if (!root.isJsonObject) return emptyList()
+        val obj = root.asJsonObject
+        obj.get("os")?.takeIf { it.isJsonArray }?.asJsonArray?.forEach {
+            if (it.isJsonObject) addOs(it.asJsonObject)
+        }
+        if (list.isNotEmpty()) return list
         val oses = findKey(root, "oses") ?: findKey(root, "os") ?: return emptyList()
         for ((key, value) in oses.entrySet()) {
             if (value.isJsonObject) {
@@ -58,8 +110,24 @@ object NtceDetailParser {
     }
 
     fun parseGroups(root: JsonElement?): List<NtceGroup> {
-        if (root == null || !root.isJsonObject) return emptyList()
+        if (root == null) return emptyList()
         val list = mutableListOf<NtceGroup>()
+        fun addGroup(o: JsonObject) {
+            list.add(NtceGroup(
+                name = str(o, "short") ?: str(o, "long") ?: "",
+                description = str(o, "long") ?: str(o, "groupset-long-id") ?: ""
+            ))
+        }
+        if (root.isJsonArray) {
+            root.asJsonArray.forEach { if (it.isJsonObject) addGroup(it.asJsonObject) }
+            return list
+        }
+        if (!root.isJsonObject) return emptyList()
+        val obj = root.asJsonObject
+        obj.get("group")?.takeIf { it.isJsonArray }?.asJsonArray?.forEach {
+            if (it.isJsonObject) addGroup(it.asJsonObject)
+        }
+        if (list.isNotEmpty()) return list
         val groups = findKey(root, "groups") ?: findKey(root, "group") ?: return emptyList()
         for ((key, value) in groups.entrySet()) {
             if (value.isJsonObject) {
