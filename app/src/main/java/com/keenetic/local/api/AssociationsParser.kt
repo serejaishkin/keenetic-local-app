@@ -104,6 +104,9 @@ object AssociationsParser {
                 obj.get("binding")?.takeIf { it.isJsonArray }?.asJsonArray?.forEach { el ->
                     if (el.isJsonObject) fromObj(el.asJsonObject)
                 }
+                obj.get("lease")?.takeIf { it.isJsonArray }?.asJsonArray?.forEach { el ->
+                    if (el.isJsonObject) fromObj(el.asJsonObject)
+                }
                 if (result.isEmpty()) {
                     obj.entrySet().forEach { (key, value) ->
                         if (value.isJsonObject) {

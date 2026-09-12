@@ -1337,6 +1337,8 @@ class RouterViewModel : ViewModel() {
                         res.isJsonArray -> res.asJsonArray
                         res.isJsonObject && res.asJsonObject.has("binding") && res.asJsonObject.get("binding").isJsonArray ->
                             res.asJsonObject.getAsJsonArray("binding")
+                        res.isJsonObject && res.asJsonObject.has("lease") && res.asJsonObject.get("lease").isJsonArray ->
+                            res.asJsonObject.getAsJsonArray("lease")
                         else -> null
                     }
                     arr?.forEach {
