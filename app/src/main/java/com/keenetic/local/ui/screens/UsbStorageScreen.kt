@@ -21,6 +21,9 @@ import com.keenetic.local.ui.theme.KeeneticColors
 fun UsbStorageScreen(viewModel: RouterViewModel, onBack: () -> Unit = {}, onOpenFiles: (String) -> Unit = {}) {
     val usbDevices by viewModel.usbStorageList.collectAsState()
     var selectedDevice by remember { mutableStateOf<UsbStorageDevice?>(null) }
+    var formatTarget by remember { mutableStateOf<UsbStorageDevice?>(null) }
+    var formatFstype by remember { mutableStateOf("") }
+    var formatArmed by remember { mutableStateOf(false) }
     var smbEnabled by remember { mutableStateOf(true) }
     var dlnaEnabled by remember { mutableStateOf(false) }
     var ftpEnabled by remember { mutableStateOf(false) }
@@ -155,6 +158,11 @@ fun UsbStorageScreen(viewModel: RouterViewModel, onBack: () -> Unit = {}, onOpen
                             if (dev.uuid.isNotBlank()) {
                                 IconButton(onClick = { onOpenFiles("${dev.uuid}:") }) {
                                     Icon(Icons.Default.Folder, contentDescription = "Файлы", tint = KeeneticColors.Primary)
+                                }
+                            }
+                            if (dev.formatOptions.isNotEmpty()) {
+                                IconButton(onClick = { formatTarget = dev }) {
+                                    Icon(Icons.Default.Warning, contentDescription = "Форматировать", tint = KeeneticColors.Error)
                                 }
                             }
                         }
@@ -292,6 +300,78 @@ fun UsbStorageScreen(viewModel: RouterViewModel, onBack: () -> Unit = {}, onOpen
 
     // Drive Management Dialog
     selectedDevice?.let { dev ->
+
+    // Format Dialog (double confirm - data loss!)
+    formatTarget?.let { dev ->
+        if (formatFstype.isBlank() && dev.formatOptions.isNotEmpty()) {
+            formatFstype = dev.formatOptions.firstOrNull { it == dev.filesystem } ?: dev.formatOptions.first()
+        }
+        AlertDialog(
+            onDismissRequest = { formatTarget = null; formatArmed = false; formatFstype = "" },
+            title = { Text("Форматировать раздел?", fontWeight = FontWeight.Bold, color = KeeneticColors.Error) },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(
+                        "«${dev.label}» (${dev.filesystem}, ${String.format("%.1f", dev.sizeBytes / (1024.0 * 1024 * 1024))} ГБ). ВСЕ ДАННЫЕ БУДУТ УДАЛЕНЫ!",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = KeeneticColors.TextPrimary
+                    )
+                    var fstypeExpanded by remember { mutableStateOf(false) }
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text("Файловая система: ", style = MaterialTheme.typography.bodyMedium, color = KeeneticColors.TextPrimary)
+                        Box {
+                            TextButton(onClick = { fstypeExpanded = true }) {
+                                Text(formatFstype.ifBlank { "—" }, color = KeeneticColors.Primary)
+                            }
+                            DropdownMenu(expanded = fstypeExpanded, onDismissRequest = { fstypeExpanded = false }) {
+                                dev.formatOptions.forEach { opt ->
+                                    DropdownMenuItem(
+                                        text = { Text(opt) },
+                                        onClick = { formatFstype = opt; fstypeExpanded = false }
+                                    )
+                                }
+                            }
+                        }
+                    }
+                    if (!formatArmed) {
+                        Text(
+                            "Нажмите «Продолжить», затем подтвердите ещё раз.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = KeeneticColors.TextSecondary
+                        )
+                    } else {
+                        Text(
+                            "ПОДТВЕРДИТЕ ОКОНЧАТЕЛЬНО: раздел будет отформатирован в $formatFstype.",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = KeeneticColors.Error,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                }
+            },
+            confirmButton = {
+                if (!formatArmed) {
+                    Button(
+                        onClick = { formatArmed = true },
+                        colors = ButtonDefaults.buttonColors(containerColor = KeeneticColors.Error)
+                    ) { Text("Продолжить") }
+                } else {
+                    Button(
+                        onClick = {
+                            viewModel.formatPartition(dev.name, dev.partitionId, formatFstype)
+                            formatTarget = null; formatArmed = false; formatFstype = ""
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = KeeneticColors.Error)
+                    ) { Text("ФОРМАТИРОВАТЬ") }
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { formatTarget = null; formatArmed = false; formatFstype = "" }) {
+                    Text("Отмена", color = KeeneticColors.TextSecondary)
+                }
+            }
+        )
+    }
         AlertDialog(
             onDismissRequest = { selectedDevice = null },
             title = {

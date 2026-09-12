@@ -2064,7 +2064,7 @@ class RouterViewModel : ViewModel() {
                     fun parseMediaDrive(key: String, o: com.google.gson.JsonObject): Boolean {
                         val partObj = o.get("partition")?.takeIf { it.isJsonObject }?.asJsonObject ?: return false
                         var added = false
-                        partObj.entrySet().forEach { (_, v) ->
+                        partObj.entrySet().forEach { (partId, v) ->
                             if (!v.isJsonObject) return@forEach
                             val po = v.asJsonObject
                             if ((strOf(po, "state") ?: "") != "MOUNTED") return@forEach
@@ -2076,6 +2076,8 @@ class RouterViewModel : ViewModel() {
                             val share = cifsShares[uuid]
                             val total = numLong(po, "total").let { if (it > 0) it else numLong(po, "size") }
                             val free = numLong(po, "free")
+                            val fmtOpts = po.get("format-supported")?.takeIf { it.isJsonArray }?.asJsonArray
+                                ?.mapNotNull { it.takeIf { p -> p.isJsonPrimitive }?.asString } ?: emptyList()
                             list.add(UsbStorageDevice(
                                 name = key,
                                 label = share?.first?.ifBlank { null } ?: label,
@@ -2086,7 +2088,9 @@ class RouterViewModel : ViewModel() {
                                 filesystem = fstype.ifBlank { "ext4" },
                                 mountPoint = if (isSwap) "" else "/tmp/mnt/$label",
                                 shareSmb = if (isSwap) false else share?.second ?: false,
-                                uuid = uuid
+                                uuid = uuid,
+                                partitionId = partId,
+                                formatOptions = fmtOpts
                             ))
                             added = true
                         }
@@ -2225,6 +2229,211 @@ class RouterViewModel : ViewModel() {
         if (cur.isBlank()) return
         val parent = cur.trimEnd(':').substringBeforeLast("/", "")
         browseFiles(parent)
+    }
+
+    private val _fileBrowserMessage = MutableStateFlow<String?>(null)
+    val fileBrowserMessage: StateFlow<String?> = _fileBrowserMessage.asStateFlow()
+
+    private val _fileAclList = MutableStateFlow<List<FileAclEntry>>(emptyList())
+    val fileAclList: StateFlow<List<FileAclEntry>> = _fileAclList.asStateFlow()
+
+    fun clearFileBrowserMessage() { _fileBrowserMessage.value = null }
+
+    fun deleteFileEntry(path: String) {
+        viewModelScope.launch {
+            try {
+                // Web: eraseApi.perform({filename})
+                val resp = repository.executeRci(listOf(mapOf("erase" to mapOf("filename" to path))))
+                if (resp.isSuccessful && !repository.isRciError(resp.body())) {
+                    _fileBrowserMessage.value = "Удалено"
+                    browseFiles(_fileBrowserPath.value)
+                } else {
+                    _fileBrowserMessage.value = "Не удалось удалить"
+                }
+            } catch (e: Exception) {
+                AppLogger.logError("deleteFileEntry", e)
+                _fileBrowserMessage.value = "Ошибка удаления: ${e.message}"
+            }
+        }
+    }
+
+    fun createFolder(parentPath: String, name: String) {
+        viewModelScope.launch {
+            try {
+                // Web: mkdirApi.perform({directory: "<parent>/<name>/"})
+                val dir = (if (parentPath.isBlank()) "" else "$parentPath/") + name.trim().trim('/') + "/"
+                val resp = repository.executeRci(listOf(mapOf("mkdir" to mapOf("directory" to dir))))
+                if (resp.isSuccessful && !repository.isRciError(resp.body())) {
+                    _fileBrowserMessage.value = "Папка создана"
+                    browseFiles(_fileBrowserPath.value)
+                } else {
+                    _fileBrowserMessage.value = "Не удалось создать папку"
+                }
+            } catch (e: Exception) {
+                AppLogger.logError("createFolder", e)
+                _fileBrowserMessage.value = "Ошибка: ${e.message}"
+            }
+        }
+    }
+
+    fun downloadFileEntry(entry: FileEntry, context: android.content.Context) {
+        viewModelScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+            try {
+                // Web: GET /download/<uuid>/<path...>  (":/" -> "/")
+                val rel = entry.fullPath.split("/").filter { it.isNotBlank() }
+                    .joinToString("/").replace(":/", "/")
+                val resp = repository.downloadRaw("download/$rel")
+                if (!resp.isSuccessful || resp.body == null) {
+                    resp.close()
+                    _fileBrowserMessage.value = "Не удалось скачать"
+                    return@launch
+                }
+                val resolver = context.contentResolver
+                val values = android.content.ContentValues().apply {
+                    put(android.provider.MediaStore.Downloads.DISPLAY_NAME, entry.name)
+                    put(android.provider.MediaStore.Downloads.MIME_TYPE, "application/octet-stream")
+                    put(android.provider.MediaStore.Downloads.RELATIVE_PATH, "Download/Keenetic")
+                }
+                val uri = resolver.insert(
+                    android.provider.MediaStore.Downloads.EXTERNAL_CONTENT_URI, values
+                )
+                if (uri == null) {
+                    resp.close()
+                    _fileBrowserMessage.value = "Нет доступа к загрузкам"
+                    return@launch
+                }
+                try {
+                    resp.body!!.byteStream().use { input ->
+                        resolver.openOutputStream(uri)?.use { output -> input.copyTo(output) }
+                    }
+                } finally {
+                    resp.close()
+                }
+                _fileBrowserMessage.value = "Сохранено в Download/Keenetic/${entry.name}"
+            } catch (e: Exception) {
+                AppLogger.logError("downloadFileEntry", e)
+                _fileBrowserMessage.value = "Ошибка скачивания: ${e.message}"
+            }
+        }
+    }
+
+    fun uploadFileEntry(dirPath: String, uri: android.net.Uri, context: android.content.Context) {
+        viewModelScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+            try {
+                val resolver = context.contentResolver
+                var fname = "upload.bin"
+                var fsize = -1L
+                var mime = "application/octet-stream"
+                resolver.query(uri, null, null, null, null)?.use { c ->
+                    if (c.moveToFirst()) {
+                        c.getColumnIndex(android.provider.OpenableColumns.DISPLAY_NAME)
+                            .takeIf { it >= 0 }?.let { fname = c.getString(it) ?: fname }
+                        c.getColumnIndex(android.provider.OpenableColumns.SIZE)
+                            .takeIf { it >= 0 }?.let { fsize = c.getLong(it) }
+                    }
+                }
+                resolver.getType(uri)?.let { mime = it }
+                val bytes = resolver.openInputStream(uri)?.use { it.readBytes() }
+                if (bytes == null) {
+                    _fileBrowserMessage.value = "Не удалось прочитать файл"
+                    return@launch
+                }
+                if (bytes.size > 100 * 1024 * 1024) {
+                    _fileBrowserMessage.value = "Файл больше 100 МБ"
+                    return@launch
+                }
+                val remotePath = (if (dirPath.isBlank()) "" else "$dirPath/") + fname
+                // Web: rci put {filename, size} -> port, then POST multipart {port, Filedata} to /fui
+                val port = repository.putAllocatePort(remotePath, bytes.size.toLong())
+                if (port.isNullOrBlank()) {
+                    _fileBrowserMessage.value = "Роутер отклонил загрузку"
+                    return@launch
+                }
+                val ok = repository.uploadFui(port, fname, mime, bytes)
+                _fileBrowserMessage.value = if (ok) "Загружено: $fname" else "Ошибка загрузки"
+                if (ok) browseFiles(dirPath)
+            } catch (e: Exception) {
+                AppLogger.logError("uploadFileEntry", e)
+                _fileBrowserMessage.value = "Ошибка загрузки: ${e.message}"
+            }
+        }
+    }
+
+    fun loadFileAcl(path: String) {
+        viewModelScope.launch {
+            try {
+                // Web: showAccessApi.read([{directory: path}, {directory: parent}])
+                val parent = path.trimEnd(':').substringBeforeLast("/", "")
+                val cmds = if (parent.isBlank() || parent == path) {
+                    listOf(mapOf("directory" to path))
+                } else {
+                    listOf(mapOf("directory" to path), mapOf("directory" to parent))
+                }
+                val resp = repository.executeRci(listOf(mapOf("show" to mapOf("access" to cmds))))
+                val list = mutableListOf<FileAclEntry>()
+                val arr = resp.body()?.takeIf { it.isJsonArray }?.asJsonArray
+                val users = arr?.firstOrNull()?.takeIf { it.isJsonObject }?.asJsonObject
+                    ?.get("show")?.takeIf { it.isJsonObject }?.asJsonObject
+                    ?.get("access")?.takeIf { it.isJsonObject }?.asJsonObject
+                    ?.get("user")?.takeIf { it.isJsonObject }?.asJsonObject
+                users?.entrySet()?.forEach { (name, v) ->
+                    if (v.isJsonObject) {
+                        val o = v.asJsonObject
+                        fun s(k: String): String = o.get(k)?.takeIf { it.isJsonPrimitive }?.asString ?: ""
+                        list.add(FileAclEntry(
+                            user = name,
+                            assigned = s("assigned"),
+                            effective = s("effective"),
+                            exists = o.get("exists")?.takeIf { it.isJsonPrimitive }?.asBoolean ?: true
+                        ))
+                    }
+                }
+                _fileAclList.value = list.sortedBy { it.user }
+                if (list.isEmpty()) _fileBrowserMessage.value = "Нет данных о правах"
+            } catch (e: Exception) {
+                AppLogger.logError("loadFileAcl", e)
+                _fileBrowserMessage.value = "Ошибка чтения прав: ${e.message}"
+            }
+        }
+    }
+
+    fun saveFileAcl(path: String, modes: Map<String, String>) {
+        viewModelScope.launch {
+            try {
+                // Web: accessApi.write([{user, directory, mode}])
+                val cmds = modes.map { (user, mode) ->
+                    mapOf("user" to user, "directory" to path, "mode" to mode)
+                }
+                val resp = repository.executeRci(listOf(mapOf("access" to cmds)))
+                if (resp.isSuccessful && !repository.isRciError(resp.body())) {
+                    _fileBrowserMessage.value = "Права сохранены"
+                    loadFileAcl(path)
+                } else {
+                    _fileBrowserMessage.value = "Не удалось сохранить права"
+                }
+            } catch (e: Exception) {
+                AppLogger.logError("saveFileAcl", e)
+                _fileBrowserMessage.value = "Ошибка: ${e.message}"
+            }
+        }
+    }
+
+    fun formatPartition(driveName: String, partitionId: String, fstype: String) {
+        viewModelScope.launch {
+            try {
+                // Web: mediaPartitionFormatApi.perform({name, partition, type})
+                val ok = repository.executeRciWithSave(
+                    listOf(mapOf("media" to mapOf("partition" to mapOf(
+                        "format" to mapOf("name" to driveName, "partition" to partitionId, "type" to fstype)
+                    ))))
+                )
+                _fileBrowserMessage.value = if (ok) "Форматирование запущено" else "Не удалось отформатировать"
+                if (ok) loadUsbDevices()
+            } catch (e: Exception) {
+                AppLogger.logError("formatPartition", e)
+                _fileBrowserMessage.value = "Ошибка: ${e.message}"
+            }
+        }
     }
 
     fun loadFirmwareStatus() {

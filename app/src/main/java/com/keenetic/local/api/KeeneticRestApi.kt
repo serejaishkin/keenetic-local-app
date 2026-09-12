@@ -344,7 +344,9 @@ data class UsbStorageDevice(
     val shareSmb: Boolean = true,
     val shareFtp: Boolean = false,
     val shareDlna: Boolean = false,
-    val uuid: String = ""
+    val uuid: String = "",
+    val partitionId: String = "",
+    val formatOptions: List<String> = emptyList()
 )
 
 data class FirmwareStatus(
@@ -368,6 +370,13 @@ data class FileEntry(
     val mounted: Boolean = true,
     val totalBytes: Long = 0L,
     val freeBytes: Long = 0L
+)
+
+data class FileAclEntry(
+    val user: String = "",
+    val assigned: String = "",
+    val effective: String = "",
+    val exists: Boolean = true
 )
 
 data class DiagnosticsResult(

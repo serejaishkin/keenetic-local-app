@@ -8,6 +8,7 @@ import okhttp3.CookieJar
 import okhttp3.HttpUrl
 import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import okhttp3.Interceptor
+import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
 import retrofit2.Response
@@ -367,6 +368,77 @@ open class KeeneticRciRepository(
     }
 
     /**
+     * Raw authenticated GET against the router (e.g. "/download/<uuid>/<path>").
+     * Session cookies/auth headers are injected by the shared OkHttp client.
+     */
+    suspend fun downloadRaw(relativePath: String): okhttp3.Response {
+        val url = currentBaseUrl.trimEnd('/') + "/" + relativePath.trimStart('/')
+        val req = okhttp3.Request.Builder().url(url).get().build()
+        return okHttpClient.newCall(req).execute()
+    }
+
+    /**
+     * File upload handshake: RCI "put" allocates a bernuli port, then the file
+     * is POSTed as multipart {port, Filedata} to /fui (same as web file-manager).
+     * Returns the allocated port or null.
+     */
+    suspend fun putAllocatePort(remotePath: String, sizeBytes: Long): String? {
+        return try {
+            val resp = getService().executeRci(
+                listOf(mapOf("put" to mapOf("filename" to remotePath, "size" to sizeBytes)))
+            )
+            if (!resp.isSuccessful) return null
+            findPort(resp.body())
+        } catch (e: Exception) {
+            AppLogger.logError("putAllocatePort", e)
+            null
+        }
+    }
+
+    private fun findPort(el: JsonElement?): String? {
+        if (el == null || el.isJsonNull || el.isJsonPrimitive) return null
+        if (el.isJsonArray) {
+            el.asJsonArray.forEach { findPort(it)?.let { return it } }
+            return null
+        }
+        val obj = el.asJsonObject
+        obj.get("port")?.let { portEl ->
+            if (portEl.isJsonPrimitive) {
+                val s = try { portEl.asString } catch (_: Exception) { "" }
+                if (s.isNotBlank()) return s
+            } else if (portEl.isJsonObject) {
+                findPort(portEl)?.let { return it }
+            }
+        }
+        obj.entrySet().forEach { (_, v) -> findPort(v)?.let { return it } }
+        return null
+    }
+
+    /**
+     * POSTs file bytes as multipart {port, Filedata} to /fui.
+     */
+    suspend fun uploadFui(port: String, fileName: String, mimeType: String, bytes: ByteArray): Boolean {
+        return try {
+            val body = okhttp3.MultipartBody.Builder().setType(okhttp3.MultipartBody.FORM)
+                .addFormDataPart("port", port)
+                .addFormDataPart(
+                    "Filedata", fileName,
+                    okhttp3.RequestBody.create(mimeType.toMediaTypeOrNull(), bytes)
+                )
+                .build()
+            val req = okhttp3.Request.Builder()
+                .url(currentBaseUrl.trimEnd('/') + "/fui")
+                .post(body)
+                .build()
+            val resp = okHttpClient.newCall(req).execute()
+            resp.use { it.isSuccessful }
+        } catch (e: Exception) {
+            AppLogger.logError("uploadFui", e)
+            false
+        }
+    }
+
+    /**
      * Execute batch RCI commands with automatic non-volatile configuration save
      * {"system": {"configuration": {"save": {}}}}
      */
@@ -503,16 +575,15 @@ open class KeeneticRciRepository(
         }
     }
 
-    fun isRciError(element: JsonElement): Boolean {
-        if (element.isJsonObject) {
-            val obj = element.asJsonObject
-            if (obj.has("status") && obj.get("status").isJsonArray) {
-                val arr = obj.getAsJsonArray("status")
-                if (arr.size() > 0 && arr.get(0).isJsonObject) {
-                    val sObj = arr.get(0).asJsonObject
-                    if (sObj.has("status") && sObj.get("status").asString.equals("error", ignoreCase = true)) {
-                        return true
-                    }
+    fun isRciError(element: JsonElement?): Boolean {
+        if (element == null || !element.isJsonObject) return false
+        val obj = element.asJsonObject
+        if (obj.has("status") && obj.get("status").isJsonArray) {
+            val arr = obj.getAsJsonArray("status")
+            if (arr.size() > 0 && arr.get(0).isJsonObject) {
+                val sObj = arr.get(0).asJsonObject
+                if (sObj.has("status") && sObj.get("status").asString.equals("error", ignoreCase = true)) {
+                    return true
                 }
             }
         }
