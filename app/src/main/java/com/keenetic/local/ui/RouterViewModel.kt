@@ -2055,10 +2055,12 @@ class RouterViewModel : ViewModel() {
                         partObj.entrySet().forEach { (_, v) ->
                             if (!v.isJsonObject) return@forEach
                             val po = v.asJsonObject
-                            if ((strOf(po, "fstype") ?: "") == "swap") return@forEach
                             if ((strOf(po, "state") ?: "") != "MOUNTED") return@forEach
+                            val fstype = strOf(po, "fstype") ?: ""
                             val uuid = strOf(po, "uuid") ?: ""
-                            val label = strOf(po, "label")?.ifBlank { null } ?: key
+                            val isSwap = fstype == "swap"
+                            val label = strOf(po, "label")?.ifBlank { null }
+                                ?: if (isSwap) "SWAP" else key
                             val share = cifsShares[uuid]
                             val total = numLong(po, "total").let { if (it > 0) it else numLong(po, "size") }
                             val free = numLong(po, "free")
@@ -2069,9 +2071,9 @@ class RouterViewModel : ViewModel() {
                                 model = strOf(o, "product") ?: strOf(o, "model") ?: "",
                                 sizeBytes = total,
                                 freeBytes = free,
-                                filesystem = strOf(po, "fstype") ?: "ext4",
-                                mountPoint = "/tmp/mnt/$label",
-                                shareSmb = share?.second ?: false
+                                filesystem = fstype.ifBlank { "ext4" },
+                                mountPoint = if (isSwap) "" else "/tmp/mnt/$label",
+                                shareSmb = if (isSwap) false else share?.second ?: false
                             ))
                             added = true
                         }
@@ -2080,9 +2082,7 @@ class RouterViewModel : ViewModel() {
                     var mediaUsed = false
                     mediaRes?.takeIf { it.isJsonObject }?.asJsonObject?.entrySet()?.forEach { (k, v) ->
                         if (v.isJsonObject) {
-                            val o = v.asJsonObject
-                            val bus = o.get("bus")?.takeIf { p -> p.isJsonPrimitive }?.asString ?: ""
-                            if (bus == "usb" && parseMediaDrive(k, o)) mediaUsed = true
+                            if (parseMediaDrive(k, v.asJsonObject)) mediaUsed = true
                         }
                     }
                     if (!mediaUsed) {
