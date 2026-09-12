@@ -2141,9 +2141,9 @@ class RouterViewModel : ViewModel() {
                             }
                         }
                     }
+                    }
                     if (list.isNotEmpty() || !_isDemoMode.value) {
                         _usbStorageList.value = list
-                    }
                     }
                 }
             } catch (e: Exception) {
