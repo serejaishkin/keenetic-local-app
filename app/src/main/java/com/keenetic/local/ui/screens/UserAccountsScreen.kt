@@ -192,6 +192,8 @@ fun UserAccountsScreen(viewModel: RouterViewModel, onBack: () -> Unit = {}) {
         var hasAdmin by remember(user.name) { mutableStateOf(user.tags.contains("admin")) }
         var hasVpn by remember(user.name) { mutableStateOf(user.permissions.any { it.contains("vpn", ignoreCase = true) }) }
         var hasSmb by remember(user.name) { mutableStateOf(user.permissions.any { it.contains("cifs", ignoreCase = true) || it.contains("smb", ignoreCase = true) }) }
+        var hasFtp by remember(user.name) { mutableStateOf(user.permissions.any { it.contains("ftp", ignoreCase = true) }) }
+        var hasMedia by remember(user.name) { mutableStateOf(user.permissions.any { it.contains("media", ignoreCase = true) || it.contains("dlna", ignoreCase = true) }) }
 
         AlertDialog(
             onDismissRequest = { selectedUser = null },
@@ -240,6 +242,24 @@ fun UserAccountsScreen(viewModel: RouterViewModel, onBack: () -> Unit = {}) {
                         Switch(checked = hasSmb, onCheckedChange = { hasSmb = it })
                     }
 
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text("Сетевой диск по FTP (FTP-доступ)", style = MaterialTheme.typography.bodySmall, color = KeeneticColors.TextPrimary)
+                        Switch(checked = hasFtp, onCheckedChange = { hasFtp = it })
+                    }
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text("Доступ к мультимедиа (DLNA)", style = MaterialTheme.typography.bodySmall, color = KeeneticColors.TextPrimary)
+                        Switch(checked = hasMedia, onCheckedChange = { hasMedia = it })
+                    }
+
                     if (user.name != "admin") {
                         HorizontalDivider(color = KeeneticColors.Divider)
                         OutlinedButton(
@@ -261,12 +281,16 @@ fun UserAccountsScreen(viewModel: RouterViewModel, onBack: () -> Unit = {}) {
             confirmButton = {
                 Button(
                     onClick = {
-                        if (newPass.isNotBlank()) {
-                            viewModel.createUserAccount(user.name, newPass, hasAdmin, hasVpn, hasSmb)
-                            feedbackMessage = "Настройки и пароль для «${user.name}» обновлены"
-                        } else {
-                            feedbackMessage = "Права доступа для «${user.name}» сохранены"
-                        }
+                        viewModel.createUserAccount(
+                            user.name,
+                            newPass,
+                            hasAdmin,
+                            hasSmb,
+                            hasVpn,
+                            hasFtp,
+                            hasMedia
+                        )
+                        feedbackMessage = if (newPass.isNotBlank()) "Пароль и права «${user.name}» сохранены" else "Права «${user.name}» сохранены"
                         selectedUser = null
                     },
                     colors = ButtonDefaults.buttonColors(containerColor = KeeneticColors.Primary)

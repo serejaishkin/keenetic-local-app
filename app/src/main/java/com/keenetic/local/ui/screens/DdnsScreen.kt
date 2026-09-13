@@ -106,11 +106,20 @@ fun DdnsScreen(viewModel: RouterViewModel, onBack: () -> Unit = {}) {
                     }
                     HorizontalDivider(color = KeeneticColors.Divider)
                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                        Text("Включён", color = KeeneticColors.TextPrimary)
-                        Switch(checked = dyndnsStatus.enabled, onCheckedChange = { viewModel.setDyndnsEnabled(it) })
+                        Text("Отправлять адрес автоматически", color = KeeneticColors.TextPrimary)
+                        // Toggled on the _WEBADMIN profile, real format:
+                        // {"dyndns":{"profile":{"name":"_WEBADMIN","send-address":bool}}}
+                        Switch(checked = dyndnsStatus.sendAddress, onCheckedChange = { viewModel.setDyndnsSendAddress(it) })
                     }
+                    InfoRow("Профиль", dyndnsStatus.profileName.ifBlank { "_WEBADMIN" })
                     InfoRow("Доменное имя", dyndnsStatus.hostname.ifBlank { "—" })
-                    InfoRow("Последнее обновление", dyndnsStatus.lastUpdate.ifBlank { "—" })
+                    InfoRow("Зарегистрирован", dyndnsStatus.regtime.ifBlank { "—" })
+                    if (dyndnsStatus.status.isNotBlank()) {
+                        InfoRow("Статус IPv4", dyndnsStatus.status)
+                        InfoRow("Статус IPv6", dyndnsStatus.status6)
+                    }
+                    if (dyndnsStatus.message.isNotBlank()) InfoRow("Сообщение IPv4", dyndnsStatus.message)
+                    if (dyndnsStatus.message6.isNotBlank()) InfoRow("Сообщение IPv6", dyndnsStatus.message6)
                 }
             }
         }
@@ -275,27 +284,32 @@ fun DdnsScreen(viewModel: RouterViewModel, onBack: () -> Unit = {}) {
         }
 
         if (profiles.isNotEmpty()) {
-            item { Text("Сохранённые профили", style = MaterialTheme.typography.titleSmall, color = KeeneticColors.TextPrimary, modifier = Modifier.padding(horizontal = 4.dp)) }
+            item { Text("Профили", style = MaterialTheme.typography.titleSmall, color = KeeneticColors.TextPrimary, modifier = Modifier.padding(horizontal = 4.dp)) }
             items(profiles) { profile ->
                 Card(shape = RoundedCornerShape(12.dp), colors = CardDefaults.cardColors(containerColor = KeeneticColors.Surface)) {
                     Column(modifier = Modifier.fillMaxWidth().padding(12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                        Text(profile.name.ifBlank { profile.hostname }, fontWeight = FontWeight.Bold, color = KeeneticColors.TextPrimary)
-                        Text("Хост: ${profile.hostname}", style = MaterialTheme.typography.bodySmall, color = KeeneticColors.TextSecondary)
-                        Text("Пользователь: ${profile.username}", style = MaterialTheme.typography.bodySmall, color = KeeneticColors.TextSecondary)
+                        Text(profile.name.ifBlank { "Профиль" }, fontWeight = FontWeight.Bold, color = KeeneticColors.TextPrimary)
+                        if (profile.provider.isNotBlank()) {
+                            Text("Провайдер: ${profile.provider}", style = MaterialTheme.typography.bodySmall, color = KeeneticColors.TextSecondary)
+                        }
+                        Text("Домен: ${profile.hostname.ifBlank { "—" }}", style = MaterialTheme.typography.bodySmall, color = KeeneticColors.TextSecondary)
                     }
                 }
             }
         }
 
         if (updaters.isNotEmpty()) {
-            item { Text("Обновления", style = MaterialTheme.typography.titleSmall, color = KeeneticColors.TextPrimary, modifier = Modifier.padding(horizontal = 4.dp)) }
+            item { Text("Поддерживаемые провайдеры", style = MaterialTheme.typography.titleSmall, color = KeeneticColors.TextPrimary, modifier = Modifier.padding(horizontal = 4.dp)) }
             items(updaters) { updater ->
                 Card(shape = RoundedCornerShape(12.dp), colors = CardDefaults.cardColors(containerColor = KeeneticColors.Surface)) {
                     Column(modifier = Modifier.fillMaxWidth().padding(12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                        Text(updater.name, fontWeight = FontWeight.Bold, color = KeeneticColors.TextPrimary)
-                        Text("Хост: ${updater.hostname}", style = MaterialTheme.typography.bodySmall, color = KeeneticColors.TextSecondary)
-                        Text("Статус: ${updater.status}", style = MaterialTheme.typography.bodySmall, color = KeeneticColors.TextSecondary)
-                        Text("Обновлено: ${updater.lastUpdate}", style = MaterialTheme.typography.bodySmall, color = KeeneticColors.TextSecondary)
+                        Text(ddnsProviders.firstOrNull { it.first == updater.type }?.second ?: updater.type, fontWeight = FontWeight.Bold, color = KeeneticColors.TextPrimary)
+                        if (updater.url.isNotBlank()) {
+                            Text(updater.url, style = MaterialTheme.typography.bodySmall, color = KeeneticColors.TextSecondary, maxLines = 1)
+                        }
+                        if (updater.api.isNotBlank()) {
+                            Text("API: ${updater.api}", style = MaterialTheme.typography.bodySmall, color = KeeneticColors.TextSecondary, maxLines = 1)
+                        }
                     }
                 }
             }

@@ -2608,12 +2608,28 @@ class RouterViewModel : ViewModel() {
         }
     }
 
-    fun createUserAccount(username: String, pass: String, isSuperuser: Boolean, allowSmb: Boolean, allowVpn: Boolean) {
+    fun createUserAccount(
+        username: String,
+        pass: String,
+        isSuperuser: Boolean,
+        allowSmb: Boolean = false,
+        allowVpn: Boolean = false,
+        allowFtp: Boolean = false,
+        allowMedia: Boolean = false
+    ) {
         val tags = mutableListOf<String>()
         if (isSuperuser) tags.add("admin")
         if (allowSmb) tags.add("smb")
         if (allowVpn) tags.add("vpn")
-        val newAcc = RouterUserAccount(username, tags, if (isSuperuser) listOf("Полный доступ") else listOf("Хранилище/VPN"))
+        if (allowFtp) tags.add("ftp")
+        if (allowMedia) tags.add("media")
+        val permissions = mutableListOf<String>()
+        if (isSuperuser) permissions.add("Полный доступ")
+        if (allowSmb) permissions.add("Чтение/запись SMB")
+        if (allowFtp) permissions.add("Чтение/запись FTP")
+        if (allowMedia) permissions.add("Доступ к мультимедиа (DLNA)")
+        if (allowVpn) permissions.add("Доступ к VPN-серверам")
+        val newAcc = RouterUserAccount(username, tags, permissions)
         _userAccounts.value = _userAccounts.value.filter { it.name != username } + newAcc
         viewModelScope.launch {
             try {
@@ -4536,8 +4552,14 @@ private val _intelliQos = MutableStateFlow(IntelliQosConfig())
     private val _torrentStatusFull = MutableStateFlow(TorrentStatusFull())
     val torrentStatusFull: StateFlow<TorrentStatusFull> = _torrentStatusFull.asStateFlow()
 
+    private val _torrentConfig = MutableStateFlow(TorrentConfig())
+    val torrentConfig: StateFlow<TorrentConfig> = _torrentConfig.asStateFlow()
+
     private val _torrentLocalAccount = MutableStateFlow(TorrentLocalAccount())
     val torrentLocalAccount: StateFlow<TorrentLocalAccount> = _torrentLocalAccount.asStateFlow()
+
+    private val _opkgConfig = MutableStateFlow(OpkgConfig())
+    val opkgConfig: StateFlow<OpkgConfig> = _opkgConfig.asStateFlow()
 
     private val _cloudStatus = MutableStateFlow(CloudStatus())
     val cloudStatus: StateFlow<CloudStatus> = _cloudStatus.asStateFlow()
@@ -4559,6 +4581,12 @@ private val _intelliQos = MutableStateFlow(IntelliQosConfig())
 
     private val _ftpSettings = MutableStateFlow(FtpSettings())
     val ftpSettings: StateFlow<FtpSettings> = _ftpSettings.asStateFlow()
+
+    private val _smbConfig = MutableStateFlow(SmbConfig())
+    val smbConfig: StateFlow<SmbConfig> = _smbConfig.asStateFlow()
+
+    private val _dlnaConfig = MutableStateFlow(DlnaConfig())
+    val dlnaConfig: StateFlow<DlnaConfig> = _dlnaConfig.asStateFlow()
 
     private val _telnetSettings = MutableStateFlow(TelnetSettings())
     val telnetSettings: StateFlow<TelnetSettings> = _telnetSettings.asStateFlow()
@@ -4996,7 +5024,16 @@ private val _intelliQos = MutableStateFlow(IntelliQosConfig())
                 if (res != null) {
                     _dyndnsStatus.value = DyndnsParser.parseStatus(res)
                     _dyndnsProfiles.value = DyndnsParser.parseProfiles(res)
-                    _dyndnsUpdaters.value = DyndnsParser.parseUpdaters(res)
+                }
+                // send-address lives in sc/dyndns: { "profile": { "_WEBADMIN": {...} } }
+                val sc = repository.queryShow("sc/dyndns")
+                if (sc != null) {
+                    _dyndnsStatus.value = _dyndnsStatus.value.copy(sendAddress = DyndnsParser.parseSc(sc))
+                }
+                // Provider list is a separate show path: show dyndns/updaters
+                val upd = repository.queryShow("dyndns/updaters")
+                if (upd != null) {
+                    _dyndnsUpdaters.value = DyndnsParser.parseUpdaters(upd)
                 }
             } catch (e: Exception) {
                 AppLogger.logError("loadDyndnsStatus", e)
@@ -5032,13 +5069,70 @@ private val _intelliQos = MutableStateFlow(IntelliQosConfig())
     fun loadTorrentStatusFull() {
         viewModelScope.launch {
             try {
-                val res = repository.queryShow("torrent")
-                if (res != null) {
-                    _torrentStatusFull.value = TorrentDetailParser.parseStatus(res)
-                    _torrentLocalAccount.value = TorrentDetailParser.parseLocalAccount(res)
+                // Config: sc/torrent; running state: torrent/status
+                val cfg = repository.queryShow("sc/torrent")
+                if (cfg != null) {
+                    _torrentConfig.value = TorrentDetailParser.parseConfig(cfg)
+                    val c = _torrentConfig.value
+                    _torrentStatusFull.value = _torrentStatusFull.value.copy(
+                        rpcPort = c.rpcPort,
+                        rpcPublic = c.rpcPublic,
+                        peerPort = c.peerPort,
+                        downloadDir = c.downloadDir
+                    )
+                }
+                val st = repository.queryShow("torrent/status")
+                if (st != null) {
+                    val state = TorrentDetailParser.parseRunningState(st)
+                    _torrentStatusFull.value = _torrentStatusFull.value.copy(
+                        state = state,
+                        enabled = state == "enabled"
+                    )
                 }
             } catch (e: Exception) {
                 AppLogger.logError("loadTorrentStatusFull", e)
+            }
+        }
+    }
+
+    fun loadOpkgConfig() {
+        viewModelScope.launch {
+            try {
+                val cfg = repository.querySc("opkg") ?: repository.queryShow("opkg")
+                if (cfg != null) {
+                    _opkgConfig.value = OpkgParser.parse(cfg)
+                }
+            } catch (e: Exception) {
+                AppLogger.logError("loadOpkgConfig", e)
+            }
+        }
+    }
+
+    /**
+     * Saves opkg settings. diskId is one of: "" (not selected -> no:true),
+     * "storage:/" (internal storage) or "<label-or-uuid>:/" (removable disk).
+     * The initrc startup-file path is enabled/disabled by its presence.
+     */
+    fun saveOpkgConfig(diskId: String, initrcPath: String) {
+        viewModelScope.launch {
+            try {
+                val diskNo = diskId.isEmpty()
+                val cmd = mapOf(
+                    "opkg" to mapOf(
+                        "disk" to mapOf(
+                            "disk" to if (diskNo) "" else diskId,
+                            "no" to diskNo
+                        ),
+                        "initrc" to mapOf(
+                            "path" to initrcPath,
+                            "no" to initrcPath.isEmpty()
+                        )
+                    )
+                )
+                repository.executeRciWithSave(listOf(cmd))
+                loadOpkgConfig()
+            } catch (e: Exception) {
+                AppLogger.logError("saveOpkgConfig", e)
             }
         }
     }
@@ -5103,6 +5197,22 @@ private val _intelliQos = MutableStateFlow(IntelliQosConfig())
                 _ftpSettings.value = if (flags != null) parsed.copy(enabled = flags.ftp) else parsed
             } catch (e: Exception) {
                 AppLogger.logError("loadFtpSettings", e)
+            }
+        }
+    }
+
+    fun loadSmbAndDlnaSettings() {
+        viewModelScope.launch {
+            try {
+                val flags = repository.querySc("service")?.let { SystemDetailParser.parseServiceFlags(it) }
+                val smbRes = repository.queryShow("smb")
+                val dlnaRes = repository.queryShow("dlna")
+                val smbParsed = if (smbRes != null) SmbDlnaParser.parseSmb(smbRes) else SmbConfig()
+                val dlnaParsed = if (dlnaRes != null) SmbDlnaParser.parseDlna(dlnaRes) else DlnaConfig()
+                _smbConfig.value = if (flags != null) smbParsed.copy(enabled = flags.cifs) else smbParsed
+                _dlnaConfig.value = if (flags != null) dlnaParsed.copy(enabled = flags.dlna) else dlnaParsed
+            } catch (e: Exception) {
+                AppLogger.logError("loadSmbAndDlnaSettings", e)
             }
         }
     }
@@ -5510,6 +5620,30 @@ private val _intelliQos = MutableStateFlow(IntelliQosConfig())
         }
     }
 
+    fun setSmbEnabled(enabled: Boolean) {
+        viewModelScope.launch {
+            try {
+                val cmd = mapOf("service" to mapOf("cifs" to enabled))
+                repository.executeRciWithSave(listOf(cmd))
+                loadSmbAndDlnaSettings()
+            } catch (e: Exception) {
+                AppLogger.logError("setSmbEnabled", e)
+            }
+        }
+    }
+
+    fun setDlnaEnabled(enabled: Boolean) {
+        viewModelScope.launch {
+            try {
+                val cmd = mapOf("service" to mapOf("dlna" to enabled))
+                repository.executeRciWithSave(listOf(cmd))
+                loadSmbAndDlnaSettings()
+            } catch (e: Exception) {
+                AppLogger.logError("setDlnaEnabled", e)
+            }
+        }
+    }
+
     fun setFtpPort(port: Int) {
         viewModelScope.launch {
             try {
@@ -5618,14 +5752,16 @@ private val _intelliQos = MutableStateFlow(IntelliQosConfig())
         }
     }
 
-    fun setDyndnsEnabled(enabled: Boolean) {
+    fun setDyndnsSendAddress(enabled: Boolean) {
         viewModelScope.launch {
             try {
-                val cmd = mapOf("dyndns" to mapOf("enable" to enabled))
-                repository.executeRciWithSave(listOf(cmd))
+                // Verified: {"dyndns":{"profile":{"name":"_WEBADMIN","send-address":bool}}}
+                repository.executeRciWithSave(
+                    listOf(mapOf("dyndns" to mapOf("profile" to mapOf("name" to "_WEBADMIN", "send-address" to enabled))))
+                )
                 loadDyndnsStatus()
             } catch (e: Exception) {
-                AppLogger.logError("setDyndnsEnabled", e)
+                AppLogger.logError("setDyndnsSendAddress", e)
             }
         }
     }

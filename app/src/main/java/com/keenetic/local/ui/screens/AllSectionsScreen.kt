@@ -42,6 +42,7 @@ fun AllSectionsScreen(
                 SectionItem("Интернет (подробно)", Screen.InternetDetailed.route, "IP, шлюз, DNS, скорость"),
                 SectionItem("Wi-Fi сети", Screen.WiFi.route, "Беспроводные точки доступа 2.4/5 GHz"),
                 SectionItem("Общие параметры Wi-Fi", Screen.WifiSystem.route, "Каналы, мощность, роуминг, изоляция"),
+                SectionItem("Монитор Wi-Fi", Screen.WifiMonitor.route, "Сканирование, загрузка каналов, клиенты"),
                 SectionItem("Контроль доступа Wi-Fi", Screen.WifiAcl.route, "Черные и белые списки"),
                 SectionItem("WPS", Screen.Wps.route, "Быстрое подключение по PIN"),
                 SectionItem("Mesh Wi-Fi (MWS)", Screen.Mws.route, "Mesh-сеть из нескольких роутеров"),
@@ -79,6 +80,8 @@ fun AllSectionsScreen(
                 SectionItem("Облачные сервисы", Screen.Cloud.route, "Keenetic Cloud и NDMP"),
                 SectionItem("USB и накопители", Screen.UsbDevices.route, "Диски, SMB, FTP, DLNA"),
                 SectionItem("Сетевые сервисы", Screen.SshSnmp.route, "SSH, SNMP, FTP, Telnet, Proxy"),
+                SectionItem("Сеть Windows (SMB)", Screen.Smb.route, "Служба SMB / CIFS"),
+                SectionItem("Медиасервер (DLNA)", Screen.MediaServer.route, "Доступ к мультимедиа по DLNA / UPnP"),
                 SectionItem("IntelliQoS", Screen.IntelliQos.route, "Классификация и приоритизация трафика")
             )
         ),
@@ -88,6 +91,7 @@ fun AllSectionsScreen(
             items = listOf(
                 SectionItem("Системные настройки", Screen.SystemAdvanced.route, "Имя хоста, время, LED, NTP, бэкап"),
                 SectionItem("Компоненты", Screen.Components.route, "Установка и управление пакетами"),
+                SectionItem("Менеджер пакетов OPKG", Screen.Opkg.route, "Диск и конфигурация OPKG"),
                 SectionItem("KeeneticOS и обновление", Screen.Firmware.route, "Версия прошивки и компоненты"),
                 SectionItem("Пользователи и доступ", Screen.UserAccounts.route, "Учетные записи и права"),
                 SectionItem("Конфигурация (RCI / CLI)", Screen.Configuration.route, "Running-config, инспектор и команды NDM"),

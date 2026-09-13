@@ -53,6 +53,18 @@ private fun TorrentSettingsCard(viewModel: RouterViewModel) {
     var rpcPublic by remember { mutableStateOf(false) }
     var peerPort by remember { mutableStateOf("51413") }
     val error by viewModel.error.collectAsState()
+    val config by viewModel.torrentConfig.collectAsState()
+
+    LaunchedEffect(config) {
+        if (config.rpcPort != 0 || !config.downloadDir.isNullOrBlank()) {
+            directory = config.downloadDir
+            rpcPort = config.rpcPort.toString()
+            peerPort = config.peerPort.toString()
+            rpcPublic = config.rpcPublic
+        }
+    }
+
+    LaunchedEffect(Unit) { viewModel.loadTorrentStatusFull() }
 
     Card(
         modifier = Modifier.fillMaxWidth(),

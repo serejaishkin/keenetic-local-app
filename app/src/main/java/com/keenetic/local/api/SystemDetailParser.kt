@@ -107,7 +107,9 @@ object SystemDetailParser {
             ssh = bool(svc, "ssh"),
             telnet = bool(svc, "telnet"),
             ntp = bool(svc, "ntp"),
-            httpProxy = bool(svc, "http-proxy")
+            httpProxy = bool(svc, "http-proxy"),
+            cifs = bool(svc, "cifs"),
+            dlna = bool(svc, "dlna")
         )
     }
 

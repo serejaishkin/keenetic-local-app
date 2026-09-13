@@ -731,24 +731,27 @@ data class NtceFilterProfileFull(
 )
 
 data class DyndnsStatus(
-    val enabled: Boolean = false,
+    val profileName: String = "",
+    val sendAddress: Boolean = true,
     val provider: String = "",
     val hostname: String = "",
-    val lastUpdate: String = ""
+    val regtime: String = "",
+    val status: String = "",
+    val status6: String = "",
+    val message: String = "",
+    val message6: String = ""
 )
 
 data class DyndnsProfile(
     val name: String = "",
     val hostname: String = "",
-    val username: String = "",
-    val enabled: Boolean = true
+    val provider: String = ""
 )
 
 data class DyndnsUpdater(
-    val name: String = "",
-    val hostname: String = "",
-    val lastUpdate: String = "",
-    val status: String = ""
+    val type: String = "",
+    val url: String = "",
+    val api: String = ""
 )
 
 data class UpnpRedirect(
@@ -770,6 +773,7 @@ data class UpnpPinhole(
 
 data class TorrentStatusFull(
     val enabled: Boolean = false,
+    val state: String = "",
     val rpcPort: Int = 0,
     val rpcPublic: Boolean = false,
     val peerPort: Int = 0,
@@ -780,9 +784,53 @@ data class TorrentStatusFull(
     val uploadSpeed: Long = 0
 )
 
+data class TorrentConfig(
+    val rpcPort: Int = 8090,
+    val rpcPublic: Boolean = false,
+    val peerPort: Int = 51413,
+    val downloadDir: String = "OPKG:"
+)
+
 data class TorrentLocalAccount(
     val username: String = "",
     val enabled: Boolean = false
+)
+
+/**
+ * OPKG package-manager configuration (web UI «Менеджер пакетов OPKG», show/sc/opkg).
+ *  - disk: { "disk": "<label>:/" | "storage:/" | "", "no": true|false }
+ *      `"no":true` when no disk is selected (option "");
+ *      `"storage:/"` selects the router's built-in internal storage;
+ *      otherwise "<label-or-uuid>:/" for a removable disk.
+ *  - initrc: { "path": "/kmod.rc", "no": !path } — supplementary startup file.
+ */
+data class OpkgConfig(
+    val diskNo: Boolean = true,
+    val diskId: String = "",
+    val initrcPath: String = "",
+    val initrcNo: Boolean = true
+)
+
+/**
+ * SMB/CIFS file-sharing service configuration (web UI «Сеть Windows», show/smb).
+ *  - enable toggle is written via service.cifs.
+ */
+data class SmbConfig(
+    val enabled: Boolean = false,
+    val name: String = "",
+    val workgroup: String = "",
+    val description: String = ""
+)
+
+/**
+ * DLNA media-server configuration (web UI «Медиасервер», show/dlna).
+ *  - enable toggle is written via service.dlna.
+ */
+data class DlnaConfig(
+    val enabled: Boolean = false,
+    val name: String = "",
+    val port: Int = 0,
+    val type: String = ""
 )
 
 data class CloudStatus(
@@ -834,7 +882,9 @@ data class ServiceFlags(
     val ssh: Boolean = false,
     val telnet: Boolean = false,
     val ntp: Boolean = false,
-    val httpProxy: Boolean = false
+    val httpProxy: Boolean = false,
+    val cifs: Boolean = false,
+    val dlna: Boolean = false
 )
 
 data class Ipv6Address(

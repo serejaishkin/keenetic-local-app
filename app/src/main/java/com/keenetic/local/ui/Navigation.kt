@@ -35,6 +35,7 @@ sealed class Screen(val route: String, val title: String) {
     data object VpnServers : Screen("vpn_servers", "VPN Серверы")
     data object Ipv6 : Screen("ipv6", "IPv6")
     data object Ddns : Screen("ddns", "Динамический DNS")
+    data object Opkg : Screen("opkg", "Менеджер пакетов OPKG")
     data object ContentFilter : Screen("content_filter", "Контентная фильтрация")
     data object TorrentDetail : Screen("torrent_detail", "Торрент-клиент")
     data object Cloud : Screen("cloud", "Облачные сервисы")
@@ -48,6 +49,9 @@ sealed class Screen(val route: String, val title: String) {
     data object OtherConnections : Screen("other_connections", "Другие подключения")
     data object Priorities : Screen("priorities", "Приоритеты подключений")
     data object WifiSystem : Screen("wifi_system", "Общие параметры Wi-Fi")
+    data object WifiMonitor : Screen("wifi_monitor", "Монитор Wi-Fi")
+    data object Smb : Screen("smb", "Сеть Windows (SMB)")
+    data object MediaServer : Screen("media_server", "Медиасервер (DLNA)")
     data object ObjectGroup : Screen("object_group", "FQDN группы")
     data object SystemMonitor : Screen("system_monitor", "Системный монитор")
     data object IntelliQos : Screen("intelliqos", "IntelliQoS")
@@ -155,6 +159,9 @@ fun KeeneticNavHost(
         composable(Screen.Ddns.route) {
             DdnsScreen(viewModel = viewModel, onBack = { navController.popBackStack() })
         }
+        composable(Screen.Opkg.route) {
+            OpkgScreen(viewModel = viewModel, onBack = { navController.popBackStack() })
+        }
         composable(Screen.ContentFilter.route) {
             ContentFilterScreen(viewModel = viewModel, onBack = { navController.popBackStack() })
         }
@@ -193,6 +200,15 @@ fun KeeneticNavHost(
         }
         composable(Screen.WifiSystem.route) {
             WifiSystemScreen(viewModel = viewModel, onBack = { navController.popBackStack() })
+        }
+        composable(Screen.WifiMonitor.route) {
+            WiFiMonitorScreen(viewModel = viewModel, onBack = { navController.popBackStack() })
+        }
+        composable(Screen.Smb.route) {
+            SmbScreen(viewModel = viewModel, onBack = { navController.popBackStack() })
+        }
+        composable(Screen.MediaServer.route) {
+            MediaServerScreen(viewModel = viewModel, onBack = { navController.popBackStack() })
         }
         composable(Screen.ObjectGroup.route) {
             ObjectGroupScreen(viewModel = viewModel, onBack = { navController.popBackStack() })

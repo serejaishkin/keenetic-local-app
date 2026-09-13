@@ -44,6 +44,7 @@ fun TorrentDetailScreen(viewModel: RouterViewModel, onBack: () -> Unit = {}) {
                         Text("Включён", color = KeeneticColors.TextPrimary)
                         Text(if (status.enabled) "Да" else "Нет", color = if (status.enabled) KeeneticColors.Primary else KeeneticColors.TextSecondary, fontWeight = FontWeight.Bold)
                     }
+                    InfoRow("Состояние", status.state.ifBlank { "—" })
                     InfoRow("RPC порт", "${status.rpcPort}")
                     InfoRow("RPC публичный", if (status.rpcPublic) "Да" else "Нет")
                     InfoRow("Пир порт", "${status.peerPort}")
