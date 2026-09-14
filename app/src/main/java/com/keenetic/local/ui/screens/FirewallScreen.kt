@@ -97,7 +97,11 @@ fun FirewallScreen(viewModel: RouterViewModel, onBack: () -> Unit = {}) {
             }
 
             if (unsupported.contains("firewall")) {
-                item { UnsupportedNotice("Межсетевой экран") }
+                item { UnsupportedNotice(
+                    "Межсетевой экран",
+                    "RCI-путь show/ip/rule не поддерживается на данной прошивке KN-2311 (fw 5.01.C.4.0-1). " +
+                        "Фильтрация трафика управляется через веб-интерфейс Keenetic, но не через REST API."
+                ) }
             }
 
             if (rules.isEmpty()) {

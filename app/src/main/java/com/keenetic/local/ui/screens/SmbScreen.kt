@@ -36,7 +36,11 @@ fun SmbScreen(viewModel: RouterViewModel, onBack: () -> Unit = {}) {
         }
 
         if (unsupported.contains("smb")) {
-            item { UnsupportedNotice("Сеть Windows (SMB)") }
+            item { UnsupportedNotice(
+                "Сеть Windows (SMB)",
+                "Компонент SMB/CIFS не установлен на прошивке KN-2311 (fw 5.01.C.4.0-1). " +
+                    "Для установки перейдите в «Менеджер пакетов OPKG» и установите пакет «smbd»."
+            ) }
         }
 
         item {

@@ -30,6 +30,8 @@ fun CloudScreen(viewModel: RouterViewModel, onBack: () -> Unit = {}) {
                 Icon(Icons.Default.Cloud, contentDescription = null, tint = KeeneticColors.Primary)
                 Spacer(modifier = Modifier.width(8.dp))
                 Text("Облачные сервисы", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold, color = KeeneticColors.TextPrimary)
+                Spacer(modifier = Modifier.weight(1f))
+                IconButton(onClick = { viewModel.loadCloudStatus() }) { Icon(Icons.Default.Refresh, contentDescription = "Обновить", tint = KeeneticColors.Primary) }
             }
         }
 

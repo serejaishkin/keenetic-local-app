@@ -64,7 +64,11 @@ fun WifiAclScreen(viewModel: RouterViewModel, onBack: () -> Unit = {}) {
         }
 
         if (unsupported.contains("wifi_acl")) {
-            UnsupportedNotice("Контроль доступа Wi-Fi")
+            UnsupportedNotice(
+                "Контроль доступа Wi-Fi",
+                "RCI-путь show/sc/interface/mac.access-list не поддерживается на данной прошивке KN-2311 (fw 5.01.C.4.0-1). " +
+                    "MAC-фильтрация управляется через веб-интерфейс, но не через REST API."
+            )
         }
 
         if (segments.isEmpty()) {

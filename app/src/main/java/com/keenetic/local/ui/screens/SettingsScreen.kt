@@ -1,6 +1,5 @@
 package com.keenetic.local.ui.screens
 
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
@@ -12,301 +11,12 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.ImeAction
-import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.text.input.PasswordVisualTransformation
-import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import com.keenetic.local.api.DnsServerInfo
 import com.keenetic.local.api.RouterInterface
 import com.keenetic.local.ui.RouterViewModel
 import com.keenetic.local.ui.theme.KeeneticColors
 
-@Composable
-fun SettingsScreen(
-    viewModel: RouterViewModel,
-    onLoggedOut: () -> Unit,
-    onOpenApps: () -> Unit = {},
-    onOpenSystemSettings: () -> Unit = {}
-) {
-    val savedIp by viewModel.routerIp.collectAsState()
-    val savedLogin by viewModel.routerLogin.collectAsState()
-    val savedAutoLogin by viewModel.autoLoginEnabled.collectAsState()
-    val isLoading by viewModel.isLoading.collectAsState()
-    val error by viewModel.error.collectAsState()
-    val networkHint by viewModel.networkHint.collectAsState()
-
-    LaunchedEffect(Unit) { viewModel.refreshNetworkHint() }
-
-    var ip by remember(savedIp) { mutableStateOf(savedIp) }
-    var login by remember(savedLogin) { mutableStateOf(savedLogin) }
-    var password by remember { mutableStateOf("") }
-    var passwordVisible by remember { mutableStateOf(false) }
-    var autoLogin by remember(savedAutoLogin) { mutableStateOf(savedAutoLogin) }
-
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .verticalScroll(rememberScrollState())
-            .padding(16.dp)
-    ) {
-        Text(
-            text = "Настройки приложения",
-            style = MaterialTheme.typography.headlineSmall,
-            fontWeight = FontWeight.Bold
-        )
-        Text(
-            text = "Подключение к роутеру, авто-вход и быстрые переходы по настройкам",
-            style = MaterialTheme.typography.bodySmall,
-            color = KeeneticColors.TextSecondary
-        )
-        Spacer(modifier = Modifier.height(12.dp))
-
-        Card(
-            modifier = Modifier.fillMaxWidth().clickable { onOpenApps() },
-            colors = CardDefaults.cardColors(containerColor = KeeneticColors.Primary.copy(alpha = 0.08f)),
-            elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
-        ) {
-            Row(
-                modifier = Modifier.fillMaxWidth().padding(16.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Default.Apps, contentDescription = null, tint = KeeneticColors.Primary)
-                    Spacer(modifier = Modifier.width(12.dp))
-                    Column {
-                        Text("Приложения", fontWeight = FontWeight.Medium, color = KeeneticColors.Primary)
-                        Text(
-                            "IntelliQoS, opkg, торрент - отдельный раздел",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = KeeneticColors.TextSecondary
-                        )
-                    }
-                }
-                Icon(Icons.Default.KeyboardArrowRight, contentDescription = null, tint = KeeneticColors.Primary)
-            }
-        }
-        Spacer(modifier = Modifier.height(8.dp))
-
-        Card(
-            modifier = Modifier.fillMaxWidth().clickable { onOpenSystemSettings() },
-            colors = CardDefaults.cardColors(containerColor = KeeneticColors.Surface),
-            elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
-        ) {
-            Row(
-                modifier = Modifier.fillMaxWidth().padding(16.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Icon(Icons.Default.SettingsSystemDaydream, contentDescription = null, tint = KeeneticColors.Primary)
-                Spacer(modifier = Modifier.width(12.dp))
-                Column(modifier = Modifier.weight(1f)) {
-                    Text("Настройки системы", fontWeight = FontWeight.Medium, color = KeeneticColors.TextPrimary)
-                    Text(
-                        "VPN, DNS-over-HTTPS, расписания и системные сервисы",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = KeeneticColors.TextSecondary
-                    )
-                }
-                Icon(Icons.Default.KeyboardArrowRight, contentDescription = null, tint = KeeneticColors.TextSecondary)
-            }
-        }
-        Spacer(modifier = Modifier.height(16.dp))
-
-        val gatewayCandidate = networkHint.gateway ?: networkHint.suggestedRouterIps.firstOrNull().orEmpty()
-        if (gatewayCandidate.isNotBlank()) {
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(containerColor = KeeneticColors.Primary.copy(alpha = 0.06f)),
-                elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
-            ) {
-                Row(
-                    modifier = Modifier.fillMaxWidth().padding(12.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text("Текущая сеть", fontWeight = FontWeight.Medium, color = KeeneticColors.Primary)
-                        Text(
-                            text = "Шлюз: $gatewayCandidate${if (networkHint.currentIp != null) " • IP: ${networkHint.currentIp}" else ""}",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = KeeneticColors.TextSecondary
-                        )
-                    }
-                    OutlinedButton(onClick = { ip = gatewayCandidate }) {
-                        Text("Подставить")
-                    }
-                }
-            }
-            Spacer(modifier = Modifier.height(8.dp))
-        }
-
-        Card(
-            modifier = Modifier.fillMaxWidth(),
-            colors = CardDefaults.cardColors(containerColor = KeeneticColors.Surface),
-            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
-        ) {
-            Column(modifier = Modifier.padding(16.dp)) {
-                Text("Подключение к роутеру", fontWeight = FontWeight.SemiBold)
-                Spacer(modifier = Modifier.height(12.dp))
-
-                OutlinedTextField(
-                    value = ip,
-                    onValueChange = { ip = it },
-                    label = { Text("IP адрес роутера") },
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = ImeAction.Next),
-                    modifier = Modifier.fillMaxWidth()
-                )
-                Spacer(modifier = Modifier.height(8.dp))
-
-                OutlinedTextField(
-                    value = login,
-                    onValueChange = { login = it },
-                    label = { Text("Логин администратора") },
-                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
-                    modifier = Modifier.fillMaxWidth()
-                )
-                Spacer(modifier = Modifier.height(8.dp))
-
-                OutlinedTextField(
-                    value = password,
-                    onValueChange = { password = it },
-                    label = { Text("Пароль администратора") },
-                    placeholder = { Text("Оставьте пустым, чтобы не менять") },
-                    visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password, imeAction = ImeAction.Done),
-                    trailingIcon = {
-                        IconButton(onClick = { passwordVisible = !passwordVisible }) {
-                            Icon(
-                                imageVector = if (passwordVisible) Icons.Default.Visibility else Icons.Default.VisibilityOff,
-                                contentDescription = null
-                            )
-                        }
-                    },
-                    modifier = Modifier.fillMaxWidth()
-                )
-                Spacer(modifier = Modifier.height(12.dp))
-
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text("Автовход", fontWeight = FontWeight.Medium)
-                        Text(
-                            "Пароль хранится зашифрованным (AndroidKeyStore)",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = KeeneticColors.TextSecondary
-                        )
-                    }
-                    Switch(
-                        checked = autoLogin,
-                        onCheckedChange = { autoLogin = it },
-                        colors = SwitchDefaults.colors(checkedThumbColor = KeeneticColors.Accent)
-                    )
-                }
-
-                if (error != null) {
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Text(error ?: "", color = KeeneticColors.Error, style = MaterialTheme.typography.bodySmall)
-                }
-
-                Spacer(modifier = Modifier.height(16.dp))
-
-                Button(
-                    onClick = {
-                        viewModel.saveConnectionSettings(ip, login, password.ifBlank { null }, autoLogin)
-                        password = ""
-                    },
-                    modifier = Modifier.fillMaxWidth(),
-                    enabled = !isLoading
-                ) {
-                    if (isLoading) {
-                        CircularProgressIndicator(modifier = Modifier.size(20.dp), color = MaterialTheme.colorScheme.onPrimary)
-                    } else {
-                        Text("Сохранить")
-                    }
-                }
-            }
-        }
-
-        Spacer(modifier = Modifier.height(16.dp))
-
-        OutlinedButton(
-            onClick = {
-                viewModel.logout()
-                onLoggedOut()
-            },
-            modifier = Modifier.fillMaxWidth(),
-            colors = ButtonDefaults.outlinedButtonColors(contentColor = KeeneticColors.Error)
-        ) {
-            Text("Выйти")
-        }
-    }
-}
-
-@Composable
-fun SystemSettingsScreen(viewModel: RouterViewModel, onOpenAppSettings: () -> Unit = {}) {
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .verticalScroll(rememberScrollState())
-            .padding(16.dp)
-    ) {
-        Text(
-            text = "Настройки системы",
-            style = MaterialTheme.typography.headlineSmall,
-            fontWeight = FontWeight.Bold
-        )
-        Text(
-            text = "VPN, DNS-over-HTTPS, расписания и системные сервисы",
-            style = MaterialTheme.typography.bodySmall,
-            color = KeeneticColors.TextSecondary
-        )
-        Spacer(modifier = Modifier.height(12.dp))
-
-        OutlinedButton(
-            onClick = { onOpenAppSettings() },
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Text("К настройкам приложения")
-        }
-        Spacer(modifier = Modifier.height(16.dp))
-
-        VpnServerStatusCard(viewModel)
-
-        Spacer(modifier = Modifier.height(16.dp))
-        DohDnsCard(viewModel)
-
-        Spacer(modifier = Modifier.height(16.dp))
-        ScheduleCard(viewModel)
-
-        Spacer(modifier = Modifier.height(16.dp))
-        ExtraServicesCard(viewModel)
-
-        Spacer(modifier = Modifier.height(16.dp))
-        AutoUpdateCard(viewModel)
-
-        Spacer(modifier = Modifier.height(16.dp))
-        SystemUpdateCard(viewModel)
-
-        Spacer(modifier = Modifier.height(16.dp))
-        AdminUsersCard(viewModel)
-
-        Spacer(modifier = Modifier.height(16.dp))
-        DhcpPoolCard(viewModel)
-
-        Spacer(modifier = Modifier.height(16.dp))
-        IntelliQosCard(viewModel)
-    }
-}
-
-/**
- * Проверка обновления прошивки. RCI-путь show/system/update/status
- * подтверждён строкой в main-553997B.js. Только статус - сама установка
- * обновления (system.update) не подключена, это опасная операция без HAR.
- */
 /**
  * Автообновление прошивки. В отличие от ExtraServicesCard выше (те
  * тумблеры честно помечены как "не подгружаются с роутера"), этот -
@@ -512,44 +222,6 @@ private fun IntelliQosCategoryRow(category: String, label: String, viewModel: Ro
 }
 
 @Composable
-fun VpnSettingsScreen(viewModel: RouterViewModel, onBack: () -> Unit = {}) {
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .verticalScroll(rememberScrollState())
-            .padding(16.dp)
-    ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            IconButton(onClick = onBack) { Icon(Icons.Default.ArrowBack, contentDescription = null) }
-            Spacer(modifier = Modifier.width(8.dp))
-            Text("VPN", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
-        }
-        Text("Сервер VPN и состояние подключения", style = MaterialTheme.typography.bodySmall, color = KeeneticColors.TextSecondary)
-        Spacer(modifier = Modifier.height(16.dp))
-        VpnServerStatusCard(viewModel)
-    }
-}
-
-@Composable
-fun DohSettingsScreen(viewModel: RouterViewModel, onBack: () -> Unit = {}) {
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .verticalScroll(rememberScrollState())
-            .padding(16.dp)
-    ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            IconButton(onClick = onBack) { Icon(Icons.Default.ArrowBack, contentDescription = null) }
-            Spacer(modifier = Modifier.width(8.dp))
-            Text("DNS-over-HTTPS", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
-        }
-        Text("Настройка DoH и интерфейса назначения", style = MaterialTheme.typography.bodySmall, color = KeeneticColors.TextSecondary)
-        Spacer(modifier = Modifier.height(16.dp))
-        DohDnsCard(viewModel)
-    }
-}
-
-@Composable
 fun DnsSettingsScreen(viewModel: RouterViewModel, onBack: () -> Unit = {}) {
     val nameServers by viewModel.nameServers.collectAsState()
     val dohUpstream by viewModel.dohUpstream.collectAsState()
@@ -626,64 +298,6 @@ fun DnsInterceptCard(viewModel: RouterViewModel) {
     }
 }
 
-@Composable
-fun SchedulesSettingsScreen(viewModel: RouterViewModel, onBack: () -> Unit = {}) {
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .verticalScroll(rememberScrollState())
-            .padding(16.dp)
-    ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            IconButton(onClick = onBack) { Icon(Icons.Default.ArrowBack, contentDescription = null) }
-            Spacer(modifier = Modifier.width(8.dp))
-            Text("Расписание", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
-        }
-        Text("Создание расписаний доступа и ограничений", style = MaterialTheme.typography.bodySmall, color = KeeneticColors.TextSecondary)
-        Spacer(modifier = Modifier.height(16.dp))
-        ScheduleCard(viewModel)
-    }
-}
-
-@Composable
-fun VpnServerStatusCard(viewModel: RouterViewModel) {
-    val vpnServer by viewModel.vpnServer.collectAsState()
-
-    LaunchedEffect(Unit) { viewModel.loadVpnServerConfig() }
-
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = KeeneticColors.Surface),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
-    ) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            Text("VPN-сервер (L2TP/IKEv2)", fontWeight = FontWeight.SemiBold)
-            Spacer(modifier = Modifier.height(8.dp))
-            if (vpnServer == null) {
-                Text("Загрузка...", style = MaterialTheme.typography.bodySmall, color = KeeneticColors.TextSecondary)
-            } else {
-                val cfg = vpnServer!!
-                Text(
-                    if (cfg.enabled) "Включён" else "Выключен",
-                    color = if (cfg.enabled) KeeneticColors.Accent else KeeneticColors.TextSecondary,
-                    fontWeight = FontWeight.Medium
-                )
-                Spacer(modifier = Modifier.height(4.dp))
-                Text(
-                    "Сегмент: ${cfg.interfaceName ?: "—"} · Пул: ${cfg.poolStart ?: "—"} (+${cfg.poolSize ?: "?"})",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = KeeneticColors.TextSecondary
-                )
-                Text(
-                    "Команда включения/выключения пока не подтверждена - только просмотр",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = KeeneticColors.TextSecondary
-                )
-            }
-        }
-    }
-}
-
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DohDnsCard(viewModel: RouterViewModel) {
@@ -729,7 +343,7 @@ fun DohDnsCard(viewModel: RouterViewModel) {
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(label, style = MaterialTheme.typography.bodySmall, modifier = Modifier.weight(1f))
-                        IconButton(onClick = { viewModel.removeDohServer(it.url) }) {
+                        IconButton(onClick = { viewModel.removeDohServer(it.url, it.interfaceName) }) {
                             Icon(Icons.Default.Delete, contentDescription = "Удалить", tint = KeeneticColors.Error, modifier = Modifier.size(18.dp))
                         }
                     }
@@ -749,7 +363,7 @@ fun DohDnsCard(viewModel: RouterViewModel) {
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(text, style = MaterialTheme.typography.bodySmall, modifier = Modifier.weight(1f))
-                        IconButton(onClick = { it.address?.let { a -> viewModel.removeDotServer(a) } }) {
+                        IconButton(onClick = { it.address?.let { a -> viewModel.removeDotServer(a, it.interfaceName) } }) {
                             Icon(Icons.Default.Delete, contentDescription = "Удалить", tint = KeeneticColors.Error, modifier = Modifier.size(18.dp))
                         }
                     }

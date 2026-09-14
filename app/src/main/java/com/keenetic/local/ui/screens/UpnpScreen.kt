@@ -53,7 +53,11 @@ fun UpnpScreen(viewModel: RouterViewModel, onBack: () -> Unit = {}) {
         }
 
         if (unsupported.contains("upnp")) {
-            item { UnsupportedNotice("UPnP / NAT-PMP") }
+            item { UnsupportedNotice(
+                "UPnP / NAT-PMP",
+                "RCI-путь show/upnp/redirect не поддерживается на данной прошивке KN-2311 (fw 5.01.C.4.0-1). " +
+                    "UPnP-переадресация управляется через веб-интерфейс, но не через REST API."
+            ) }
         }
 
         // Redirects

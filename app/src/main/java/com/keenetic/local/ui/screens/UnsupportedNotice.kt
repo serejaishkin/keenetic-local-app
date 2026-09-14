@@ -25,7 +25,7 @@ import com.keenetic.local.ui.theme.KeeneticColors
  * renders as a silently empty page.
  */
 @Composable
-fun UnsupportedNotice(sectionTitle: String) {
+fun UnsupportedNotice(sectionTitle: String, description: String? = null) {
     Card(
         shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(containerColor = KeeneticColors.Surface.copy(alpha = 0.6f))
@@ -37,8 +37,14 @@ fun UnsupportedNotice(sectionTitle: String) {
         ) {
             Icon(Icons.Default.Info, contentDescription = null, tint = KeeneticColors.Primary)
             Text(
-                "Раздел «$sectionTitle» не поддерживается данным роутером.\n" +
-                    "Компонент не установлен на прошивке (маршрут show/* не найден).",
+                buildString {
+                    append("Раздел «$sectionTitle» не поддерживается данным роутером.")
+                    if (description != null) {
+                        append("\n$description")
+                    } else {
+                        append("\nКомпонент не установлен на прошивке (маршрут show/* не найден).")
+                    }
+                },
                 style = MaterialTheme.typography.bodyMedium,
                 fontWeight = FontWeight.Medium,
                 color = KeeneticColors.TextPrimary

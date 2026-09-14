@@ -24,13 +24,15 @@ fun NetworkMonitorScreen(viewModel: RouterViewModel, onBack: () -> Unit = {}) {
     val ipRules by viewModel.ipRules.collectAsState()
     val monitorStatus by viewModel.monitorStatus.collectAsState()
 
-    LaunchedEffect(Unit) {
+    val loadAll = {
         viewModel.loadConntrack()
         viewModel.loadArpEntries()
         viewModel.loadNeighbourEntries()
         viewModel.loadIpRules()
         viewModel.loadMonitorStatus()
     }
+
+    LaunchedEffect(Unit) { loadAll() }
 
     LazyColumn(modifier = Modifier.fillMaxSize().padding(16.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
         item {
@@ -40,6 +42,8 @@ fun NetworkMonitorScreen(viewModel: RouterViewModel, onBack: () -> Unit = {}) {
                 Icon(Icons.Default.Monitor, contentDescription = null, tint = KeeneticColors.Primary)
                 Spacer(modifier = Modifier.width(8.dp))
                 Text("Мониторинг сети", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold, color = KeeneticColors.TextPrimary)
+                Spacer(modifier = Modifier.weight(1f))
+                IconButton(onClick = { loadAll() }) { Icon(Icons.Default.Refresh, contentDescription = "Обновить", tint = KeeneticColors.Primary) }
             }
         }
 

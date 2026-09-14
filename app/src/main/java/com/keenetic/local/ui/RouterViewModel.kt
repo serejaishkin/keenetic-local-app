@@ -140,6 +140,9 @@ class RouterViewModel : ViewModel() {
     private val _wifiNetworks = MutableStateFlow<List<WifiNetworkInfo>>(emptyList())
     val wifiNetworks: StateFlow<List<WifiNetworkInfo>> = _wifiNetworks.asStateFlow()
 
+    private val _switchPorts = MutableStateFlow<List<SwitchPort>>(emptyList())
+    val switchPorts: StateFlow<List<SwitchPort>> = _switchPorts.asStateFlow()
+
     private val _wirelessClients = MutableStateFlow<List<WirelessClient>>(emptyList())
     val wirelessClients: StateFlow<List<WirelessClient>> = _wirelessClients.asStateFlow()
 
@@ -1247,6 +1250,7 @@ class RouterViewModel : ViewModel() {
                     _interfaces.value = ifaceList
                     _wifiNetworks.value = updatedWifi
                     _vpnConnections.value = InterfaceMapper.toVpnConnections(res)
+                    _switchPorts.value = InterfaceMapper.toSwitchPorts(res)
                 }
             } catch (e: Exception) {
                 AppLogger.logError("loadInterfaces", e)
@@ -3563,8 +3567,8 @@ private val _intelliQos = MutableStateFlow(IntelliQosConfig())
         security: String? = null,
         bridge: String? = null
     ) {
-        val is24G = band.contains("2.4") || band.contains("Master1", ignoreCase = true)
-        val masterRadio = if (is24G) "WifiMaster1" else "WifiMaster0"
+        val is24G = band.contains("2.4") || band.contains("WifiMaster0", ignoreCase = true)
+        val masterRadio = if (is24G) "WifiMaster0" else "WifiMaster1"
         val apName = "$masterRadio/AccessPoint0"
         val label = if (is24G) "2.4 ГГц" else "5 ГГц"
 
@@ -3862,7 +3866,29 @@ private val _intelliQos = MutableStateFlow(IntelliQosConfig())
     }
 
     fun deletePortForwardingRule(id: String) {
+        val rule = _portForwardingRules.value.find { it.id == id } ?: return
         _portForwardingRules.value = _portForwardingRules.value.filter { it.id != id }
+        viewModelScope.launch {
+            try {
+                val cmd = mapOf(
+                    "ip" to mapOf(
+                        "static" to listOf(
+                            mapOf(
+                                "comment" to rule.name,
+                                "proto" to rule.proto.lowercase(),
+                                "port" to rule.srcPort,
+                                "to-address" to rule.dstIp,
+                                "to-port" to rule.dstPort,
+                                "no" to true
+                            )
+                        )
+                    )
+                )
+                repository.executeRciWithSave(listOf(cmd))
+            } catch (e: Exception) {
+                AppLogger.logError("deletePortForwardingRule", e)
+            }
+        }
     }
 
     fun addFirewallRule(rule: FirewallRule) {
@@ -3898,7 +3924,21 @@ private val _intelliQos = MutableStateFlow(IntelliQosConfig())
     }
 
     fun deleteFirewallRule(id: String) {
+        val rule = _firewallRules.value.find { it.id == id } ?: return
         _firewallRules.value = _firewallRules.value.filter { it.id != id }
+        viewModelScope.launch {
+            try {
+                val aclName = "_WEBADMIN_${rule.interfaceName}"
+                val cmd = mapOf(
+                    "access-list" to listOf(
+                        mapOf("acl" to aclName, "no" to true)
+                    )
+                )
+                repository.executeRciWithSave(listOf(cmd))
+            } catch (e: Exception) {
+                AppLogger.logError("deleteFirewallRule", e)
+            }
+        }
     }
 
     fun loadDnsFilters() {

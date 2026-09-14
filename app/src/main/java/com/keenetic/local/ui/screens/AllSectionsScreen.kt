@@ -44,7 +44,6 @@ fun AllSectionsScreen(
                 SectionItem("Wi-Fi сети", Screen.WiFi.route, "Беспроводные точки доступа 2.4/5 GHz"),
                 SectionItem("Общие параметры Wi-Fi", Screen.WifiSystem.route, "Каналы, мощность, роуминг, изоляция"),
                 SectionItem("Монитор Wi-Fi", Screen.WifiMonitor.route, "Сканирование, загрузка каналов, клиенты"),
-                SectionItem("Контроль доступа Wi-Fi", Screen.WifiAcl.route, "Черные и белые списки"),
                 SectionItem("WPS", Screen.Wps.route, "Быстрое подключение по PIN"),
                 SectionItem("Mesh Wi-Fi (MWS)", Screen.Mws.route, "Mesh-сеть из нескольких роутеров"),
                 SectionItem("Мобильный интернет", Screen.Mobile.route, "USB-модемы и 4G/LTE"),
@@ -82,8 +81,7 @@ fun AllSectionsScreen(
                 SectionItem("USB и накопители", Screen.UsbDevices.route, "Диски, SMB, FTP, DLNA"),
                 SectionItem("Сетевые сервисы", Screen.SshSnmp.route, "SSH, SNMP, FTP, Telnet, Proxy"),
                 SectionItem("Сеть Windows (SMB)", Screen.Smb.route, "Служба SMB / CIFS"),
-                SectionItem("Медиасервер (DLNA)", Screen.MediaServer.route, "Доступ к мультимедиа по DLNA / UPnP"),
-                SectionItem("IntelliQoS", Screen.IntelliQos.route, "Классификация и приоритизация трафика")
+                SectionItem("Медиасервер (DLNA)", Screen.MediaServer.route, "Доступ к мультимедиа по DLNA / UPnP")
             )
         ),
         SectionCategory(

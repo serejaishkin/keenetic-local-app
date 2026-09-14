@@ -17,8 +17,14 @@ import com.keenetic.local.ui.theme.KeeneticColors
 @Composable
 fun InternetDetailedScreen(viewModel: RouterViewModel, onBack: () -> Unit = {}) {
     val detailed by viewModel.internetDetailed.collectAsState()
+    val switchPorts by viewModel.switchPorts.collectAsState()
 
-    LaunchedEffect(Unit) { viewModel.loadInternetDetailed() }
+    LaunchedEffect(Unit) {
+        viewModel.loadInternetDetailed()
+        viewModel.loadInterfaces()
+    }
+
+    val lanPorts = remember(switchPorts) { switchPorts.sortedBy { it.id } }
 
     LazyColumn(modifier = Modifier.fillMaxSize().padding(16.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
         item {
@@ -51,6 +57,45 @@ fun InternetDetailedScreen(viewModel: RouterViewModel, onBack: () -> Unit = {}) 
                     InfoRow("Скорость", detailed.speed)
                     if (detailed.dns.isNotEmpty()) {
                         InfoRow("DNS", detailed.dns.joinToString(", "))
+                    }
+                }
+            }
+        }
+
+        item {
+            Card(shape = RoundedCornerShape(16.dp), colors = CardDefaults.cardColors(containerColor = KeeneticColors.Surface)) {
+                Column(modifier = Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Icon(Icons.Default.SettingsEthernet, contentDescription = null, tint = KeeneticColors.Primary)
+                        Text("Проводные порты LAN", style = MaterialTheme.typography.titleMedium, color = KeeneticColors.TextPrimary, fontWeight = FontWeight.Bold)
+                    }
+                    HorizontalDivider(color = KeeneticColors.Divider)
+                    if (lanPorts.isEmpty()) {
+                        Text(
+                            "Нет данных о физических LAN-портах в show/interface",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = KeeneticColors.TextSecondary
+                        )
+                    } else {
+                        lanPorts.forEach { port ->
+                            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                                Text(port.name.ifBlank { port.id }, color = KeeneticColors.TextPrimary)
+                                val up = port.state.equals("up", ignoreCase = true)
+                                Text(
+                                    if (up) "Up" else "Down",
+                                    color = if (up) KeeneticColors.Primary else KeeneticColors.TextSecondary,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+                            InfoRow("Состояние", port.state.ifBlank { port.state })
+                            if (port.speed.isNotBlank()) InfoRow("Скорость", port.speed)
+                            HorizontalDivider(color = KeeneticColors.Divider)
+                        }
+                        Text(
+                            "Включение/выключение портов пока не добавляю: неверная команда может отключить текущий доступ к роутеру. Нужна проверка RCI на живом устройстве.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = KeeneticColors.TextSecondary
+                        )
                     }
                 }
             }

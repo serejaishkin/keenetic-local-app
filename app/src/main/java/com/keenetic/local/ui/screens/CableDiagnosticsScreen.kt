@@ -30,6 +30,8 @@ fun CableDiagnosticsScreen(viewModel: RouterViewModel, onBack: () -> Unit = {}) 
                 Icon(Icons.Default.Cable, contentDescription = null, tint = KeeneticColors.Primary)
                 Spacer(modifier = Modifier.width(8.dp))
                 Text("Диагностика кабеля", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold, color = KeeneticColors.TextPrimary)
+                Spacer(modifier = Modifier.weight(1f))
+                IconButton(onClick = { viewModel.loadCableDiagnostics() }) { Icon(Icons.Default.Refresh, contentDescription = "Обновить", tint = KeeneticColors.Primary) }
             }
         }
 
