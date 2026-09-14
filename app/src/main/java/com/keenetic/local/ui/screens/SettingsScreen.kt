@@ -684,6 +684,7 @@ fun VpnServerStatusCard(viewModel: RouterViewModel) {
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DohDnsCard(viewModel: RouterViewModel) {
     var expanded by remember { mutableStateOf(false) }
@@ -691,10 +692,12 @@ fun DohDnsCard(viewModel: RouterViewModel) {
     var targetInterface by remember { mutableStateOf("") }
     val dohServers by viewModel.dohServers.collectAsState()
     val dotServers by viewModel.dotServers.collectAsState()
+    val interfaces by viewModel.interfaces.collectAsState()
 
     LaunchedEffect(Unit) {
         viewModel.loadDohUpstream()
         viewModel.loadDotUpstream()
+        viewModel.loadInterfaces()
     }
 
     Card(
@@ -777,13 +780,11 @@ fun DohDnsCard(viewModel: RouterViewModel) {
                     modifier = Modifier.fillMaxWidth()
                 )
                 Spacer(modifier = Modifier.height(8.dp))
-                OutlinedTextField(
-                    value = targetInterface,
-                    onValueChange = { targetInterface = it },
-                    label = { Text("Интерфейс (необязательно)") },
-                    placeholder = { Text("например GigabitEthernet0/Vlan4") },
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth()
+                InterfaceDropdown(
+                    interfaces = interfaces,
+                    selected = targetInterface,
+                    onSelect = { targetInterface = it },
+                    label = "Интерфейс (необязательно)"
                 )
                 Spacer(modifier = Modifier.height(12.dp))
                 Button(
@@ -804,11 +805,56 @@ fun DohDnsCard(viewModel: RouterViewModel) {
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun InterfaceDropdown(
+    interfaces: List<RouterInterface>,
+    selected: String,
+    onSelect: (String) -> Unit,
+    label: String
+) {
+    var menuExpanded by remember { mutableStateOf(false) }
+    val options = interfaces
+        .filter { it.isUp }
+        .sortedBy { it.description.lowercase() }
+        .map { it.id to it.description }
+    val unique = options.distinctBy { it.first }
+    val currentLabel = unique.firstOrNull { it.first == selected }?.second
+
+    ExposedDropdownMenuBox(expanded = menuExpanded, onExpandedChange = { menuExpanded = it }) {
+        OutlinedTextField(
+            value = if (selected.isBlank()) "" else currentLabel ?: selected,
+            onValueChange = { onSelect(it) },
+            readOnly = true,
+            label = { Text(label) },
+            placeholder = { Text("Любой интерфейс") },
+            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = menuExpanded) },
+            modifier = Modifier.fillMaxWidth().menuAnchor()
+        )
+        ExposedDropdownMenu(expanded = menuExpanded, onDismissRequest = { menuExpanded = false }) {
+            DropdownMenuItem(
+                text = { Text("Любой интерфейс", color = KeeneticColors.TextPrimary) },
+                onClick = { onSelect(""); menuExpanded = false }
+            )
+            unique.forEach { (id, desc) ->
+                DropdownMenuItem(
+                    text = { Text(desc, color = KeeneticColors.TextPrimary) },
+                    onClick = { onSelect(id); menuExpanded = false }
+                )
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 internal fun AddDotServerSection(viewModel: RouterViewModel) {
     var dotAddress by remember { mutableStateOf("") }
     var dotFqdn by remember { mutableStateOf("") }
     var dotInterface by remember { mutableStateOf("") }
+    val interfaces by viewModel.interfaces.collectAsState()
+
+    LaunchedEffect(Unit) { viewModel.loadInterfaces() }
 
     Column {
         Spacer(modifier = Modifier.height(4.dp))
@@ -838,13 +884,11 @@ internal fun AddDotServerSection(viewModel: RouterViewModel) {
             modifier = Modifier.fillMaxWidth()
         )
         Spacer(modifier = Modifier.height(8.dp))
-        OutlinedTextField(
-            value = dotInterface,
-            onValueChange = { dotInterface = it },
-            label = { Text("Интерфейс (необязательно)") },
-            placeholder = { Text("например Proxy0") },
-            singleLine = true,
-            modifier = Modifier.fillMaxWidth()
+        InterfaceDropdown(
+            interfaces = interfaces,
+            selected = dotInterface,
+            onSelect = { dotInterface = it },
+            label = "Интерфейс (необязательно)"
         )
         Spacer(modifier = Modifier.height(12.dp))
         Button(

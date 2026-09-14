@@ -24,6 +24,7 @@ sealed class Screen(val route: String, val title: String) {
     data object Firmware : Screen("firmware", "KeeneticOS")
     data object Diagnostics : Screen("diagnostics", "Диагностика")
     data object DnsFilters : Screen("dns_filters", "DNS-фильтры")
+    data object DnsSettings : Screen("dns_settings", "DNS / Secure DNS")
     data object VpnAdvanced : Screen("vpn_advanced", "VPN-сервер")
     data object Configuration : Screen("configuration", "Конфигурация (RCI / CLI)")
 
@@ -131,6 +132,9 @@ fun KeeneticNavHost(
         }
         composable(Screen.DnsFilters.route) {
             DnsFiltersScreen(viewModel = viewModel, onBack = { navController.popBackStack() })
+        }
+        composable(Screen.DnsSettings.route) {
+            DnsSettingsScreen(viewModel = viewModel, onBack = { navController.popBackStack() })
         }
         composable(Screen.VpnAdvanced.route) {
             VpnAdvancedScreen(viewModel = viewModel, onBack = { navController.popBackStack() })

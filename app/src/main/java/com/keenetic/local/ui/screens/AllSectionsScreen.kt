@@ -40,6 +40,7 @@ fun AllSectionsScreen(
             items = listOf(
                 SectionItem("Проводной интернет (ISP)", Screen.Internet.route, "WAN/LAN и сетевые интерфейсы"),
                 SectionItem("Интернет (подробно)", Screen.InternetDetailed.route, "IP, шлюз, DNS, скорость"),
+                SectionItem("DNS / Secure DNS", Screen.DnsSettings.route, "Серверы, DoH/DoT, перехват DNS"),
                 SectionItem("Wi-Fi сети", Screen.WiFi.route, "Беспроводные точки доступа 2.4/5 GHz"),
                 SectionItem("Общие параметры Wi-Fi", Screen.WifiSystem.route, "Каналы, мощность, роуминг, изоляция"),
                 SectionItem("Монитор Wi-Fi", Screen.WifiMonitor.route, "Сканирование, загрузка каналов, клиенты"),
