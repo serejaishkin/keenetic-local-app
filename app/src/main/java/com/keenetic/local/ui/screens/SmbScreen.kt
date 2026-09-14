@@ -17,8 +17,12 @@ import com.keenetic.local.ui.theme.KeeneticColors
 @Composable
 fun SmbScreen(viewModel: RouterViewModel, onBack: () -> Unit = {}) {
     val smb by viewModel.smbConfig.collectAsState()
+    val unsupported by viewModel.unsupportedFeatures.collectAsState()
 
-    LaunchedEffect(Unit) { viewModel.loadSmbAndDlnaSettings() }
+    LaunchedEffect(Unit) {
+        viewModel.checkFeatureSupport("smb", "smb")
+        viewModel.loadSmbAndDlnaSettings()
+    }
 
     LazyColumn(modifier = Modifier.fillMaxSize().padding(16.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
         item {
@@ -29,6 +33,10 @@ fun SmbScreen(viewModel: RouterViewModel, onBack: () -> Unit = {}) {
                 Spacer(modifier = Modifier.width(8.dp))
                 Text("Сеть Windows (SMB)", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold, color = KeeneticColors.TextPrimary)
             }
+        }
+
+        if (unsupported.contains("smb")) {
+            item { UnsupportedNotice("Сеть Windows (SMB)") }
         }
 
         item {

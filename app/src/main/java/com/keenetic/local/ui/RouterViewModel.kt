@@ -63,6 +63,25 @@ class RouterViewModel : ViewModel() {
     private val _error = MutableStateFlow<String?>(null)
     val error: StateFlow<String?> = _error.asStateFlow()
 
+    private val _unsupportedFeatures = MutableStateFlow<Set<String>>(emptySet())
+    val unsupportedFeatures: StateFlow<Set<String>> = _unsupportedFeatures.asStateFlow()
+
+    /**
+     * Probes whether the given RCI show path exists on the connected router.
+     * When the router answers 404 (path not found) the feature is flagged as
+     * unsupported so screens can show an explanatory notice instead of an empty page.
+     */
+    fun checkFeatureSupport(feature: String, path: String) {
+        viewModelScope.launch {
+            val code = repository.queryShowCode(path)
+            _unsupportedFeatures.value = if (code == 404) {
+                _unsupportedFeatures.value + feature
+            } else {
+                _unsupportedFeatures.value - feature
+            }
+        }
+    }
+
     private val _detectedGatewayIp = MutableStateFlow<String?>(null)
     val detectedGatewayIp: StateFlow<String?> = _detectedGatewayIp.asStateFlow()
 

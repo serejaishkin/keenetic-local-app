@@ -21,8 +21,10 @@ import com.keenetic.local.ui.theme.KeeneticColors
 fun UpnpScreen(viewModel: RouterViewModel, onBack: () -> Unit = {}) {
     val redirects by viewModel.upnpRedirects.collectAsState()
     val pinholes by viewModel.upnpPinholes.collectAsState()
+    val unsupported by viewModel.unsupportedFeatures.collectAsState()
 
     LaunchedEffect(Unit) {
+        viewModel.checkFeatureSupport("upnp", "upnp/redirect")
         viewModel.loadUpnpStatus()
     }
 
@@ -48,6 +50,10 @@ fun UpnpScreen(viewModel: RouterViewModel, onBack: () -> Unit = {}) {
                     color = KeeneticColors.TextPrimary
                 )
             }
+        }
+
+        if (unsupported.contains("upnp")) {
+            item { UnsupportedNotice("UPnP / NAT-PMP") }
         }
 
         // Redirects

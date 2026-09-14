@@ -495,6 +495,20 @@ open class KeeneticRciRepository(
     }
 
     /**
+     * Queries the HTTP status code of the direct GET /rci/show/<path> tree.
+     * Returns 404 when the path is not supported by the running firmware.
+     */
+    suspend fun queryShowCode(path: String): Int {
+        val normalizedPath = normalizeShowPath(path)
+        return try {
+            getService().queryShow(normalizedPath).code()
+        } catch (e: Exception) {
+            AppLogger.logError("queryShowCode($normalizedPath)", e)
+            -1
+        }
+    }
+
+    /**
      * Query RCI show path returning raw text string (for non-JSON responses like "ip/rule").
      */
     suspend fun queryShowText(path: String): String? {

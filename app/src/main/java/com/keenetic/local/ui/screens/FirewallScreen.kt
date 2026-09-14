@@ -25,6 +25,7 @@ import com.keenetic.local.ui.theme.KeeneticColors
 @Composable
 fun FirewallScreen(viewModel: RouterViewModel, onBack: () -> Unit = {}) {
     val rules by viewModel.firewallRules.collectAsState()
+    val unsupported by viewModel.unsupportedFeatures.collectAsState()
     var selectedRule by remember { mutableStateOf<FirewallRule?>(null) }
     var editingRule by remember { mutableStateOf<FirewallRule?>(null) }
     var showAddDialog by remember { mutableStateOf(false) }
@@ -40,6 +41,7 @@ fun FirewallScreen(viewModel: RouterViewModel, onBack: () -> Unit = {}) {
     var ruleComment by remember { mutableStateOf("") }
 
     LaunchedEffect(Unit) {
+        viewModel.checkFeatureSupport("firewall", "ip/rule")
         viewModel.loadFirewallRules()
     }
 
@@ -92,6 +94,10 @@ fun FirewallScreen(viewModel: RouterViewModel, onBack: () -> Unit = {}) {
                         Icon(Icons.Default.Refresh, contentDescription = "Обновить", tint = KeeneticColors.Primary)
                     }
                 }
+            }
+
+            if (unsupported.contains("firewall")) {
+                item { UnsupportedNotice("Межсетевой экран") }
             }
 
             if (rules.isEmpty()) {

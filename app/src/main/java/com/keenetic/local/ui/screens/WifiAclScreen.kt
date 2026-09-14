@@ -25,9 +25,11 @@ private val ACL_MODES = listOf(
 @Composable
 fun WifiAclScreen(viewModel: RouterViewModel, onBack: () -> Unit = {}) {
     val interfaces by viewModel.interfaces.collectAsState()
+    val unsupported by viewModel.unsupportedFeatures.collectAsState()
     val segments = remember(interfaces) { interfaces.filter { it.type == "Bridge" } }
 
     LaunchedEffect(Unit) {
+        viewModel.checkFeatureSupport("wifi_acl", "sc/interface/mac.access-list")
         viewModel.loadInterfaces()
     }
 
@@ -59,6 +61,10 @@ fun WifiAclScreen(viewModel: RouterViewModel, onBack: () -> Unit = {}) {
             IconButton(onClick = { viewModel.loadInterfaces() }) {
                 Icon(Icons.Default.Refresh, contentDescription = "Обновить", tint = KeeneticColors.Primary)
             }
+        }
+
+        if (unsupported.contains("wifi_acl")) {
+            UnsupportedNotice("Контроль доступа Wi-Fi")
         }
 
         if (segments.isEmpty()) {
