@@ -23,6 +23,7 @@ fun SystemAdvancedScreen(viewModel: RouterViewModel, onBack: () -> Unit = {}) {
     val ledConfig by viewModel.ledConfig.collectAsState()
     val backupStatus by viewModel.backupStatus.collectAsState()
     val systemMode by viewModel.systemMode.collectAsState()
+    val backupActionMessage by viewModel.backupActionMessage.collectAsState()
     var hostnameInput by remember { mutableStateOf(systemInfo?.hostname ?: "Keenetic") }
     var showNtpDialog by remember { mutableStateOf(false) }
     var showTimezoneDialog by remember { mutableStateOf(false) }
@@ -157,11 +158,42 @@ fun SystemAdvancedScreen(viewModel: RouterViewModel, onBack: () -> Unit = {}) {
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         Icon(Icons.Default.Backup, contentDescription = null, tint = KeeneticColors.Primary)
                         Text("Резервная копия", style = MaterialTheme.typography.titleMedium, color = KeeneticColors.TextPrimary, fontWeight = FontWeight.Bold)
+                        Spacer(modifier = Modifier.weight(1f))
+                        IconButton(onClick = { viewModel.loadBackupStatus() }) {
+                            Icon(Icons.Default.Refresh, contentDescription = "Обновить", tint = KeeneticColors.Primary)
+                        }
                     }
                     HorizontalDivider(color = KeeneticColors.Divider)
-                    InfoRow("Файл", backupStatus.filename)
-                    InfoRow("Размер", formatBytes(backupStatus.size))
-                    InfoRow("Дата", backupStatus.date)
+                    InfoRow("Файл", backupStatus.filename.ifBlank { "—" })
+                    InfoRow("Размер", if (backupStatus.size > 0) "${backupStatus.size} Б" else "—")
+                    InfoRow("Дата", backupStatus.date.ifBlank { "—" })
+                    HorizontalDivider(color = KeeneticColors.Divider)
+                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Button(
+                            onClick = { viewModel.createBackup() },
+                            colors = ButtonDefaults.buttonColors(containerColor = KeeneticColors.Primary),
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Icon(Icons.Default.Save, contentDescription = null, modifier = Modifier.size(16.dp))
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text("Создать копию")
+                        }
+                        OutlinedButton(
+                            onClick = { viewModel.downloadBackup() },
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Icon(Icons.Default.Download, contentDescription = null, modifier = Modifier.size(16.dp))
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text("Скачать")
+                        }
+                    }
+                    if (backupActionMessage != null) {
+                        Text(
+                            backupActionMessage ?: "",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = KeeneticColors.TextSecondary
+                        )
+                    }
                 }
             }
         }
@@ -295,16 +327,4 @@ private fun formatUptime(seconds: Long): String {
     val hours = (seconds % 86400) / 3600
     val minutes = (seconds % 3600) / 60
     return "${days}д ${hours}ч ${minutes}м"
-}
-
-private fun formatBytes(bytes: Long): String {
-    if (bytes <= 0) return "0 B"
-    val units = arrayOf("B", "KB", "MB", "GB")
-    var value = bytes.toDouble()
-    var unitIndex = 0
-    while (value >= 1024 && unitIndex < units.size - 1) {
-        value /= 1024
-        unitIndex++
-    }
-    return "%.1f %s".format(value, units[unitIndex])
 }

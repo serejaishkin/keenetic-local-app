@@ -59,6 +59,7 @@ sealed class Screen(val route: String, val title: String) {
     data object WifiAcl : Screen("wifi_acl", "Контроль доступа Wi-Fi")
     data object TrafficMonitor : Screen("traffic_monitor", "Монитор трафика")
     data object FileBrowser : Screen("file_browser", "Файлы")
+    data object SshTerminal : Screen("ssh_terminal", "SSH-терминал")
 }
 
 @Composable
@@ -228,6 +229,9 @@ fun KeeneticNavHost(
         }
         composable(Screen.TrafficMonitor.route) {
             TrafficMonitorScreen(viewModel = viewModel, onBack = { navController.popBackStack() })
+        }
+        composable(Screen.SshTerminal.route) {
+            SshTerminalScreen(viewModel = viewModel, onBack = { navController.popBackStack() })
         }
     }
 }

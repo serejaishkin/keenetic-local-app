@@ -120,6 +120,49 @@ object InterfaceDetailParser {
         return list
     }
 
+    fun parseMwsWlan(root: JsonElement?): List<MwsWlan> {
+        if (root == null || !root.isJsonObject) return emptyList()
+        val result = mutableListOf<MwsWlan>()
+        for ((wlanId, wlanEl) in root.asJsonObject.entrySet()) {
+            if (!wlanEl.isJsonObject) continue
+            val wlan = wlanEl.asJsonObject
+            val bands = mutableListOf<MwsWlanBand>()
+            wlan.get("band")?.takeIf { it.isJsonObject }?.asJsonObject?.entrySet()?.forEach { (bandId, bandEl) ->
+                if (!bandEl.isJsonObject) return@forEach
+                val band = bandEl.asJsonObject
+                var apId = ""
+                var wpsConfigured = false
+                var wpsStatus = ""
+                var wpsAutoSelfPin = false
+                band.get("access-point")?.takeIf { it.isJsonObject }?.asJsonObject?.entrySet()?.forEach { (apKey, apEl) ->
+                    if (apEl.isJsonObject) {
+                        apId = apKey
+                        val wps = apEl.asJsonObject.get("wps")?.takeIf { it.isJsonObject }?.asJsonObject
+                        if (wps != null) {
+                            wpsConfigured = wps.get("configured")?.takeIf { it.isJsonPrimitive }?.asBoolean ?: false
+                            wpsStatus = str(wps, "status") ?: ""
+                            wpsAutoSelfPin = wps.get("auto-self-pin")?.takeIf { it.isJsonPrimitive }?.asBoolean ?: false
+                        }
+                    }
+                }
+                bands.add(MwsWlanBand(
+                    band = bandId,
+                    enabled = band.get("enabled")?.takeIf { it.isJsonPrimitive }?.asBoolean ?: false,
+                    accessPointId = apId,
+                    wpsConfigured = wpsConfigured,
+                    wpsStatus = wpsStatus,
+                    wpsAutoSelfPin = wpsAutoSelfPin
+                ))
+            }
+            result.add(MwsWlan(
+                id = wlanId,
+                disabledBySchedule = wlan.get("disabled-by-schedule")?.takeIf { it.isJsonPrimitive }?.asBoolean ?: false,
+                bands = bands
+            ))
+        }
+        return result
+    }
+
     fun parseInternetDetailed(root: JsonElement?): InternetDetailedStatus {
         if (root == null || !root.isJsonObject) return InternetDetailedStatus()
         val isp = findKey(root, "isp") ?: findKey(root, "internet") ?: return InternetDetailedStatus()

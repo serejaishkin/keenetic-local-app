@@ -12,6 +12,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.keenetic.local.api.ComponentInfo
 import com.keenetic.local.ui.RouterViewModel
 import com.keenetic.local.ui.theme.KeeneticColors
 
@@ -22,12 +23,14 @@ fun SshSnmpScreen(viewModel: RouterViewModel, onBack: () -> Unit = {}) {
     val ftpSettings by viewModel.ftpSettings.collectAsState()
     val telnetSettings by viewModel.telnetSettings.collectAsState()
     val httpProxySettings by viewModel.httpProxySettings.collectAsState()
+    val componentList by viewModel.componentList.collectAsState()
 
     var showSshPortDialog by remember { mutableStateOf(false) }
     var showSnmpCommunityDialog by remember { mutableStateOf(false) }
     var showFtpPortDialog by remember { mutableStateOf(false) }
     var showTelnetPortDialog by remember { mutableStateOf(false) }
     var showHttpProxyPortDialog by remember { mutableStateOf(false) }
+    var feedbackMessage by remember { mutableStateOf<String?>(null) }
 
     LaunchedEffect(Unit) {
         viewModel.loadSshSettings()
@@ -35,6 +38,7 @@ fun SshSnmpScreen(viewModel: RouterViewModel, onBack: () -> Unit = {}) {
         viewModel.loadFtpSettings()
         viewModel.loadTelnetSettings()
         viewModel.loadHttpProxySettings()
+        viewModel.loadComponents()
     }
 
     LazyColumn(
@@ -155,6 +159,57 @@ fun SshSnmpScreen(viewModel: RouterViewModel, onBack: () -> Unit = {}) {
                 }
             }
         }
+
+        // Компоненты и сервисы
+        item {
+            Card(shape = RoundedCornerShape(16.dp), colors = CardDefaults.cardColors(containerColor = KeeneticColors.Surface)) {
+                Column(modifier = Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Icon(Icons.Default.Extension, contentDescription = null, tint = KeeneticColors.Primary)
+                        Text("Компоненты и сервисы", style = MaterialTheme.typography.titleMedium, color = KeeneticColors.TextPrimary, fontWeight = FontWeight.Bold)
+                    }
+                    HorizontalDivider(color = KeeneticColors.Divider)
+                    Text(
+                        "Управление пакетами SMB, DLNA, Transmission и других сервисов через RCI (components.component). Установка возможна при доступности пакета.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = KeeneticColors.TextSecondary
+                    )
+                    val relevantComponents = remember(componentList) {
+                        componentList.filter { c ->
+                            val n = c.name.lowercase()
+                            val t = c.title.lowercase()
+                            n.contains("smb") || t.contains("smb") || n.contains("cifs") ||
+                                    n.contains("dlna") || t.contains("dlna") ||
+                                    n.contains("torrent") || t.contains("torrent") || n.contains("transmission") ||
+                                    n.contains("ftp") || n.contains("telnet") || n.contains("keepalived") ||
+                                    n.contains("opkg") || t.contains("оптимизация")
+                        }
+                    }
+                    if (relevantComponents.isEmpty()) {
+                        Text("Нет данных о компонентах", style = MaterialTheme.typography.bodySmall, color = KeeneticColors.TextSecondary)
+                    } else {
+                        relevantComponents.forEach { comp ->
+                            SshSnmpComponentRow(comp, viewModel, feedbackMessage, { feedbackMessage = it })
+                        }
+                    }
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Row(modifier = Modifier.fillMaxWidth()) {
+                        TextButton(onClick = { viewModel.loadComponents() }) {
+                            Text("Показать все компоненты →", color = KeeneticColors.Primary)
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    if (feedbackMessage != null) {
+        AlertDialog(
+            onDismissRequest = { feedbackMessage = null },
+            confirmButton = { TextButton(onClick = { feedbackMessage = null }) { Text("OK", color = KeeneticColors.Primary) } },
+            title = { Text("Действие", fontWeight = FontWeight.Bold, color = KeeneticColors.TextPrimary) },
+            text = { Text(feedbackMessage ?: "", color = KeeneticColors.TextPrimary) }
+        )
     }
 
     if (showSshPortDialog) {
@@ -280,6 +335,67 @@ private fun InfoRow(label: String, value: String, onClick: (() -> Unit)? = null)
             if (onClick != null) {
                 Icon(Icons.Default.Edit, contentDescription = "Изменить", tint = KeeneticColors.Primary, modifier = Modifier.size(16.dp))
             }
+        }
+    }
+}
+
+@Composable
+private fun SshSnmpComponentRow(comp: ComponentInfo, viewModel: RouterViewModel, feedbackMessage: String?, onFeedback: (String) -> Unit) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 4.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                comp.title.ifBlank { comp.name },
+                style = MaterialTheme.typography.bodyMedium,
+                color = KeeneticColors.TextPrimary,
+                fontWeight = FontWeight.Medium
+            )
+            Text(
+                comp.description,
+                style = MaterialTheme.typography.bodySmall,
+                color = KeeneticColors.TextSecondary,
+                maxLines = 2
+            )
+        }
+        Spacer(modifier = Modifier.width(8.dp))
+        Text(
+            if (comp.installed) "✓ Уст." else if (comp.available) "Доступен" else "Нет",
+            style = MaterialTheme.typography.bodySmall,
+            color = when {
+                comp.installed -> KeeneticColors.Success
+                comp.available -> KeeneticColors.Warning
+                else -> KeeneticColors.TextSecondary
+            },
+            fontWeight = FontWeight.Medium
+        )
+        Spacer(modifier = Modifier.width(6.dp))
+        if (comp.installed) {
+            IconButton(
+                onClick = {
+                    viewModel.removeComponent(comp.name)
+                    onFeedback("Удаление компонента «${comp.title.ifBlank { comp.name }}»")
+                },
+                modifier = Modifier.size(32.dp)
+            ) {
+                Icon(Icons.Default.Close, contentDescription = "Удалить", tint = KeeneticColors.Error, modifier = Modifier.size(18.dp))
+            }
+        } else if (comp.available) {
+            IconButton(
+                onClick = {
+                    viewModel.installComponent(comp.name)
+                    onFeedback("Установка компонента «${comp.title.ifBlank { comp.name }}»")
+                },
+                modifier = Modifier.size(32.dp)
+            ) {
+                Icon(Icons.Default.Add, contentDescription = "Установить", tint = KeeneticColors.Primary, modifier = Modifier.size(18.dp))
+            }
+        }
+    }
+}
         }
     }
 }

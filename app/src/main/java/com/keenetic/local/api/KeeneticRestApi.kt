@@ -583,6 +583,21 @@ data class MwsMember(
     val firmware: String = ""
 )
 
+data class MwsWlanBand(
+    val band: String = "",
+    val enabled: Boolean = false,
+    val accessPointId: String = "",
+    val wpsConfigured: Boolean = false,
+    val wpsStatus: String = "",
+    val wpsAutoSelfPin: Boolean = false
+)
+
+data class MwsWlan(
+    val id: String = "",
+    val disabledBySchedule: Boolean = false,
+    val bands: List<MwsWlanBand> = emptyList()
+)
+
 data class ConntrackEntry(
     val protocol: String = "",
     val srcIp: String = "",

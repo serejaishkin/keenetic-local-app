@@ -22,6 +22,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import com.keenetic.local.ui.screens.common.ApiCallState
+import android.os.Environment
 
 class RouterViewModel : ViewModel() {
     private val repository = RouterRepository()
@@ -276,6 +277,15 @@ class RouterViewModel : ViewModel() {
 
     private val _sshOutput = MutableStateFlow("")
     val sshOutput: StateFlow<String> = _sshOutput.asStateFlow()
+
+    private val _sshTerminalLog = MutableStateFlow("")
+    val sshTerminalLog: StateFlow<String> = _sshTerminalLog.asStateFlow()
+
+    private val _isSshExecuting = MutableStateFlow(false)
+    val isSshExecuting: StateFlow<Boolean> = _isSshExecuting.asStateFlow()
+
+    private val _backupActionMessage = MutableStateFlow<String?>(null)
+    val backupActionMessage: StateFlow<String?> = _backupActionMessage.asStateFlow()
 
     private val _savedServices = MutableStateFlow<List<SavedService>>(emptyList())
     val savedServices: StateFlow<List<SavedService>> = _savedServices.asStateFlow()
@@ -4237,6 +4247,37 @@ private val _intelliQos = MutableStateFlow(IntelliQosConfig())
         }
     }
 
+    fun runSshCommand(command: String, port: Int = 22) {
+        val trimmed = command.trim()
+        if (trimmed.isBlank()) return
+        _sshTerminalLog.value = _sshTerminalLog.value.trimEnd() + "\n> $trimmed\n"
+        viewModelScope.launch {
+            _isSshExecuting.value = true
+            try {
+                _sshOutput.value = ""
+                val user = _routerLogin.value
+                val pass = encryptedStorage.getPassword() ?: ""
+                val host = _routerIp.value.ifBlank { _savedIp.value }
+                val ssh = com.keenetic.local.api.KeeneticSshClient(
+                    host = host, port = port, login = user, password = pass
+                )
+                val result = ssh.execute(trimmed)
+                val out = result.getOrElse { it.message ?: "Ошибка подключения по SSH" }
+                _sshOutput.value = out
+                _sshTerminalLog.value = _sshTerminalLog.value.trimEnd() + "\n" + out + "\n"
+            } catch (e: Exception) {
+                val err = "Ошибка: ${e.message}"
+                _sshTerminalLog.value = _sshTerminalLog.value.trimEnd() + "\n" + err + "\n"
+            } finally {
+                _isSshExecuting.value = false
+            }
+        }
+    }
+
+    fun clearSshTerminal() {
+        _sshTerminalLog.value = ""
+    }
+
     fun setTorrentSettings(directory: String, rpcPort: Int, rpcPublic: Boolean, peerPort: Int) {
         viewModelScope.launch {
             try {
@@ -4542,6 +4583,9 @@ private val _intelliQos = MutableStateFlow(IntelliQosConfig())
     private val _mwsMembers = MutableStateFlow<List<MwsMember>>(emptyList())
     val mwsMembers: StateFlow<List<MwsMember>> = _mwsMembers.asStateFlow()
 
+    private val _mwsWlanList = MutableStateFlow<List<MwsWlan>>(emptyList())
+    val mwsWlanList: StateFlow<List<MwsWlan>> = _mwsWlanList.asStateFlow()
+
     private val _internetDetailed = MutableStateFlow(InternetDetailedStatus())
     val internetDetailed: StateFlow<InternetDetailedStatus> = _internetDetailed.asStateFlow()
 
@@ -4740,6 +4784,73 @@ private val _intelliQos = MutableStateFlow(IntelliQosConfig())
         }
     }
 
+    fun createBackup() {
+        viewModelScope.launch {
+            _backupActionMessage.value = "Создание резервной копии на роутере..."
+            try {
+                val cmd = mapOf("system" to mapOf("backup" to emptyMap<String, Any>()))
+                val ok = repository.executeRciWithSave(listOf(cmd))
+                _backupActionMessage.value = if (ok) {
+                    "Резервная копия создана и сохранена в NVRAM (startup-config)"
+                } else {
+                    "Не удалось создать резервную копию (ошибка RCI)"
+                }
+                loadBackupStatus()
+            } catch (e: Exception) {
+                AppLogger.logError("createBackup", e)
+                _backupActionMessage.value = "Ошибка создания резервной копии: ${e.localizedMessage}"
+            }
+        }
+    }
+
+    fun downloadBackup() {
+        viewModelScope.launch(Dispatchers.IO) {
+            _backupActionMessage.value = "Скачивание резервной копии..."
+            try {
+                val resp = repository.downloadRaw("backup")
+                resp.use { r ->
+                    if (!r.isSuccessful) {
+                        _backupActionMessage.value = "Ошибка скачивания: HTTP ${r.code()}"
+                        return@launch
+                    }
+                    val ctype = r.headers["Content-Type"] ?: ""
+                    if (ctype.contains("text/html", ignoreCase = true)) {
+                        _backupActionMessage.value = "Скачивание резервной копии не поддерживается этой прошивкой (роутер вернул HTML вместо файла). Создана копия в NVRAM."
+                        return@launch
+                    }
+                    val bytes = r.body?.bytes()
+                    if (bytes.isNullOrEmpty()) {
+                        _backupActionMessage.value = "Резервная копия пуста (роутер не сформировал файл)"
+                        return@launch
+                    }
+                    val dir = KeeneticApp.instance.getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS)
+                        ?: KeeneticApp.instance.filesDir
+                    if (!dir.exists()) dir.mkdirs()
+                    val ts = java.text.SimpleDateFormat("yyyyMMdd-HHmmss", java.util.Locale.US).format(java.util.Date())
+                    val file = java.io.File(dir, "router-backup-$ts.tar.gz")
+                    file.writeBytes(bytes)
+                    _backupActionMessage.value = "Резервная копия сохранена: ${file.absolutePath} (${formatBytesSafe(bytes.size.toLong())})"
+                }
+            } catch (e: Exception) {
+                AppLogger.logError("downloadBackup", e)
+                _backupActionMessage.value = "Ошибка скачивания: ${e.localizedMessage}"
+            }
+        }
+    }
+
+    fun clearBackupActionMessage() {
+        _backupActionMessage.value = null
+    }
+
+    private fun formatBytesSafe(bytes: Long): String {
+        if (bytes <= 0) return "0 Б"
+        val units = arrayOf("Б", "КБ", "МБ", "ГБ")
+        var v = bytes.toDouble()
+        var i = 0
+        while (v >= 1024 && i < units.size - 1) { v /= 1024; i++ }
+        return java.lang.String.format(java.util.Locale.US, "%.1f %s", v, units[i])
+    }
+
     fun loadLedConfig() {
         viewModelScope.launch {
             try {
@@ -4825,8 +4936,25 @@ private val _intelliQos = MutableStateFlow(IntelliQosConfig())
                 if (res != null) {
                     _wpsStatus.value = InterfaceDetailParser.parseWps(res)
                 }
+                val wlan = repository.queryShow("mws/wlan")
+                if (wlan != null) {
+                    _mwsWlanList.value = InterfaceDetailParser.parseMwsWlan(wlan)
+                }
             } catch (e: Exception) {
                 AppLogger.logError("loadWpsStatus", e)
+            }
+        }
+    }
+
+    fun loadMwsWlan() {
+        viewModelScope.launch {
+            try {
+                val res = repository.queryShow("mws/wlan")
+                if (res != null) {
+                    _mwsWlanList.value = InterfaceDetailParser.parseMwsWlan(res)
+                }
+            } catch (e: Exception) {
+                AppLogger.logError("loadMwsWlan", e)
             }
         }
     }
@@ -5898,6 +6026,60 @@ private val _intelliQos = MutableStateFlow(IntelliQosConfig())
                 AppLogger.logError("setMwsEnabled", e)
             }
         }
+    }
+
+    fun startWpsButton() {
+        viewModelScope.launch {
+            try {
+                val apInterface = _interfaces.value.firstOrNull { it.type.lowercase() == "accesspoint" }?.id ?: "WifiMaster0/AccessPoint0"
+                val cmd = mapOf("interface" to mapOf(apInterface to mapOf("wps" to mapOf("button" to mapOf("direction" to "receive")))))
+                repository.executeRciWithSave(listOf(cmd))
+                loadWpsStatus()
+            } catch (e: Exception) {
+                AppLogger.logError("startWpsButton", e)
+            }
+        }
+    }
+
+    fun setWpsAutoSelfPin(auto: Boolean) {
+        viewModelScope.launch {
+            try {
+                val apInterface = _interfaces.value.firstOrNull { it.type.lowercase() == "accesspoint" }?.id ?: "WifiMaster0/AccessPoint0"
+                val cmd = mapOf("interface" to mapOf(apInterface to mapOf("wps" to mapOf("auto-self-pin" to auto))))
+                repository.executeRciWithSave(listOf(cmd))
+                loadWpsStatus()
+            } catch (e: Exception) {
+                AppLogger.logError("setWpsAutoSelfPin", e)
+            }
+        }
+    }
+
+    fun setMwsWlanEnabled(wlanId: String, enabled: Boolean) {
+        viewModelScope.launch {
+            try {
+                val cmd = mapOf("mws" to mapOf("wlan" to listOf(mapOf("id" to wlanId, "enable" to enabled))))
+                repository.executeRciWithSave(listOf(cmd))
+                loadMwsWlan()
+            } catch (e: Exception) {
+                AppLogger.logError("setMwsWlanEnabled", e)
+            }
+        }
+    }
+
+    fun setPortUp(portId: String, up: Boolean) {
+        viewModelScope.launch {
+            try {
+                val cmd = mapOf("interface" to mapOf(portId to mapOf("up" to up)))
+                repository.executeRciWithSave(listOf(cmd))
+                loadInterfaces()
+            } catch (e: Exception) {
+                AppLogger.logError("setPortUp", e)
+            }
+        }
+    }
+
+    fun loadPortAdminState() {
+        loadInterfaces()
     }
 
     fun setIpv6Enabled(enabled: Boolean) {

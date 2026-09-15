@@ -78,21 +78,33 @@ fun InternetDetailedScreen(viewModel: RouterViewModel, onBack: () -> Unit = {}) 
                         )
                     } else {
                         lanPorts.forEach { port ->
+                            val up = port.state.equals("up", ignoreCase = true)
                             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                                Text(port.name.ifBlank { port.id }, color = KeeneticColors.TextPrimary)
-                                val up = port.state.equals("up", ignoreCase = true)
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(port.name.ifBlank { port.id }, color = KeeneticColors.TextPrimary, fontWeight = FontWeight.Medium)
+                                    Text(
+                                        if (up) "Up • ${port.speed.ifBlank { "—" }}" else "Down",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = if (up) KeeneticColors.Primary else KeeneticColors.TextSecondary
+                                    )
+                                }
                                 Text(
-                                    if (up) "Up" else "Down",
-                                    color = if (up) KeeneticColors.Primary else KeeneticColors.TextSecondary,
-                                    fontWeight = FontWeight.Bold
+                                    if (up) "Включён" else "Выключен",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = KeeneticColors.TextSecondary
+                                )
+                                Switch(
+                                    checked = up,
+                                    onCheckedChange = { checked ->
+                                        viewModel.setPortUp(port.id, checked)
+                                    }
                                 )
                             }
                             InfoRow("Состояние", port.state.ifBlank { port.state })
-                            if (port.speed.isNotBlank()) InfoRow("Скорость", port.speed)
                             HorizontalDivider(color = KeeneticColors.Divider)
                         }
                         Text(
-                            "Включение/выключение портов пока не добавляю: неверная команда может отключить текущий доступ к роутеру. Нужна проверка RCI на живом устройстве.",
+                            "Включение/выключение порта выполняется командой interface <порт> up/down (проверено на KN-2311). Будьте осторожны: выключение порта отключит устройство, подключённое к нему кабелем.",
                             style = MaterialTheme.typography.bodySmall,
                             color = KeeneticColors.TextSecondary
                         )
