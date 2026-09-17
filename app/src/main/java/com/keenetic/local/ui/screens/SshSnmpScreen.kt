@@ -396,6 +396,3 @@ private fun SshSnmpComponentRow(comp: ComponentInfo, viewModel: RouterViewModel,
         }
     }
 }
-        }
-    }
-}
