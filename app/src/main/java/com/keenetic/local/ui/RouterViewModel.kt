@@ -4810,7 +4810,7 @@ private val _intelliQos = MutableStateFlow(IntelliQosConfig())
                 val resp = repository.downloadRaw("backup")
                 resp.use { r ->
                     if (!r.isSuccessful) {
-                        _backupActionMessage.value = "Ошибка скачивания: HTTP ${r.code}"
+                        _backupActionMessage.value = "Ошибка скачивания: HTTP ${r.code()}"
                         return@launch
                     }
                     val ctype = r.headers["Content-Type"] ?: ""
@@ -4819,7 +4819,7 @@ private val _intelliQos = MutableStateFlow(IntelliQosConfig())
                         return@launch
                     }
                     val bytes = r.body?.bytes()
-                    if (bytes == null || bytes.isEmpty()) {
+                    if (bytes.isNullOrEmpty()) {
                         _backupActionMessage.value = "Резервная копия пуста (роутер не сформировал файл)"
                         return@launch
                     }
