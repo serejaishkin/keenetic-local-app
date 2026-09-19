@@ -287,6 +287,9 @@ class RouterViewModel : ViewModel() {
     private val _backupActionMessage = MutableStateFlow<String?>(null)
     val backupActionMessage: StateFlow<String?> = _backupActionMessage.asStateFlow()
 
+    private val _wpsActionMessage = MutableStateFlow<String?>(null)
+    val wpsActionMessage: StateFlow<String?> = _wpsActionMessage.asStateFlow()
+
     private val _savedServices = MutableStateFlow<List<SavedService>>(emptyList())
     val savedServices: StateFlow<List<SavedService>> = _savedServices.asStateFlow()
 
