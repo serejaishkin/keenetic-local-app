@@ -181,6 +181,12 @@ fun FirewallScreen(viewModel: RouterViewModel, onBack: () -> Unit = {}) {
                                     style = MaterialTheme.typography.bodySmall,
                                     color = KeeneticColors.TextSecondary
                                 )
+                                Text(
+                                    if (rule.enabled) "Включено" else "Отключено",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    fontWeight = FontWeight.Medium,
+                                    color = if (rule.enabled) KeeneticColors.Success else KeeneticColors.TextSecondary
+                                )
                             }
                             IconButton(onClick = {
                                 viewModel.deleteFirewallRule(rule.id)
@@ -214,6 +220,14 @@ fun FirewallScreen(viewModel: RouterViewModel, onBack: () -> Unit = {}) {
                             if (isPermit) "Разрешить (Permit)" else "Запретить (Deny)",
                             fontWeight = FontWeight.Bold,
                             color = if (isPermit) KeeneticColors.Success else KeeneticColors.Error
+                        )
+                    }
+                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                        Text("Статус", color = KeeneticColors.TextSecondary, style = MaterialTheme.typography.bodyMedium)
+                        Text(
+                            if (rule.enabled) "Включено" else "Отключено",
+                            fontWeight = FontWeight.Bold,
+                            color = if (rule.enabled) KeeneticColors.Success else KeeneticColors.TextSecondary
                         )
                     }
                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {

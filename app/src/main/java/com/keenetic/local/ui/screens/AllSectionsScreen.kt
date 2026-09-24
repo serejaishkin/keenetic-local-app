@@ -46,6 +46,7 @@ fun AllSectionsScreen(
                 SectionItem("Монитор Wi-Fi", Screen.WifiMonitor.route, "Сканирование, загрузка каналов, клиенты"),
                 SectionItem("WPS", Screen.Wps.route, "Быстрое подключение по PIN"),
                 SectionItem("Mesh Wi-Fi (MWS)", Screen.Mws.route, "Mesh-сеть из нескольких роутеров"),
+                SectionItem("Подключение через соседнюю Wi-Fi (WISP)", Screen.WifiRepeater.route, "Репитер, клиентский режим 2.4/5 ГГц"),
                 SectionItem("Мобильный интернет", Screen.Mobile.route, "USB-модемы и 4G/LTE"),
                 SectionItem("Квота мобильного трафика", Screen.MobileTraffic.route, "Лимиты, SMS, отключение сети"),
                 SectionItem("Другие подключения", Screen.OtherConnections.route, "WireGuard, L2TP, PPTP, ZeroTier, Proxy"),

@@ -74,7 +74,12 @@ class RouterViewModel : ViewModel() {
      */
     fun checkFeatureSupport(feature: String, path: String) {
         viewModelScope.launch {
-            val code = repository.queryShowCode(path)
+            // Use the fallback-capable transport (direct GET first, then the same
+            // RCI tree retried through the POST /rci/ batch that the web configurator
+            // uses). A plain GET answers 404 on trucks where the tree is only exposed
+            // through the batch "show" command, which would falsely mark features as
+            // unsupported on KN-2311 / FW 5.01.C.4.0-1.
+            val code = repository.queryShowCodeWithFallback(path)
             _unsupportedFeatures.value = if (code == 404) {
                 _unsupportedFeatures.value + feature
             } else {
@@ -4457,6 +4462,24 @@ private val _intelliQos = MutableStateFlow(IntelliQosConfig())
         val existing = _scNameServers.value
         if (existing.any { it.address == address && it.interfaceName == interfaceName }) return
         setPlainDnsServers(existing + DnsServerInfo(address = address, interfaceName = interfaceName))
+    }
+
+    /** Правка plain DNS-записи без дубля: заменяет (address,interface) в списке. */
+    fun updatePlainDnsServer(
+        oldAddress: String,
+        oldInterfaceName: String?,
+        newAddress: String,
+        newInterfaceName: String
+    ) {
+        val current = _scNameServers.value
+        if (current.any { it.address == newAddress && it.interfaceName == newInterfaceName }) return
+        setPlainDnsServers(
+            current.map { s ->
+                if (s.address == oldAddress && s.interfaceName == oldInterfaceName)
+                    DnsServerInfo(address = newAddress, interfaceName = newInterfaceName)
+                else s
+            }
+        )
     }
 
     fun removePlainDnsServer(address: String, interfaceName: String) {

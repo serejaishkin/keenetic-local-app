@@ -11,6 +11,7 @@ import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Dns
 import androidx.compose.material.icons.filled.FilterAlt
 import androidx.compose.material.icons.filled.Refresh
@@ -47,6 +48,7 @@ fun DnsFiltersScreen(viewModel: RouterViewModel, onBack: () -> Unit = {}) {
     val scNameServers by viewModel.scNameServers.collectAsState()
     val interfaces by viewModel.interfaces.collectAsState()
     var showAddPlain by remember { mutableStateOf(false) }
+    var editingPlainServer by remember { mutableStateOf<DnsServerInfo?>(null) }
 
     LaunchedEffect(Unit) {
         viewModel.loadDnsFilters()
@@ -338,7 +340,8 @@ fun DnsFiltersScreen(viewModel: RouterViewModel, onBack: () -> Unit = {}) {
                             server = "${server.address ?: "?"} · $intfName",
                             onRemove = {
                                 viewModel.removePlainDnsServer(server.address ?: "", server.interfaceName ?: "")
-                            }
+                            },
+                            onEdit = { editingPlainServer = server }
                         )
                     }
                     item {
@@ -384,20 +387,42 @@ fun DnsFiltersScreen(viewModel: RouterViewModel, onBack: () -> Unit = {}) {
             }
         }
 
-    if (showAddPlain) {
+    val editingPlain = editingPlainServer
+    if (showAddPlain || editingPlain != null) {
         AddPlainDnsDialog(
             interfaces = interfaces,
-            onDismiss = { showAddPlain = false },
-            onAdd = { address, iface ->
-                viewModel.addPlainDnsServer(address, iface)
+            onDismiss = {
                 showAddPlain = false
+                editingPlainServer = null
+            },
+            initialAddress = editingPlain?.address ?: "",
+            initialIface = editingPlain?.interfaceName ?: "",
+            isEdit = editingPlain != null,
+            onAdd = { address, iface, _ ->
+                if (editingPlain != null) {
+                    viewModel.updatePlainDnsServer(
+                        editingPlain.address ?: "",
+                        editingPlain.interfaceName,
+                        address,
+                        iface
+                    )
+                } else {
+                    viewModel.addPlainDnsServer(address, iface)
+                }
+                showAddPlain = false
+                editingPlainServer = null
             }
         )
     }
 }
 
 @Composable
-internal fun DnsUpstreamRow(label: String, server: String, onRemove: (() -> Unit)? = null) {
+internal fun DnsUpstreamRow(
+    label: String,
+    server: String,
+    onRemove: (() -> Unit)? = null,
+    onEdit: (() -> Unit)? = null
+) {
     val typeColor = if (label == "DoT") KeeneticColors.Warning else KeeneticColors.Primary
     Card(
         shape = RoundedCornerShape(14.dp),
@@ -446,6 +471,16 @@ internal fun DnsUpstreamRow(label: String, server: String, onRemove: (() -> Unit
                         Icons.Default.Delete,
                         contentDescription = "Удалить",
                         tint = KeeneticColors.Error,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+            }
+            if (onEdit != null) {
+                IconButton(onClick = onEdit) {
+                    Icon(
+                        Icons.Default.Edit,
+                        contentDescription = "Редактировать",
+                        tint = KeeneticColors.TextSecondary,
                         modifier = Modifier.size(20.dp)
                     )
                 }
@@ -689,12 +724,16 @@ internal fun DnsFilterProfileCard(profile: DnsFilterProfile, presets: List<DnsFi
 
 @Composable
 private fun AddPlainDnsDialog(
-    interfaces: List<com.keenetic.local.api.RouterInterface>,
+    interfaces: List<RouterInterface>,
     onDismiss: () -> Unit,
-    onAdd: (address: String, iface: String) -> Unit
+    onAdd: (address: String, iface: String, ipv6: Boolean) -> Unit,
+    initialAddress: String = "",
+    initialIface: String = "",
+    isEdit: Boolean = false
 ) {
-    var address by remember { mutableStateOf("") }
-    var iface by remember { mutableStateOf(interfaces.firstOrNull { it.isUp }?.id ?: "") }
+    var address by remember { mutableStateOf(initialAddress) }
+    var iface by remember { mutableStateOf(initialIface) }
+    var ipv6 by remember { mutableStateOf(false) }
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -727,7 +766,7 @@ private fun AddPlainDnsDialog(
         },
         confirmButton = {
             TextButton(
-                onClick = { if (address.isNotBlank()) onAdd(address.trim(), iface.trim()) },
+                onClick = { if (address.isNotBlank()) onAdd(address.trim(), iface.trim(), ipv6) },
                 enabled = address.isNotBlank()
             ) {
                 Text("Добавить")

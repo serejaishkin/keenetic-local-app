@@ -509,18 +509,71 @@ open class KeeneticRciRepository(
     }
 
     /**
+     * Feature-support probe that mirrors what the web configurator does: fire the
+     * direct GET /rci/show/<path> firstadian, and if it answers 404 (path not
+     * found over that transport), retry the same tree through the POST /rci/ batch
+     * ("{"show":{<command>}}"). Returns 404 only when BOTH transports reject the
+     * path, so screens no longer show a false "feature is not supported" stub on
+     * firmwares (e.g. KN-2311, fw 5.01.C.4.0-1) where the tree is only reachable
+     * via the batch show used by the web UI.
+     */
+    suspend fun queryShowCodeWithFallback(path: String): Int {
+        val normalizedPath = normalizeShowPath(path)
+        return try {
+            val service = getService()
+            val getCode = service.queryShow(normalizedPath).code()
+            if (getCode != 404) {
+                return getCode
+            }
+            // GET returned 404. Try the POST batch transport before concluding
+            // the path is unsupported (this is what the web configurator does).
+            val cmd = pathToCommandMap(normalizedPath)
+            val postRes = service.executeRci(listOf(mapOf("show" to cmd)))
+            if (postRes.isSuccessful) {
+                val body = postRes.body()
+                if (body == null || !isRciError(body)) {
+                    return postRes.code()
+                }
+            }
+            getCode
+        } catch (e: Exception) {
+            AppLogger.logError("queryShowCodeWithFallback($normalizedPath)", e)
+            -1
+        }
+    }
+
+    /**
      * Query RCI show path returning raw text string (for non-JSON responses like "ip/rule").
      */
     suspend fun queryShowText(path: String): String? {
         val normalizedPath = normalizeShowPath(path)
         return try {
-            val service = getService()
-            val res = service.queryShowRaw(normalizedPath)
-            if (res.isSuccessful) {
-                res.body()?.string()
-            } else {
-                null
+            // 1. Direct GET /rci/show/<path> as raw text.
+            var text = getService().queryShowRaw(normalizedPath).let { res ->
+                if (res.isSuccessful) res.body()?.string() else null
             }
+            if (text != null) return text
+
+            // 2. Fallback via POST /rci/ batch (same transport the web configurator
+            //    uses; the direct GET answers 404 on KN-2311 / fw 5.01.C.4.0-1).
+            val cmd = pathToCommandMap(normalizedPath)
+            val postRes = getService().executeRci(listOf(mapOf("show" to cmd)))
+            if (postRes.isSuccessful) {
+                val pBody = postRes.body()
+                if (pBody != null && !isRciError(pBody)) {
+                    val first = extractFirstRciResult(pBody)
+                    if (first != null) {
+                        text = when {
+                            first.isJsonPrimitive -> first.asString
+                            first.isJsonArray -> first.asJsonArray.joinToString("\n") { it.asString }
+                            else -> first.toString()
+                        }
+                        if (text.isNotBlank()) return text
+                    }
+                }
+            }
+
+            null
         } catch (e: Exception) {
             AppLogger.logError("queryShowText($normalizedPath)", e)
             null
@@ -538,6 +591,13 @@ open class KeeneticRciRepository(
             "ip/static" -> "sc/ip/static"
             "ip/access-list" -> "sc/interface/mac.access-list"
             "components/list" -> "components"
+            // KN-2311 / KeeneticOS exposes the SMB service under its RCI tree
+            // name "cifs" (the web configurator sends show cifs). The historical
+            // "smb" alias in this app used to map onto nothing and made the SMB
+            // loader/detail screens report the feature as unsupported.
+            "smb" -> "cifs"
+            "dlna" -> "dlna/status"
+            "smb/dlna" -> "cifs/status"
             else -> clean
         }
     }

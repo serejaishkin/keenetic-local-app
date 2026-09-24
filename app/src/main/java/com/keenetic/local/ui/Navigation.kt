@@ -57,6 +57,7 @@ sealed class Screen(val route: String, val title: String) {
     data object SystemMonitor : Screen("system_monitor", "Системный монитор")
     data object IntelliQos : Screen("intelliqos", "IntelliQoS")
     data object WifiAcl : Screen("wifi_acl", "Контроль доступа Wi-Fi")
+    data object WifiRepeater : Screen("wifi_repeater", "Подключение через соседнюю Wi-Fi сеть")
     data object TrafficMonitor : Screen("traffic_monitor", "Монитор трафика")
     data object FileBrowser : Screen("file_browser", "Файлы")
     data object SshTerminal : Screen("ssh_terminal", "SSH-терминал")
@@ -132,10 +133,10 @@ fun KeeneticNavHost(
             DiagnosticsScreen(viewModel = viewModel, onBack = { navController.popBackStack() })
         }
         composable(Screen.DnsFilters.route) {
-            DnsFiltersScreen(viewModel = viewModel, onBack = { navController.popBackStack() })
+            DnsScreen(viewModel = viewModel, onBack = { navController.popBackStack() })
         }
         composable(Screen.DnsSettings.route) {
-            DnsSettingsScreen(viewModel = viewModel, onBack = { navController.popBackStack() })
+            DnsScreen(viewModel = viewModel, onBack = { navController.popBackStack() })
         }
         composable(Screen.VpnAdvanced.route) {
             VpnAdvancedScreen(viewModel = viewModel, onBack = { navController.popBackStack() })
@@ -226,6 +227,9 @@ fun KeeneticNavHost(
         }
         composable(Screen.WifiAcl.route) {
             WifiAclScreen(viewModel = viewModel, onBack = { navController.popBackStack() })
+        }
+        composable(Screen.WifiRepeater.route) {
+            WifiRepeaterScreen(viewModel = viewModel, onBack = { navController.popBackStack() })
         }
         composable(Screen.TrafficMonitor.route) {
             TrafficMonitorScreen(viewModel = viewModel, onBack = { navController.popBackStack() })

@@ -222,7 +222,7 @@ private fun IntelliQosCategoryRow(category: String, label: String, viewModel: Ro
 }
 
 @Composable
-fun DnsSettingsScreen(viewModel: RouterViewModel, onBack: () -> Unit = {}) {
+internal fun DnsServersTabContent(viewModel: RouterViewModel) {
     val nameServers by viewModel.nameServers.collectAsState()
     val dohUpstream by viewModel.dohUpstream.collectAsState()
     val dotUpstream by viewModel.dotUpstream.collectAsState()
@@ -243,12 +243,6 @@ fun DnsSettingsScreen(viewModel: RouterViewModel, onBack: () -> Unit = {}) {
             .verticalScroll(rememberScrollState())
             .padding(16.dp)
     ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            IconButton(onClick = onBack) { Icon(Icons.Default.ArrowBack, contentDescription = null) }
-            Spacer(modifier = Modifier.width(8.dp))
-            Text("DNS", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
-        }
-        Text("Управление DNS-серверами, фильтрами и DoH", style = MaterialTheme.typography.bodySmall, color = KeeneticColors.TextSecondary)
         Spacer(modifier = Modifier.height(16.dp))
         DnsStatusCard(
             nameServers = nameServers,
