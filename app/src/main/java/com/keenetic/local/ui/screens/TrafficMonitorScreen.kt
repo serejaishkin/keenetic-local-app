@@ -23,9 +23,11 @@ import java.util.Locale
 @Composable
 fun TrafficMonitorScreen(viewModel: RouterViewModel, onBack: () -> Unit = {}) {
     val interfaces by viewModel.interfaces.collectAsState()
+    val clients by viewModel.wirelessClients.collectAsState()
 
     LaunchedEffect(Unit) {
         viewModel.loadInterfaces()
+        viewModel.loadWifiData()
     }
 
     Column(
@@ -75,6 +77,54 @@ fun TrafficMonitorScreen(viewModel: RouterViewModel, onBack: () -> Unit = {}) {
 
         activeIfaces.forEach { itf ->
             TrafficCard(itf.name, itf.rxSpeedKbps, itf.txSpeedKbps, itf.rxBytes, itf.txBytes)
+        }
+
+        val topClients = clients
+            .filter { it.active && (it.rxRateKbps > 0 || it.txRateKbps > 0) }
+            .sortedByDescending { it.rxRateKbps + it.txRateKbps }
+            .take(5)
+
+        if (topClients.isNotEmpty()) {
+            Text(
+                "Топ-5 клиентов",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+                color = KeeneticColors.TextPrimary,
+                modifier = Modifier.padding(top = 8.dp)
+            )
+            Card(
+                shape = RoundedCornerShape(16.dp),
+                colors = CardDefaults.cardColors(containerColor = KeeneticColors.Surface),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    topClients.forEach { c ->
+                        val clientName = c.displayName.ifBlank { c.hostname.ifBlank { c.mac } }
+                        Column {
+                            Text(
+                                clientName,
+                                style = MaterialTheme.typography.bodyMedium,
+                                fontWeight = FontWeight.SemiBold,
+                                color = KeeneticColors.TextPrimary,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                                Column(modifier = Modifier.weight(1f)) {
+                                    SpeedRow("Входящий", c.rxRateKbps, Color(0xFF34D399))
+                                }
+                                Column(modifier = Modifier.weight(1f)) {
+                                    SpeedRow("Исходящий", c.txRateKbps, Color(0xFFF59E0B))
+                                }
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text("${fmtBytes(c.rxBytes + c.txBytes)}", style = MaterialTheme.typography.labelSmall, color = KeeneticColors.TextSecondary)
+                                }
+                            }
+                        }
+                        if (c != topClients.last()) HorizontalDivider(color = KeeneticColors.Divider)
+                    }
+                }
+            }
         }
     }
 }

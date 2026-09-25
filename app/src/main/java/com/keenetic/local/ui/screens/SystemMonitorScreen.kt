@@ -27,9 +27,11 @@ fun SystemMonitorScreen(viewModel: RouterViewModel, onBack: () -> Unit = {}) {
     val info = rawInfo ?: SystemInfo()
     val interfaces by viewModel.interfaces.collectAsState()
     val devices by viewModel.deviceListFull.collectAsState()
+    val product by viewModel.productInfo.collectAsState()
 
     LaunchedEffect(Unit) {
         viewModel.loadSystemInfo()
+        viewModel.loadProductInfo()
         viewModel.loadInterfaces()
         viewModel.loadDeviceListFull()
     }
@@ -66,6 +68,7 @@ fun SystemMonitorScreen(viewModel: RouterViewModel, onBack: () -> Unit = {}) {
             Spacer(modifier = Modifier.weight(1f))
             IconButton(onClick = {
                 viewModel.loadSystemInfo()
+                viewModel.loadProductInfo()
                 viewModel.loadInterfaces()
                 viewModel.loadDeviceListFull()
             }) {
@@ -106,6 +109,11 @@ fun SystemMonitorScreen(viewModel: RouterViewModel, onBack: () -> Unit = {}) {
                 InfoRow("Версия KeeneticOS", info.osVersion)
                 InfoRow("Ядро (Kernel)", info.kernel)
                 InfoRow("Аппаратная ревизия", info.hwVersion)
+                if (product.serialNumber.isNotBlank() || product.model.isNotBlank()) {
+                    InfoRow("Модель (product)", product.model.ifBlank { info.title })
+                    InfoRow("Серийный номер", product.serialNumber.ifBlank { "—" })
+                    InfoRow("Производитель", product.vendor.ifBlank { "—" })
+                }
                 InfoRow("Uptime", info.uptimeFormatted)
                 InfoRow("Имя роутера", info.hostname)
             }

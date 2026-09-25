@@ -45,7 +45,21 @@
 - Источник правды — `docs/website_ru/webui_texts.txt`, НЕ переизвлекать из HTML.
 
 ## Состояние
-- ✅ docs/website_ru/ создан (README + webui_texts.txt, 17 страниц)
-- ✅ InternetScreen.kt — PPPoE/PPTP/L2TP, DHCP/статик, MTU, MAC, приоритеты, метод подлинности
-- ✅ DNS — вкладки «Серверы/Фильтры» в DnsScreen.kt
-- 📍 В работе: экран Интернет (сверка с Ethernet-страницей)
+- ✅ docs/website_ru/ создан (README + webui_texts.txt)
+- ✅ Этап A (подключения): InternetScreen (Ethernet: PPPoE/DHCP/MTU/MAC/приоритеты/WISP),
+  OtherConnectionsScreen (VPN: WireGuard/OpenVPN/L2TP/PPTP/SSTP/ZeroTier/Proxy),
+  MobileScreen (сотовая: APN/AT/TTL/USSD/оператор), WifiRepeaterScreen (WISP)
+- ✅ Этап B (Wi-Fi): WiFiScreen, WiFiMonitorScreen, WifiAclScreen, WpsScreen, WifiSystemScreen,
+  MwsScreen (Mesh) — контроль спектра, точки доступа
+- ✅ Этап C (DNS/фильтры): DdnsScreen, ContentFilterScreen, DnsScreen + DoH/DoT + перехват DNS
+- ✅ Этап D (сети/правила): LanSegmentsScreen, StaticRoutesScreen, FirewallScreen (статусы
+  Включено/Отключено), PortForwardingScreen + UpnpScreen, PrioritiesScreen + IntelliQosScreen
+- ✅ Этап E (служебные): SystemMonitorScreen (CPU/RAM/сер. номер/интерфейсы/клиенты),
+  TrafficMonitorScreen (скорости + топ-5 клиентов), DiagnosticsScreen (Ping/Traceroute/DNS),
+  SettingsScreen + FirmwareScreen (автообновление, расписание, пользователи)
+- ✅ Этап F (клиенты/сервисы): DevicesScreen (блокировка/лимит/политика/WoL), UsbStorageScreen,
+  UserAccountsScreen, OpkgScreen, CloudScreen/MediaServerScreen/SmbScreen, MobileTrafficScreen
+- ✅ Диагностика кабеля: CableDiagnosticsScreen
+- 📍 Все страницы webui_texts.txt сверены; добавлены только поля, существующие в модели API.
+- ⏳ Осталось: полная компиляция + assembleDebug + установка APK на устройство (loopback/JVM
+  на хосте сейчас нестабилен — сборка отложена до перезагрузки/проверки сети).
