@@ -3810,6 +3810,71 @@ private val _intelliQos = MutableStateFlow(IntelliQosConfig())
         }
     }
 
+    /**
+     * Saves access-point level settings of a Wi-Fi network.
+     *
+     * Fields documented for `mws.wlan` (`wps.enable`, `peer-isolation`) are sent through
+     * `mws.wlan` using the network id, because writing them to a raw `AccessPoint` interface
+     * id is explicitly marked as unconfirmed in API-REFERENCE.md. `ssid.hide`, `ft` and `rrm`
+     * are not documented for `mws.wlan`, so they keep going to the raw interface node.
+     */
+    fun updateWifiAp(
+        apId: String,
+        wlanId: String,
+        hidden: Boolean? = null,
+        wpsEnabled: Boolean? = null,
+        peerIsolation: Boolean? = null,
+        fastTransition: Boolean? = null,
+        mdid: String? = null,
+        iappKey: String? = null,
+        rrmEnabled: Boolean? = null
+    ) {
+        viewModelScope.launch {
+            try {
+                val cmds = mutableListOf<Map<String, Any>>()
+
+                if (wlanId.isNotBlank()) {
+                    val wlanFields = linkedMapOf<String, Any>("id" to wlanId)
+                    wpsEnabled?.let { wlanFields["wps"] = mapOf("enable" to it) }
+                    peerIsolation?.let { wlanFields["peer-isolation"] = it }
+                    if (wlanFields.size > 1) {
+                        cmds.add(mapOf("mws" to mapOf("wlan" to wlanFields)))
+                    }
+                }
+
+                val apFields = linkedMapOf<String, Any>("name" to apId)
+                hidden?.let { apFields["ssid"] = mapOf("hide" to it) }
+                fastTransition?.let { ft ->
+                    apFields["ft"] = if (ft) {
+                        mapOf(
+                            "enable" to true,
+                            "mdid" to (mdid ?: ""),
+                            "iapp" to mapOf("key" to (iappKey ?: ""))
+                        )
+                    } else {
+                        mapOf("enable" to false)
+                    }
+                }
+                rrmEnabled?.let { apFields["rrm"] = mapOf("enable" to it) }
+                if (apFields.size > 1) {
+                    cmds.add(mapOf("interface" to apFields))
+                }
+
+                if (cmds.isEmpty()) return@launch
+                val success = repository.executeRciWithSave(cmds)
+                _wifiActionMessage.value = if (success) {
+                    "Настройки точки доступа ${apId.substringAfterLast('/')} применены"
+                } else {
+                    "Настройки применяются; обновите список"
+                }
+                loadInterfaces()
+                loadMwsWlan()
+            } catch (e: Exception) {
+                AppLogger.logError("updateWifiAp", e)
+            }
+        }
+    }
+
     fun toggleInterface(name: String, up: Boolean) {
         viewModelScope.launch {
             try {

@@ -33,10 +33,21 @@ private val BAND_PREFS = listOf("no-priority" to "Без приоритета", 
 fun WifiSystemScreen(viewModel: RouterViewModel, onBack: () -> Unit = {}) {
     val interfaces by viewModel.interfaces.collectAsState()
     val actionMessage by viewModel.wifiActionMessage.collectAsState()
-    LaunchedEffect(Unit) { viewModel.loadInterfaces() }
+    val wlanList by viewModel.mwsWlanList.collectAsState()
+    LaunchedEffect(Unit) {
+        viewModel.loadInterfaces()
+        viewModel.loadMwsWlan()
+    }
 
     val masters = remember(interfaces) { interfaces.filter { it.id.startsWith("WifiMaster") } }
     val aps = remember(interfaces) { interfaces.filter { it.id.contains("/AccessPoint") } }
+    // `mws/wlan` links each Wi-Fi network to the raw AccessPoint interface it runs on,
+    // which is the only documented way to write WPS / peer-isolation settings.
+    val wlanIdByAp = remember(wlanList) {
+        wlanList.flatMap { wlan -> wlan.bands.map { it.accessPointId to wlan.id } }
+            .filter { it.first.isNotBlank() }
+            .toMap()
+    }
 
     Column(
         modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp),
@@ -92,7 +103,7 @@ fun WifiSystemScreen(viewModel: RouterViewModel, onBack: () -> Unit = {}) {
         if (aps.isNotEmpty()) {
             Text("Точки доступа", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, color = KeeneticColors.TextPrimary)
             aps.forEach { ap ->
-                WifiApCard(viewModel, ap)
+                WifiApCard(viewModel, ap, wlanIdByAp[ap.id] ?: "")
             }
         }
     }
@@ -237,7 +248,7 @@ private fun WifiMasterCard(viewModel: RouterViewModel, master: RouterInterface) 
 }
 
 @Composable
-private fun WifiApCard(viewModel: RouterViewModel, ap: RouterInterface) {
+private fun WifiApCard(viewModel: RouterViewModel, ap: RouterInterface, wlanId: String) {
     var hidden by remember(ap.id) { mutableStateOf(ap.ssidHidden) }
     var wps by remember(ap.id) { mutableStateOf(ap.wpsEnabled) }
     var ft by remember(ap.id) { mutableStateOf(ap.ftEnabled) }
@@ -282,19 +293,33 @@ private fun WifiApCard(viewModel: RouterViewModel, ap: RouterInterface) {
             ToggleRow("802.11v RRM (управление радиоресурсами)", rrm) { rrm = it }
             ToggleRow("Клиентская изоляция (клиенты не видят друг друга)", isolation) { isolation = it }
 
+            if (wlanId.isNotBlank()) {
+                Text(
+                    "Сеть Wi-Fi: $wlanId. WPS и изоляция клиентов отправляются через mws.wlan — документированный путь для сетей Wi-Fi.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = KeeneticColors.TextSecondary
+                )
+            } else {
+                Text(
+                    "Сеть Wi-Fi для этой точки доступа не найдена в mws/wlan: WPS и изоляция клиентов отправить не удастся, остальные поля пишутся напрямую в интерфейс.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.error
+                )
+            }
+
             Button(
                 onClick = {
-                    val patches = mutableListOf<Map<String, Any>>()
-                    patches.add(mapOf("ssid" to mapOf("hide" to hidden)))
-                    patches.add(mapOf("wps" to mapOf("enable" to wps)))
-                    patches.add(
-                        mapOf(
-                            "ft" to (if (ft) mapOf("enable" to true, "mdid" to mdid, "iapp" to mapOf("key" to iappKey)) else mapOf("enable" to false))
-                        )
+                    viewModel.updateWifiAp(
+                        apId = ap.id,
+                        wlanId = wlanId,
+                        hidden = hidden,
+                        wpsEnabled = wps,
+                        peerIsolation = isolation,
+                        fastTransition = ft,
+                        mdid = mdid.trim(),
+                        iappKey = iappKey.trim(),
+                        rrmEnabled = rrm
                     )
-                    patches.add(mapOf("rrm" to mapOf("enable" to rrm)))
-                    patches.add(mapOf("peer-isolation" to isolation))
-                    viewModel.updateWifiInterface(ap.id, *patches.toTypedArray())
                 },
                 colors = ButtonDefaults.buttonColors(containerColor = KeeneticColors.Primary),
                 modifier = Modifier.fillMaxWidth()
