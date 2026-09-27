@@ -28,6 +28,8 @@ class RouterViewModel : ViewModel() {
     /** ACL list that is not bound to a specific interface. */
     private companion object {
         const val FIREWALL_GLOBAL_ACL = "access-list"
+        /** Tree levels of `ip dhcp pool` that are not pool names. */
+        val DHCP_POOL_WRAPPERS = setOf("ip", "dhcp", "pool")
     }
 
     private val repository = RouterRepository()
@@ -1432,7 +1434,7 @@ class RouterViewModel : ViewModel() {
                     fun parseNat(o: com.google.gson.JsonObject, ruleKey: String) {
                         val name = o.get("name")?.takeIf { p -> p.isJsonPrimitive }?.asString
                             ?: o.get("comment")?.takeIf { p -> p.isJsonPrimitive }?.asString
-                            ?: "Правило #${defaultIdx + 1}"
+                            ?: ruleKey.ifBlank { "Правило" }
                         val proto = o.get("proto")?.takeIf { p -> p.isJsonPrimitive }?.asString
                             ?: o.get("protocol")?.takeIf { p -> p.isJsonPrimitive }?.asString ?: "TCP"
                         val port = o.get("port")?.takeIf { p -> p.isJsonPrimitive }?.asString
@@ -1601,6 +1603,9 @@ class RouterViewModel : ViewModel() {
             try {
                 val ifaceRes = repository.queryShow("interface")
                 val poolRes = repository.queryShow("ip/dhcp/pool")
+                // Real DHCP ranges from the router. A segment without a pool simply has
+                // no range - the values are never invented from the interface address.
+                val pools = parseDhcpPoolRanges(poolRes)
 
                 val list = mutableListOf<LanSegment>()
                 if (ifaceRes != null && ifaceRes.isJsonObject) {
@@ -1620,17 +1625,16 @@ class RouterViewModel : ViewModel() {
 
                             // LAN bridge or Home network segments
                             if (type.equals("Bridge", ignoreCase = true) || id.startsWith("Bridge", ignoreCase = true) || id.startsWith("Home", ignoreCase = true) || ip.isNotBlank()) {
-                                val effectiveIp = if (ip.isNotBlank()) ip else "192.168.1.1"
-                                val ipPrefix = effectiveIp.substringBeforeLast(".")
+                                val pool = pools[id] ?: pools[desc]
                                 list.add(
                                     LanSegment(
                                         id = id,
                                         name = desc,
-                                        ip = effectiveIp,
+                                        ip = ip,
                                         mask = mask,
-                                        dhcpEnabled = true,
-                                        dhcpStart = "$ipPrefix.33",
-                                        dhcpEnd = "$ipPrefix.199",
+                                        dhcpEnabled = pool != null,
+                                        dhcpStart = pool?.first ?: "",
+                                        dhcpEnd = pool?.second ?: "",
                                         isolateClients = isolate
                                     )
                                 )
@@ -1645,6 +1649,49 @@ class RouterViewModel : ViewModel() {
                 AppLogger.logError("loadLanSegments", e)
             }
         }
+    }
+
+    /**
+     * Parses `ip dhcp pool` into segment name -> (start, end).
+     *
+     * The tree is walked recursively, so the wrapper levels the router happens to
+     * return (`{"pool":{...}}`, `{"ip":{"dhcp":{"pool":...}}}` or a bare map of pool
+     * names) do not matter. A pool is only recorded when its own name is known -
+     * without a name we cannot tell which segment the range belongs to, and a guessed
+     * range would be written straight back to the router.
+     */
+    private fun parseDhcpPoolRanges(element: com.google.gson.JsonElement?): Map<String, Pair<String, String>> {
+        val pools = mutableMapOf<String, Pair<String, String>>()
+        if (element == null || element.isJsonNull) return pools
+
+        fun str(o: com.google.gson.JsonObject, key: String): String =
+            o.get(key)?.takeIf { it.isJsonPrimitive }?.asString?.trim() ?: ""
+
+        fun rangeOf(o: com.google.gson.JsonObject): com.google.gson.JsonObject? =
+            o.get("range")?.takeIf { it.isJsonObject }?.asJsonObject
+
+        fun collect(node: com.google.gson.JsonElement, name: String) {
+            when {
+                node.isJsonArray -> node.asJsonArray.forEach { collect(it, name) }
+                node.isJsonObject -> {
+                    val obj = node.asJsonObject
+                    val range = rangeOf(obj)
+                    if (range != null && name.isNotBlank()) {
+                        val start = str(range, "start")
+                        val end = str(range, "end")
+                        if (start.isNotBlank() || end.isNotBlank()) {
+                            pools[name] = start to end
+                        }
+                    }
+                    for ((k, v) in obj.entrySet()) {
+                        if (k == "range") continue
+                        collect(v, if (name.isBlank() && k !in DHCP_POOL_WRAPPERS) k else name)
+                    }
+                }
+            }
+        }
+        collect(element, "")
+        return pools
     }
 
     fun loadStaticRoutes() {
@@ -3067,23 +3114,70 @@ class RouterViewModel : ViewModel() {
         }
     }
 
+    /**
+     * Applies segment settings to an EXISTING router interface.
+     *
+     * [id] must be the real interface id reported by `show interface` (e.g. Bridge0),
+     * never a free-form name: creating a brand new segment from scratch is not a
+     * confirmed operation (see API-REFERENCE.md), so this only edits interfaces the
+     * router already reports. A blank DHCP range is not sent at all instead of
+     * writing an empty start/end onto the router.
+     */
     fun updateLanSegment(id: String, ip: String, mask: String, dhcpStart: String, dhcpEnd: String, isolate: Boolean) {
+        val ifaceId = id.trim()
+        val known = _lanSegments.value.any { it.id == ifaceId } || _interfaces.value.any { it.id == ifaceId }
+        if (ifaceId.isEmpty() || !known) {
+            AppLogger.logInfo("updateLanSegment", "Unknown interface id: '$ifaceId'")
+            return
+        }
         _lanSegments.value = _lanSegments.value.map {
-            if (it.id == id || it.name == id) {
-                it.copy(ip = ip, mask = mask, dhcpStart = dhcpStart, dhcpEnd = dhcpEnd, isolateClients = isolate)
+            if (it.id == ifaceId) {
+                it.copy(
+                    ip = ip,
+                    mask = mask,
+                    dhcpStart = dhcpStart,
+                    dhcpEnd = dhcpEnd,
+                    dhcpEnabled = dhcpStart.isNotBlank() && dhcpEnd.isNotBlank(),
+                    isolateClients = isolate
+                )
             } else it
         }
         viewModelScope.launch {
             try {
                 val cmds = mutableListOf<Map<String, Any>>()
-                cmds.add(mapOf("interface" to mapOf("ip" to mapOf("address" to listOf(mapOf("address" to ip, "mask" to mask))), "name" to id)))
-                cmds.add(mapOf("ip" to mapOf("dhcp" to mapOf("pool" to mapOf("name" to id, "range" to mapOf("start" to dhcpStart, "end" to dhcpEnd))))))
-                if (isolate) {
-                    cmds.add(mapOf("interface" to mapOf("isolate" to true, "name" to id)))
-                } else {
-                    cmds.add(mapOf("no" to mapOf("interface" to mapOf("isolate" to true, "name" to id))))
+                if (ip.isNotBlank()) {
+                    cmds.add(
+                        mapOf(
+                            "interface" to mapOf(
+                                "ip" to mapOf("address" to listOf(mapOf("address" to ip, "mask" to mask))),
+                                "name" to ifaceId
+                            )
+                        )
+                    )
                 }
+                if (dhcpStart.isNotBlank() && dhcpEnd.isNotBlank()) {
+                    cmds.add(
+                        mapOf(
+                            "ip" to mapOf(
+                                "dhcp" to mapOf(
+                                    "pool" to mapOf(
+                                        "name" to ifaceId,
+                                        "range" to mapOf("start" to dhcpStart, "end" to dhcpEnd)
+                                    )
+                                )
+                            )
+                        )
+                    )
+                }
+                cmds.add(
+                    if (isolate) {
+                        mapOf("interface" to mapOf("isolate" to true, "name" to ifaceId))
+                    } else {
+                        mapOf("no" to mapOf("interface" to mapOf("isolate" to true, "name" to ifaceId)))
+                    }
+                )
                 repository.executeRciWithSave(cmds)
+                loadLanSegments()
             } catch (e: Exception) {
                 AppLogger.logError("updateLanSegment", e)
             }
@@ -3937,8 +4031,9 @@ private val _intelliQos = MutableStateFlow(IntelliQosConfig())
             "TCP/UDP", "TCP+UDP" -> listOf("tcp", "udp")
             else -> listOf("tcp")
         }
-        val baseKey = rule.id.ifBlank { rule.name }.lowercase()
+        val baseKey = (rule.id.ifBlank { rule.name }).lowercase()
             .map { if (it.isLetterOrDigit()) it else '-' }
+            .joinToString("")
             .trim('-')
             .ifBlank { "rule" }
         val newId = baseKey + if (protocols.size > 1) "-tcp" else "-${protocols.first()}"
@@ -4018,12 +4113,14 @@ private val _intelliQos = MutableStateFlow(IntelliQosConfig())
                 val iface = rule.interfaceName.trim()
                 val aclName = if (iface.isBlank()) FIREWALL_GLOBAL_ACL else "_WEBADMIN_$iface"
                 val verbKey = if (rule.action.lowercase() == "deny") "deny" else "permit"
+                fun addr(value: String): String =
+                    if (value.isBlank() || value == "any") "0.0.0.0" else value
                 val ruleFields = mutableMapOf<String, Any>(
                     "index" to 0,
                     "action" to rule.action.lowercase(),
-                    "source" to rule.srcIp.takeIf { it.isNotBlank() && it != "any" } ?: "0.0.0.0",
+                    "source" to addr(rule.srcIp),
                     "source-mask" to "0.0.0.0",
-                    "destination" to rule.dstIp.takeIf { it.isNotBlank() && it != "any" } ?: "0.0.0.0",
+                    "destination" to addr(rule.dstIp),
                     "destination-mask" to "0.0.0.0",
                     "disable" to false
                 )

@@ -148,7 +148,15 @@ fun LanSegmentsScreen(viewModel: RouterViewModel, onBack: () -> Unit = {}) {
                             Column(modifier = Modifier.weight(1f)) {
                                 Text(seg.name, style = MaterialTheme.typography.titleMedium, color = KeeneticColors.TextPrimary)
                                 Text("IP: ${seg.ip} • Маска: ${seg.mask}", style = MaterialTheme.typography.bodySmall, color = KeeneticColors.TextSecondary)
-                                Text("DHCP пул: ${seg.dhcpStart} - ${seg.dhcpEnd}", style = MaterialTheme.typography.bodySmall, color = KeeneticColors.TextSecondary)
+                                Text(
+                                    if (seg.dhcpStart.isNotBlank() || seg.dhcpEnd.isNotBlank()) {
+                                        "DHCP пул: ${seg.dhcpStart} - ${seg.dhcpEnd}"
+                                    } else {
+                                        "DHCP пул: не задан"
+                                    },
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = KeeneticColors.TextSecondary
+                                )
                             }
                             if (seg.isolateClients) {
                                 Surface(
@@ -251,27 +259,70 @@ fun LanSegmentsScreen(viewModel: RouterViewModel, onBack: () -> Unit = {}) {
         )
     }
 
-    // Add New Segment Dialog
+    // Add Segment Dialog - a segment is created on top of an EXISTING router
+    // interface; creating a bridge from scratch is not a confirmed RCI operation.
     if (showAddDialog) {
-        var name by remember { mutableStateOf("SmartHome") }
-        var ip by remember { mutableStateOf("192.168.10.1") }
-        var mask by remember { mutableStateOf("255.255.255.0") }
-        var dhcpStart by remember { mutableStateOf("192.168.10.33") }
-        var dhcpEnd by remember { mutableStateOf("192.168.10.100") }
+        val interfaces by viewModel.interfaces.collectAsState()
+        val segments by viewModel.lanSegments.collectAsState()
+        val candidates = interfaces.filter { iface -> !iface.ip.isNullOrBlank() && segments.none { it.id == iface.id } }
+        var selectedId by remember { mutableStateOf("") }
+        var ip by remember(selectedId) { mutableStateOf(candidates.firstOrNull { it.id == selectedId }?.ip.orEmpty()) }
+        var mask by remember(selectedId) { mutableStateOf(candidates.firstOrNull { it.id == selectedId }?.mask.orEmpty()) }
+        var dhcpStart by remember(selectedId) { mutableStateOf("") }
+        var dhcpEnd by remember(selectedId) { mutableStateOf("") }
         var isolate by remember { mutableStateOf(false) }
 
         AlertDialog(
             onDismissRequest = { showAddDialog = false },
-            title = { Text("Новый сегмент (VLAN)", fontWeight = FontWeight.Bold, color = KeeneticColors.TextPrimary) },
+            title = { Text("Добавить сегмент (VLAN)", fontWeight = FontWeight.Bold, color = KeeneticColors.TextPrimary) },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    OutlinedTextField(
-                        value = name,
-                        onValueChange = { name = it },
-                        label = { Text("Имя сегмента") },
-                        singleLine = true,
-                        modifier = Modifier.fillMaxWidth()
+                    Text(
+                        "Выберите существующий интерфейс роутера - сегмент настраивается на его базе.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = KeeneticColors.TextSecondary
                     )
+                    if (candidates.isEmpty()) {
+                        Text(
+                            "Нет интерфейсов без настроенного сегмента.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = KeeneticColors.Warning
+                        )
+                    }
+                    candidates.forEach { iface ->
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable {
+                                    selectedId = iface.id
+                                    ip = iface.ip.orEmpty()
+                                    mask = iface.mask.orEmpty()
+                                }
+                                .padding(vertical = 2.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            RadioButton(
+                                selected = selectedId == iface.id,
+                                onClick = {
+                                    selectedId = iface.id
+                                    ip = iface.ip.orEmpty()
+                                    mask = iface.mask.orEmpty()
+                                }
+                            )
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    "${iface.id} (${iface.name})",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = KeeneticColors.TextPrimary
+                                )
+                                Text(
+                                    "${iface.ip} • ${iface.mask}",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = KeeneticColors.TextSecondary
+                                )
+                            }
+                        }
+                    }
                     OutlinedTextField(
                         value = ip,
                         onValueChange = { ip = it },
@@ -308,10 +359,15 @@ fun LanSegmentsScreen(viewModel: RouterViewModel, onBack: () -> Unit = {}) {
             confirmButton = {
                 Button(
                     onClick = {
-                        viewModel.updateLanSegment(name, ip, mask, dhcpStart, dhcpEnd, isolate)
-                        feedbackMessage = "Сегмент «$name» создан!"
-                        showAddDialog = false
+                        if (selectedId.isBlank()) {
+                            feedbackMessage = "Выберите интерфейс для сегмента"
+                        } else {
+                            viewModel.updateLanSegment(selectedId, ip, mask, dhcpStart, dhcpEnd, isolate)
+                            feedbackMessage = "Сегмент «$selectedId» настроен!"
+                            showAddDialog = false
+                        }
                     },
+                    enabled = selectedId.isNotBlank(),
                     colors = ButtonDefaults.buttonColors(containerColor = KeeneticColors.Primary)
                 ) {
                     Text("Создать")
