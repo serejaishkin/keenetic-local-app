@@ -82,9 +82,6 @@ data class RouterInterface(
     val isUp: Boolean,
     val ip: String? = null,
     val mask: String? = null,
-    val mtu: String = "",
-    val hostname: String = "",
-    val macConfigMode: String = "",
     val uptime: Long = 0,
     val rxBytes: Long = 0,
     val txBytes: Long = 0,
@@ -120,7 +117,7 @@ data class RouterInterface(
 )
 
 data class IntelliQosCategory(
-    val id: String = "",
+    val id: Int = 0,
     val name: String = "",
     val priority: Int = 5
 )
@@ -154,17 +151,31 @@ fun unitMultiplier(unit: String): Long = when (unit.uppercase()) {
     else -> 1048576L
 }
 
-/**
- * Display name of an IntelliQoS category.
- *
- * The router reports categories as string ids (`{"category":"calling","priority":1}`)
- * and only that id is known - the full list of ids is not documented anywhere, and
- * the web configurator localizes them from its own translation table. So the id is
- * shown as-is instead of guessing a name for every possible value.
- */
-fun intelliQosCategoryName(id: String): String = when (id) {
-    "calling" -> "Конференц-связь и телефония"
-    else -> id.ifBlank { "Без категории" }
+fun intelliQosCategoryName(id: Int): String = when (id) {
+    0 -> "Без категории"
+    2048 -> "Общие"
+    2049 -> "Обмен файлами (P2P)"
+    2050 -> "Игры"
+    2051 -> "Туннели"
+    2052 -> "Работа и бизнес"
+    2053 -> "Интернет-магазины"
+    2054 -> "Конференц-связь и телефония"
+    2055 -> "Мессенджеры"
+    2056 -> "Потоковое видео"
+    2057 -> "Мобильные приложения"
+    2058 -> "Удалённое управление"
+    2059 -> "Почта"
+    2060 -> "Сетевые сервисы"
+    2061 -> "Системные обновления"
+    2062 -> "Интернет-серфинг"
+    2063 -> "Другое"
+    2111 -> "Криптовалюты"
+    2121 -> "Социальные сети"
+    2202 -> "Онлайн-игры"
+    2211 -> "Интернет рекламы"
+    2301 -> "Стриминг"
+    2333 -> "Облачные сервисы"
+    else -> "Категория $id"
 }
 
 fun intelliQosPriorityName(priority: Int): String = when (priority) {

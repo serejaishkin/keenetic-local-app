@@ -13,6 +13,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.keenetic.local.api.intelliQosCategoryName
 import com.keenetic.local.api.intelliQosPriorityName
 import com.keenetic.local.ui.RouterViewModel
 import com.keenetic.local.ui.theme.KeeneticColors
@@ -129,7 +130,7 @@ fun IntelliQosScreen(viewModel: RouterViewModel, onBack: () -> Unit = {}) {
 @Composable
 private fun CategoryRow(
     viewModel: RouterViewModel,
-    categoryId: String,
+    categoryId: Int,
     name: String,
     currentPriority: Int,
     onDone: (String) -> Unit
@@ -166,7 +167,7 @@ private fun CategoryRow(
                                 localPriority = p
                                 expanded = false
                                 viewModel.setIntelliQosPriority(categoryId, p)
-                                onDone("Приоритет «$name» = ${intelliQosPriorityName(p)}")
+                                onDone("Приоритет «${intelliQosCategoryName(categoryId)}» = ${intelliQosPriorityName(p)}")
                             }
                         )
                     }
