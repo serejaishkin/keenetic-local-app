@@ -170,8 +170,8 @@ fun InternetScreen(viewModel: RouterViewModel, onBack: () -> Unit = {}) {
         var staticGateway by remember(iface.id) { mutableStateOf("") }
 
         var showConnSettings by remember(iface.id) { mutableStateOf(false) }
-        // Prefilled from the router: a hardcoded default here would silently overwrite
-        // the current value of the interface when the form is saved.
+        // Prefilled from the router so that saving an unrelated field does not reset
+        // MTU / priority / MAC mode to a hardcoded default.
         var connDescription by remember(iface.id) { mutableStateOf(iface.description) }
         var connMtu by remember(iface.id) { mutableStateOf(iface.mtu) }
         var connHostname by remember(iface.id) { mutableStateOf(iface.hostname) }
@@ -525,7 +525,6 @@ fun InternetScreen(viewModel: RouterViewModel, onBack: () -> Unit = {}) {
                                         channel = wispChannel.ifBlank { null },
                                         bssid = wispBssid.ifBlank { null }
                                     )
-                                    viewModel.loadInterfaces()
                                     feedbackMessage = "Настройки подключения «${iface.name}» отправлены на роутер"
                                     selectedIface = null
                                 },

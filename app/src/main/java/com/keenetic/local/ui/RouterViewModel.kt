@@ -5768,7 +5768,6 @@ private val _intelliQos = MutableStateFlow(IntelliQosConfig())
 
                 val ifaceMap = linkedMapOf<String, Any>()
                 if (description != null) ifaceMap["description"] = description
-                if (mtu != null) ifaceMap["mtu"] = mtu
                 if (hostname != null) ifaceMap["hostname"] = hostname
                 if (order != null) ifaceMap["order"] = order.toIntOrNull() ?: 0
                 if (schedule != null) ifaceMap["schedule"] = schedule
@@ -5776,6 +5775,12 @@ private val _intelliQos = MutableStateFlow(IntelliQosConfig())
                 if (macAddress != null) ifaceMap["mac"] = macAddress
                 if (ifaceMap.isNotEmpty()) {
                     cmds.add(mapOf("interface" to mapOf(id to ifaceMap)))
+                }
+
+                // MTU lives in the nested `ip` node of the interface (API-REFERENCE.md:
+                // `ip.mtu: "1500"`), not next to description/hostname.
+                if (mtu != null) {
+                    cmds.add(mapOf("interface" to mapOf(id to mapOf("ip" to mapOf("mtu" to mtu)))))
                 }
 
                 val pppoeMap = linkedMapOf<String, Any>()
