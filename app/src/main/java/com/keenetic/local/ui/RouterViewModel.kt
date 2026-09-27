@@ -25,6 +25,11 @@ import com.keenetic.local.ui.screens.common.ApiCallState
 import android.os.Environment
 
 class RouterViewModel : ViewModel() {
+    /** ACL list that is not bound to a specific interface. */
+    private companion object {
+        const val FIREWALL_GLOBAL_ACL = "access-list"
+    }
+
     private val repository = RouterRepository()
     private val encryptedStorage = EncryptedStorage(KeeneticApp.instance)
     private val dataStore = KeeneticApp.instance.dataStoreManager
@@ -1421,10 +1426,10 @@ class RouterViewModel : ViewModel() {
         if (_isDemoMode.value && _portForwardingRules.value.isNotEmpty()) return
         viewModelScope.launch {
             try {
-                val res = repository.queryShow("ip/nat")
+                val res = repository.queryShow("ip/nat/static")
                 if (res != null) {
                     val list = mutableListOf<PortForwardingRule>()
-                    fun parseNat(o: com.google.gson.JsonObject, defaultIdx: Int) {
+                    fun parseNat(o: com.google.gson.JsonObject, ruleKey: String) {
                         val name = o.get("name")?.takeIf { p -> p.isJsonPrimitive }?.asString
                             ?: o.get("comment")?.takeIf { p -> p.isJsonPrimitive }?.asString
                             ?: "Правило #${defaultIdx + 1}"
@@ -1444,11 +1449,11 @@ class RouterViewModel : ViewModel() {
                         if (port.isNotBlank() || toAddress.isNotBlank()) {
                             list.add(
                                 PortForwardingRule(
-                                    id = (list.size + 1).toString(),
+                                    id = ruleKey,
                                     name = name,
                                     proto = proto.uppercase(),
                                     srcPort = if (port.isNotBlank()) port else toPort,
-                                    dstIp = if (toAddress.isNotBlank()) toAddress else "192.168.1.2",
+                                    dstIp = toAddress,
                                     dstPort = toPort,
                                     interfaceName = iface,
                                     enabled = enabled
@@ -1457,25 +1462,28 @@ class RouterViewModel : ViewModel() {
                         }
                     }
 
-                    if (res.isJsonArray) {
-                        res.asJsonArray.forEachIndexed { idx, it -> if (it.isJsonObject) parseNat(it.asJsonObject, idx) }
-                    } else if (res.isJsonObject) {
-                        val root = res.asJsonObject
-                        if (root.has("rule") && root.get("rule").isJsonArray) {
-                            root.getAsJsonArray("rule").forEachIndexed { idx, it -> if (it.isJsonObject) parseNat(it.asJsonObject, idx) }
-                        } else if (root.has("static") && root.get("static").isJsonArray) {
-                            root.getAsJsonArray("static").forEachIndexed { idx, it -> if (it.isJsonObject) parseNat(it.asJsonObject, idx) }
-                        } else {
-                            var counter = 0
-                            root.entrySet().forEach { (_, v) ->
-                                if (v.isJsonObject) {
-                                    parseNat(v.asJsonObject, counter++)
-                                } else if (v.isJsonArray) {
-                                    v.asJsonArray.forEach { el -> if (el.isJsonObject) parseNat(el.asJsonObject, counter++) }
+                    // A rule node carries one of the RCI fields below; wrapper levels
+                    // ("nat", "static", "ip") never do, so they are skipped and the
+                    // map key is used as the real rule id the write/delete path needs.
+                    fun looksLikeRule(o: com.google.gson.JsonObject): Boolean =
+                        o.has("proto") || o.has("protocol") || o.has("port") || o.has("to-address") ||
+                            o.has("to-port") || o.has("src-port") || o.has("dst-port") ||
+                            o.has("comment") || o.has("name") || o.has("interface")
+
+                    fun collect(node: com.google.gson.JsonElement, key: String) {
+                        if (node.isJsonArray) {
+                            node.asJsonArray.forEachIndexed { idx, el -> collect(el, "$key-$idx") }
+                        } else if (node.isJsonObject) {
+                            node.asJsonObject.entrySet().forEach { (k, v) ->
+                                if (v.isJsonObject && looksLikeRule(v.asJsonObject)) {
+                                    parseNat(v.asJsonObject, k)
+                                } else {
+                                    collect(v, k)
                                 }
                             }
                         }
                     }
+                    collect(res, "")
                     if (list.isNotEmpty() || !_isDemoMode.value) {
                         _portForwardingRules.value = list
                     }
@@ -1490,35 +1498,96 @@ class RouterViewModel : ViewModel() {
         if (_isDemoMode.value && _firewallRules.value.isNotEmpty()) return
         viewModelScope.launch {
             try {
-                val text = repository.queryShowText("ip/rule")
-                if (text != null) {
-                    val list = mutableListOf<FirewallRule>()
-                    val lineRegex = Regex("""^\s*(\d+)\s*:\s*from\s+(\S+)\s+to\s+(\S+)\s+lookup\s+(\S+)\s*(?:\((\d+)\))?\s*(.*)$""")
-                    text.lines().forEach { line ->
-                        val m = lineRegex.find(line) ?: return@forEach
-                        val priority = m.groupValues[1]
-                        val src = m.groupValues[2]
-                        val dst = m.groupValues[3]
-                        val table = m.groupValues[4]
-                        val tableId = m.groupValues[5]
-                        val rest = m.groupValues[6]
-                        list.add(
-                            FirewallRule(
-                                id = priority,
-                                action = if ("blackhole" in rest) "reject" else "permit",
-                                proto = "IP",
-                                srcIp = src,
-                                dstIp = dst,
-                                dstPort = "any",
-                                interfaceName = table,
-                                enabled = true,
-                                comment = rest.trim()
-                            )
+                val list = mutableListOf<FirewallRule>()
+
+                fun looksLikeRule(o: com.google.gson.JsonObject): Boolean =
+                    o.has("source") || o.has("destination") || o.has("protocol") || o.has("index")
+
+                fun parseAclEntry(aclName: String, verb: String, o: com.google.gson.JsonObject) {
+                    val index = o.get("index")?.takeIf { it.isJsonPrimitive }?.asInt ?: 0
+                    val src = o.get("source")?.takeIf { it.isJsonPrimitive }?.asString ?: "0.0.0.0"
+                    val srcMask = o.get("source-mask")?.takeIf { it.isJsonPrimitive }?.asString ?: "0.0.0.0"
+                    val dst = o.get("destination")?.takeIf { it.isJsonPrimitive }?.asString ?: "0.0.0.0"
+                    val dstPort = o.get("destination-port")?.takeIf { it.isJsonPrimitive }?.asString ?: "any"
+                    val proto = o.get("protocol")?.takeIf { it.isJsonPrimitive }?.asString ?: "IP"
+                    val comment = o.get("description")?.takeIf { it.isJsonPrimitive }?.asString ?: ""
+                    val enabled = o.get("disable")?.takeIf { it.isJsonPrimitive }?.runCatching { asBoolean }?.getOrDefault(false)?.not() ?: true
+                    // The ACL name carries the interface it guards (_WEBADMIN_<iface>);
+                    // a global list has no such suffix.
+                    val iface = aclName.removePrefix("_WEBADMIN_").takeIf { it != aclName } ?: ""
+                    list.add(
+                        FirewallRule(
+                            id = "$aclName|$verb|$index",
+                            action = if (verb.equals("deny", ignoreCase = true)) "deny" else "permit",
+                            proto = proto.uppercase(),
+                            srcIp = if (srcMask.isBlank() || srcMask == "0.0.0.0") src else "$src/$srcMask",
+                            dstIp = dst,
+                            dstPort = dstPort,
+                            interfaceName = iface,
+                            enabled = enabled,
+                            comment = comment
                         )
+                    )
+                }
+
+                fun collect(node: com.google.gson.JsonElement, aclName: String) {
+                    if (node.isJsonArray) {
+                        node.asJsonArray.forEach { collect(it, aclName) }
+                    } else if (node.isJsonObject) {
+                        node.asJsonObject.entrySet().forEach { (k, v) ->
+                            if (!v.isJsonObject) return@forEach
+                            val o = v.asJsonObject
+                            val key = k.lowercase()
+                            if (aclName.isBlank() && key == "acl") {
+                                collect(o, "")
+                            } else if (key == "permit" || key == "deny") {
+                                if (looksLikeRule(o)) {
+                                    parseAclEntry(aclName, key, o)
+                                } else {
+                                    collect(o, aclName)
+                                }
+                            } else if (aclName.isBlank()) {
+                                collect(o, k)
+                            }
+                        }
                     }
-                    if (list.isNotEmpty() || !_isDemoMode.value) {
-                        _firewallRules.value = list
+                }
+
+                val res = repository.queryShow("access-list")
+                if (res != null) {
+                    collect(res, "")
+                }
+
+                // Fallback: policy-routing view (ip/rule) when the access-list tree is empty.
+                if (list.isEmpty()) {
+                    val text = repository.queryShowText("ip/rule")
+                    if (text != null) {
+                        val lineRegex = Regex("""^\s*(\d+)\s*:\s*from\s+(\S+)\s+to\s+(\S+)\s+lookup\s+(\S+)\s*(?:\((\d+)\))?\s*(.*)$""")
+                        text.lines().forEach { line ->
+                            val m = lineRegex.find(line) ?: return@forEach
+                            val priority = m.groupValues[1]
+                            val src = m.groupValues[2]
+                            val dst = m.groupValues[3]
+                            val table = m.groupValues[4]
+                            val rest = m.groupValues[6]
+                            list.add(
+                                FirewallRule(
+                                    id = priority,
+                                    action = if ("blackhole" in rest) "reject" else "permit",
+                                    proto = "IP",
+                                    srcIp = src,
+                                    dstIp = dst,
+                                    dstPort = "any",
+                                    interfaceName = table,
+                                    enabled = true,
+                                    comment = rest.trim()
+                                )
+                            )
+                        }
                     }
+                }
+                if (list.isNotEmpty() || !_isDemoMode.value) {
+                    _firewallRules.value = list
                 }
             } catch (e: Exception) {
                 AppLogger.logError("loadFirewallRules", e)
@@ -3853,56 +3922,83 @@ private val _intelliQos = MutableStateFlow(IntelliQosConfig())
         }
     }
 
+    /**
+     * Creates a port-forwarding rule inside `ip nat static`.
+     *
+     * The rule lives under a generated RCI key, so the command is built as
+     * `{"ip":{"nat":{"static":{<key>:{...}}}}}`. A "TCP/UDP" rule is created as two
+     * real rules (`<key>-tcp` and `<key>-udp`), which is how the router models it.
+     * [PortForwardingRule.id] of a freshly created rule is empty - the key is derived
+     * from the rule name - and it is re-read from the router after the write.
+     */
     fun addPortForwardingRule(rule: PortForwardingRule) {
+        val protocols = when (rule.proto.uppercase()) {
+            "TCP", "UDP" -> listOf(rule.proto.lowercase())
+            "TCP/UDP", "TCP+UDP" -> listOf("tcp", "udp")
+            else -> listOf("tcp")
+        }
+        val baseKey = rule.id.ifBlank { rule.name }.lowercase()
+            .map { if (it.isLetterOrDigit()) it else '-' }
+            .trim('-')
+            .ifBlank { "rule" }
+        val newId = baseKey + if (protocols.size > 1) "-tcp" else "-${protocols.first()}"
+        val stored = rule.copy(id = newId)
+
         _portForwardingRules.value =
-            if (_portForwardingRules.value.any { it.id == rule.id }) {
-                _portForwardingRules.value.map { if (it.id == rule.id) rule else it }
+            if (_portForwardingRules.value.any { it.id == stored.id }) {
+                _portForwardingRules.value.map { if (it.id == stored.id) stored else it }
             } else {
-                _portForwardingRules.value + rule
+                _portForwardingRules.value + stored
             }
         viewModelScope.launch {
             try {
-                val cmd = mapOf(
-                    "ip" to mapOf(
-                        "static" to listOf(
-                            mapOf(
-                                "comment" to rule.name,
-                                "protocol" to rule.proto.lowercase(),
-                                "interface" to rule.interfaceName,
-                                "port" to rule.srcPort,
-                                "to-address" to rule.dstIp,
-                                "to-port" to rule.dstPort
+                val cmds = protocols.map { proto ->
+                    val key = if (protocols.size > 1) "${baseKey}-$proto" else baseKey
+                    mapOf(
+                        "ip" to mapOf(
+                            "nat" to mapOf(
+                                "static" to mapOf(
+                                    key to mapOf(
+                                        "comment" to rule.name,
+                                        "proto" to proto,
+                                        "interface" to rule.interfaceName,
+                                        "port" to rule.srcPort,
+                                        "to-address" to rule.dstIp,
+                                        "to-port" to rule.dstPort
+                                    )
+                                )
                             )
                         )
                     )
-                )
-                repository.executeRciWithSave(listOf(cmd))
+                }
+                repository.executeRciWithSave(cmds)
+                loadPortForwardingRules()
             } catch (e: Exception) {
                 AppLogger.logError("addPortForwardingRule", e)
             }
         }
     }
 
+    /**
+     * Deletes one rule from `ip nat static` by the real RCI key captured on read
+     * (`ip nat static <id> no`), then re-reads the list.
+     */
     fun deletePortForwardingRule(id: String) {
-        val rule = _portForwardingRules.value.find { it.id == id } ?: return
+        if (id.isBlank()) return
         _portForwardingRules.value = _portForwardingRules.value.filter { it.id != id }
         viewModelScope.launch {
             try {
                 val cmd = mapOf(
                     "ip" to mapOf(
-                        "static" to listOf(
-                            mapOf(
-                                "comment" to rule.name,
-                                "proto" to rule.proto.lowercase(),
-                                "port" to rule.srcPort,
-                                "to-address" to rule.dstIp,
-                                "to-port" to rule.dstPort,
-                                "no" to true
+                        "nat" to mapOf(
+                            "static" to mapOf(
+                                id to mapOf("no" to true)
                             )
                         )
                     )
                 )
                 repository.executeRciWithSave(listOf(cmd))
+                loadPortForwardingRules()
             } catch (e: Exception) {
                 AppLogger.logError("deletePortForwardingRule", e)
             }
@@ -3918,41 +4014,75 @@ private val _intelliQos = MutableStateFlow(IntelliQosConfig())
             }
         viewModelScope.launch {
             try {
-                val aclName = "_WEBADMIN_${rule.interfaceName}"
+                // A rule without an interface belongs to the global ACL list.
+                val iface = rule.interfaceName.trim()
+                val aclName = if (iface.isBlank()) FIREWALL_GLOBAL_ACL else "_WEBADMIN_$iface"
                 val verbKey = if (rule.action.lowercase() == "deny") "deny" else "permit"
                 val ruleFields = mutableMapOf<String, Any>(
                     "index" to 0,
                     "action" to rule.action.lowercase(),
-                    "source" to rule.srcIp.ifBlank { "0.0.0.0" },
+                    "source" to rule.srcIp.takeIf { it.isNotBlank() && it != "any" } ?: "0.0.0.0",
                     "source-mask" to "0.0.0.0",
-                    "destination" to rule.dstIp.ifBlank { "0.0.0.0" },
+                    "destination" to rule.dstIp.takeIf { it.isNotBlank() && it != "any" } ?: "0.0.0.0",
                     "destination-mask" to "0.0.0.0",
                     "disable" to false
                 )
                 if (rule.proto.isNotBlank()) ruleFields["protocol"] = rule.proto.lowercase()
+                // The destination port is part of the rule - without it the ACL entry
+                // matches every port, which is not what the form asks for.
+                if (rule.dstPort.isNotBlank() && rule.dstPort != "any") {
+                    ruleFields["destination-port"] = rule.dstPort
+                }
                 if (rule.comment.isNotBlank()) ruleFields["description"] = rule.comment
 
-                val aclCmd = mapOf("access-list" to listOf(mapOf("acl" to aclName, verbKey to ruleFields)))
-                val ifaceCmd = mapOf("interface" to mapOf("ip" to mapOf("access-group" to listOf(mapOf("acl" to aclName, "direction" to "in"))), "name" to rule.interfaceName))
-                repository.executeRciWithSave(listOf(aclCmd, ifaceCmd))
+                val cmds = mutableListOf<Map<String, Any>>()
+                cmds.add(mapOf("access-list" to listOf(mapOf("acl" to aclName, verbKey to ruleFields))))
+                if (iface.isNotBlank()) {
+                    cmds.add(
+                        mapOf(
+                            "interface" to mapOf(
+                                "ip" to mapOf("access-group" to listOf(mapOf("acl" to aclName, "direction" to "in"))),
+                                "name" to iface
+                            )
+                        )
+                    )
+                }
+                repository.executeRciWithSave(cmds)
+                loadFirewallRules()
             } catch (e: Exception) {
                 AppLogger.logError("addFirewallRule", e)
             }
         }
     }
 
+    /**
+     * Deletes a single ACL entry.
+     *
+     * [id] carries the ACL, the verb and the index as reported by the read path
+     * (`"<acl>|<permit|deny>|<index>"`), so only the chosen line is removed -
+     * dropping `access-list <acl> no` would wipe the whole list of the interface.
+     */
     fun deleteFirewallRule(id: String) {
         val rule = _firewallRules.value.find { it.id == id } ?: return
         _firewallRules.value = _firewallRules.value.filter { it.id != id }
+        val parts = id.split('|')
+        if (parts.size < 3) {
+            AppLogger.logInfo("deleteFirewallRule", "Rule id without acl/index: '$id'")
+            loadFirewallRules()
+            return
+        }
         viewModelScope.launch {
             try {
-                val aclName = "_WEBADMIN_${rule.interfaceName}"
+                val aclName = parts[0]
+                val verbKey = if (parts[1].equals("deny", ignoreCase = true)) "deny" else "permit"
+                val index = parts[2].toIntOrNull() ?: 0
                 val cmd = mapOf(
                     "access-list" to listOf(
-                        mapOf("acl" to aclName, "no" to true)
+                        mapOf("acl" to aclName, verbKey to mapOf("index" to index, "no" to true))
                     )
                 )
                 repository.executeRciWithSave(listOf(cmd))
+                loadFirewallRules()
             } catch (e: Exception) {
                 AppLogger.logError("deleteFirewallRule", e)
             }
