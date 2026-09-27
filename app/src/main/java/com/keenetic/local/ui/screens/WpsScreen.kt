@@ -21,9 +21,14 @@ import com.keenetic.local.ui.theme.KeeneticColors
 fun WpsScreen(viewModel: RouterViewModel, onBack: () -> Unit = {}) {
     val wpsStatus by viewModel.wpsStatus.collectAsState()
     val wlanList by viewModel.mwsWlanList.collectAsState()
-    val autoPinMode = remember(wlanList) {
-        wlanList.any { wlan -> wlan.bands.any { b -> b.accessPointId.contains("AccessPoint0") && b.wpsAutoSelfPin } }
+    // The auto-PIN switch is per access point, so the write target has to be the very
+    // interface the read came from - `mws/wlan` reports the owning network and radio.
+    val autoPinTarget = remember(wlanList) {
+        wlanList.asSequence()
+            .flatMap { wlan -> wlan.bands.asSequence().map { wlan.id to it } }
+            .firstOrNull { (_, band) -> band.accessPointId.contains("AccessPoint0") }
     }
+    val autoPinMode = remember(autoPinTarget) { autoPinTarget?.second?.wpsAutoSelfPin == true }
 
     LaunchedEffect(Unit) { viewModel.loadWpsStatus() }
 
@@ -56,7 +61,19 @@ fun WpsScreen(viewModel: RouterViewModel, onBack: () -> Unit = {}) {
                     }
                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                         Text("Авто-PIN (auto-self-pin)", color = KeeneticColors.TextPrimary)
-                        Switch(checked = autoPinMode, onCheckedChange = { viewModel.setWpsAutoSelfPin(it) })
+                        val target = autoPinTarget
+                        if (target == null) {
+                            Text(
+                                "нет данных",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = KeeneticColors.TextSecondary
+                            )
+                        } else {
+                            Switch(
+                                checked = autoPinMode,
+                                onCheckedChange = { viewModel.setWpsAutoSelfPin(target.second.accessPointId, it) }
+                            )
+                        }
                     }
                     InfoRow("PIN роутера", wpsStatus.pin)
                     HorizontalDivider(color = KeeneticColors.Divider)

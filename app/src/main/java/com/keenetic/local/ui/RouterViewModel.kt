@@ -6137,11 +6137,16 @@ private val _intelliQos = MutableStateFlow(IntelliQosConfig())
         }
     }
 
-    fun setWpsAutoSelfPin(auto: Boolean) {
+    /**
+     * @param apId access-point interface id exactly as reported by `mws/wlan`
+     * (`<wlan>.band.<band>.access-point.<apId>`), so the write hits the same node the
+     * `wps.auto-self-pin` value was read from instead of a hardcoded radio guess.
+     */
+    fun setWpsAutoSelfPin(apId: String, auto: Boolean) {
+        if (apId.isBlank()) return
         viewModelScope.launch {
             try {
-                val apInterface = _interfaces.value.firstOrNull { it.type.lowercase() == "accesspoint" }?.id ?: "WifiMaster0/AccessPoint0"
-                val cmd = mapOf("interface" to mapOf(apInterface to mapOf("wps" to mapOf("auto-self-pin" to auto))))
+                val cmd = mapOf("interface" to mapOf(apId to mapOf("wps" to mapOf("auto-self-pin" to auto))))
                 repository.executeRciWithSave(listOf(cmd))
                 loadWpsStatus()
             } catch (e: Exception) {
