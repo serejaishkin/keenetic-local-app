@@ -208,6 +208,10 @@ class RouterViewModel : ViewModel() {
     private val _usbStorageList = MutableStateFlow<List<UsbStorageDevice>>(emptyList())
     val usbStorageList: StateFlow<List<UsbStorageDevice>> = _usbStorageList.asStateFlow()
 
+    /** Real `service.cifs/ftp/dlna` state of the router - null until first successful read. */
+    private val _usbServiceFlags = MutableStateFlow<ServiceFlags?>(null)
+    val usbServiceFlags: StateFlow<ServiceFlags?> = _usbServiceFlags.asStateFlow()
+
     private val _fileBrowserPath = MutableStateFlow("")
     val fileBrowserPath: StateFlow<String> = _fileBrowserPath.asStateFlow()
 
@@ -2081,6 +2085,7 @@ class RouterViewModel : ViewModel() {
         viewModelScope.launch {
             try {
                 val res = repository.queryShow("usb") ?: repository.queryShow("media")
+                _usbServiceFlags.value = repository.querySc("service")?.let { SystemDetailParser.parseServiceFlags(it) }
                 _usbDevicesRaw.value = if (res != null) ApiCallState.Success(res) else ApiCallState.Error("Нет данных")
                 val mediaRes = repository.queryShow("media")
                 val cifsRes = repository.queryShow("cifs")
@@ -3047,6 +3052,7 @@ class RouterViewModel : ViewModel() {
                 }
                 if (cmd.isNotEmpty()) {
                     repository.executeRciWithSave(listOf(cmd))
+                    loadUsbDevices()
                 }
             } catch (e: Exception) {
                 AppLogger.logError("toggleUsbService", e)

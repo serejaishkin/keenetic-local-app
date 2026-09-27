@@ -20,13 +20,14 @@ import com.keenetic.local.ui.theme.KeeneticColors
 @Composable
 fun UsbStorageScreen(viewModel: RouterViewModel, onBack: () -> Unit = {}, onOpenFiles: (String) -> Unit = {}) {
     val usbDevices by viewModel.usbStorageList.collectAsState()
+    val serviceFlags by viewModel.usbServiceFlags.collectAsState()
     var selectedDevice by remember { mutableStateOf<UsbStorageDevice?>(null) }
     var formatTarget by remember { mutableStateOf<UsbStorageDevice?>(null) }
     var formatFstype by remember { mutableStateOf("") }
     var formatArmed by remember { mutableStateOf(false) }
-    var smbEnabled by remember { mutableStateOf(true) }
-    var dlnaEnabled by remember { mutableStateOf(false) }
-    var ftpEnabled by remember { mutableStateOf(false) }
+    var smbEnabled by remember(serviceFlags) { mutableStateOf(serviceFlags?.cifs ?: false) }
+    var dlnaEnabled by remember(serviceFlags) { mutableStateOf(serviceFlags?.dlna ?: false) }
+    var ftpEnabled by remember(serviceFlags) { mutableStateOf(serviceFlags?.ftp ?: false) }
     var statusMessage by remember { mutableStateOf<String?>(null) }
 
     LaunchedEffect(Unit) {
@@ -221,6 +222,13 @@ fun UsbStorageScreen(viewModel: RouterViewModel, onBack: () -> Unit = {}, onOpen
                 colors = CardDefaults.cardColors(containerColor = KeeneticColors.Surface)
             ) {
                 Column(modifier = Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                    if (serviceFlags == null) {
+                        Text(
+                            "Не удалось прочитать состояние служб с роутера (service.cifs/ftp/dlna) — переключатели заблокированы, чтобы не показать неверное состояние.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.error
+                        )
+                    }
                     // SMB Service
                     Row(
                         modifier = Modifier.fillMaxWidth(),
@@ -236,6 +244,7 @@ fun UsbStorageScreen(viewModel: RouterViewModel, onBack: () -> Unit = {}, onOpen
                         }
                         Switch(
                             checked = smbEnabled,
+                            enabled = serviceFlags != null,
                             onCheckedChange = {
                                 smbEnabled = it
                                 viewModel.toggleUsbService("cifs", it)
@@ -261,6 +270,7 @@ fun UsbStorageScreen(viewModel: RouterViewModel, onBack: () -> Unit = {}, onOpen
                         }
                         Switch(
                             checked = dlnaEnabled,
+                            enabled = serviceFlags != null,
                             onCheckedChange = {
                                 dlnaEnabled = it
                                 viewModel.toggleUsbService("dlna", it)
@@ -286,6 +296,7 @@ fun UsbStorageScreen(viewModel: RouterViewModel, onBack: () -> Unit = {}, onOpen
                         }
                         Switch(
                             checked = ftpEnabled,
+                            enabled = serviceFlags != null,
                             onCheckedChange = {
                                 ftpEnabled = it
                                 viewModel.toggleUsbService("ftp", it)
