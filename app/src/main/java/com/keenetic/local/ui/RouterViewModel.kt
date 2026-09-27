@@ -3402,29 +3402,72 @@ private val _intelliQos = MutableStateFlow(IntelliQosConfig())
     fun loadIntelliQos() {
         viewModelScope.launch {
             try {
+                // Confirmed write format (API-REFERENCE.md):
+                //   ntce qos category [{category:"calling", priority:1}, ...]
+                //   ntce qos enable true
+                //   service ntce true      <- the component switch itself
                 val res = repository.queryShow("ntce/qos")
-                val obj = res?.takeIf { it.isJsonObject }?.asJsonObject ?: return@launch
-                val catArr = obj.get("category")?.takeIf { it.isJsonArray }?.asJsonArray
-                val categories = catArr?.mapNotNull { el ->
-                    if (!el.isJsonObject) return@mapNotNull null
-                    val o = el.asJsonObject
-                    val id = o.get("category")?.takeIf { it.isJsonPrimitive }?.runCatching { asInt }?.getOrDefault(0) ?: 0
-                    val pr = o.get("priority")?.takeIf { it.isJsonPrimitive }?.runCatching { asInt }?.getOrDefault(5) ?: 5
-                    IntelliQosCategory(id = id, name = intelliQosCategoryName(id), priority = pr)
+                val obj = res?.takeIf { it.isJsonObject }?.asJsonObject
+                val categories = obj?.get("category")?.let { catEl ->
+                    val arr = when {
+                        catEl.isJsonArray -> catEl.asJsonArray
+                        catEl.isJsonObject -> com.google.gson.JsonArray().apply { add(catEl) }
+                        else -> null
+                    }
+                    arr?.mapNotNull { el ->
+                        if (!el.isJsonObject) return@mapNotNull null
+                        val o = el.asJsonObject
+                        val id = o.get("category")?.takeIf { it.isJsonPrimitive }?.asString ?: return@mapNotNull null
+                        val pr = o.get("priority")?.takeIf { it.isJsonPrimitive }?.runCatching { asInt }?.getOrDefault(5) ?: 5
+                        IntelliQosCategory(id = id, name = intelliQosCategoryName(id), priority = pr)
+                    }
                 } ?: emptyList()
-                val enabled = obj.get("enable")?.takeIf { it.isJsonPrimitive }?.runCatching { asBoolean }?.getOrDefault(false) ?: false
-                _intelliQos.value = IntelliQosConfig(classifyEnabled = enabled, qosEnabled = enabled, categories = categories)
+
+                // "qos enable" and the component switch are two different flags.
+                val qosEnabled = obj?.get("enable")?.takeIf { it.isJsonPrimitive }?.runCatching { asBoolean }?.getOrDefault(false) ?: false
+                val serviceEnabled = repository.querySc("service", "ntce")
+                    ?.let { el -> findBoolean(el, "ntce") }
+                    ?: false
+
+                _intelliQos.value = IntelliQosConfig(
+                    classifyEnabled = serviceEnabled,
+                    qosEnabled = qosEnabled,
+                    categories = categories
+                )
             } catch (e: Exception) {
                 AppLogger.logError("loadIntelliQos", e)
             }
         }
     }
 
+    /**
+     * Looks for a boolean leaf named [key] anywhere in the tree. The routers report
+     * `service ntce` either as `true` directly or wrapped in `{"ntce": true}`.
+     */
+    private fun findBoolean(node: com.google.gson.JsonElement?, key: String): Boolean {
+        if (node == null || node.isJsonNull) return false
+        if (node.isJsonPrimitive) {
+            return node.asJsonPrimitive.isBoolean && node.asBoolean
+        }
+        if (node.isJsonObject) {
+            val o = node.asJsonObject
+            o.get(key)?.let { leaf -> if (leaf.isJsonPrimitive) return leaf.asBoolean }
+            o.entrySet().forEach { (k, v) -> if (findBoolean(v, key)) return true }
+        } else if (node.isJsonArray) {
+            node.asJsonArray.forEach { if (findBoolean(it, key)) return true }
+        }
+        return false
+    }
+
     fun setIntelliQos(enableService: Boolean, enableQos: Boolean) {
         viewModelScope.launch {
             try {
                 val cmds = mutableListOf<Map<String, Any>>()
-                cmds.add(mapOf("ntce" to mapOf("enable" to enableService)))
+                if (enableService) {
+                    cmds.add(mapOf("service" to mapOf("ntce" to true)))
+                } else {
+                    cmds.add(mapOf("no" to mapOf("service" to mapOf("ntce" to true))))
+                }
                 cmds.add(mapOf("ntce" to mapOf("qos" to mapOf("enable" to enableQos))))
                 repository.executeRciWithSave(cmds)
                 loadIntelliQos()
@@ -3434,10 +3477,13 @@ private val _intelliQos = MutableStateFlow(IntelliQosConfig())
         }
     }
 
-    fun setIntelliQosPriority(category: Int, priority: Int) {
+    fun setIntelliQosPriority(category: String, priority: Int) {
+        if (category.isBlank()) return
         viewModelScope.launch {
             try {
-                val cmd = mapOf("ntce" to mapOf("qos" to mapOf("category" to category, "priority" to priority)))
+                val cmd = mapOf(
+                    "ntce" to mapOf("qos" to mapOf("category" to mapOf("category" to category, "priority" to priority)))
+                )
                 repository.executeRciWithSave(listOf(cmd))
                 loadIntelliQos()
             } catch (e: Exception) {
