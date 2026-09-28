@@ -132,14 +132,21 @@ fun FirmwareScreen(viewModel: RouterViewModel, onBack: () -> Unit = {}) {
                     if (status?.updateAvailable == true) {
                         Text("Доступно обновление: ${status?.availableVersion}", color = KeeneticColors.Success, style = MaterialTheme.typography.titleSmall)
                         Text(status?.changelog ?: "", color = KeeneticColors.TextSecondary, style = MaterialTheme.typography.bodySmall)
+                        // Установка прошивки - это загрузка файла в веб-интерфейс роутера,
+                        // а не команда RCI: рабочий эндпоинт не документирован, поэтому
+                        // кнопка не имитирует установку и не меняет локальное состояние.
+                        Text(
+                            "Установить обновление из этого приложения нельзя: прошивка загружается файлом через веб-интерфейс роутера (Обновления → KeeneticOS).",
+                            color = KeeneticColors.TextSecondary, style = MaterialTheme.typography.bodySmall
+                        )
                         Button(
-                            onClick = { viewModel.startFirmwareUpdate() },
+                            onClick = { viewModel.loadFirmwareStatus() },
                             modifier = Modifier.fillMaxWidth(),
-                            colors = ButtonDefaults.buttonColors(containerColor = KeeneticColors.Primary)
+                            colors = ButtonDefaults.outlinedButtonColors()
                         ) {
-                            Icon(Icons.Default.Refresh, contentDescription = null)
+                            Icon(Icons.Default.Refresh, contentDescription = null, tint = KeeneticColors.Primary)
                             Spacer(modifier = Modifier.width(8.dp))
-                            Text("Установить обновление")
+                            Text("Проверить обновления", color = KeeneticColors.Primary)
                         }
                     } else {
                         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {

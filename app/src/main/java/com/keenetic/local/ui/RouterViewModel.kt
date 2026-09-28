@@ -2719,14 +2719,6 @@ class RouterViewModel : ViewModel() {
         }
     }
 
-    fun setFirmwareChannel(channel: String) {
-        _firmwareStatus.value = _firmwareStatus.value?.copy(channel = channel)
-    }
-
-    fun startFirmwareUpdate() {
-        _firmwareStatus.value = _firmwareStatus.value?.copy(updateAvailable = false)
-    }
-
     fun runDiagnostics(tool: String, target: String) {
         viewModelScope.launch {
             _isLoading.value = true
