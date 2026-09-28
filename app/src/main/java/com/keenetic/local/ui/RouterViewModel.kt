@@ -682,10 +682,13 @@ class RouterViewModel : ViewModel() {
             LanSegment("Guest", "Гостевая сеть", "192.168.2.1", "255.255.255.0", true, "192.168.2.10", "192.168.2.99", true)
         )
 
+        fun demoUser(name: String, vararg tags: String) =
+            RouterUserAccount(name = name, tags = tags.toList(), permissions = userPermissionsFromTags(tags.toList()))
+
         _userAccounts.value = listOf(
-            RouterUserAccount(name = "admin", tags = listOf("admin", "http", "cli", "ssh"), permissions = listOf("Полный доступ")),
-            RouterUserAccount(name = "family", tags = listOf("smb", "media"), permissions = listOf("Чтение/запись SMB")),
-            RouterUserAccount(name = "vpn_client", tags = listOf("vpn", "wireguard"), permissions = listOf("VPN доступ"))
+            demoUser("admin", "admin", "http", "cli", "ssh"),
+            demoUser("family", "smb", "media"),
+            demoUser("vpn_client", "vpn", "wireguard")
         )
 
         _usbStorageList.value = listOf(
@@ -2039,6 +2042,20 @@ class RouterViewModel : ViewModel() {
         return list
     }
 
+    /**
+     * Rights shown for a user account, derived from the `tag` list the router reports
+     * (and that [createUserAccount] writes), so the UI never invents an access level.
+     */
+    private fun userPermissionsFromTags(tags: List<String>): List<String> {
+        val permissions = mutableListOf<String>()
+        if (tags.any { it.equals("admin", ignoreCase = true) }) permissions.add("Полный доступ")
+        if (tags.any { it.equals("smb", ignoreCase = true) }) permissions.add("Чтение/запись SMB")
+        if (tags.any { it.equals("ftp", ignoreCase = true) }) permissions.add("Чтение/запись FTP")
+        if (tags.any { it.equals("media", ignoreCase = true) }) permissions.add("Доступ к мультимедиа (DLNA)")
+        if (tags.any { it.equals("vpn", ignoreCase = true) }) permissions.add("Доступ к VPN-серверам")
+        return permissions
+    }
+
     fun loadUsers() {
         if (_isDemoMode.value && _userAccounts.value.isNotEmpty()) return
         viewModelScope.launch {
@@ -2056,8 +2073,7 @@ class RouterViewModel : ViewModel() {
                                     tags.add(it.asString)
                                 }
                                 if (name.isNotBlank()) {
-                                    val isSuper = tags.contains("admin")
-                                    list.add(RouterUserAccount(name, tags, if (isSuper) listOf("Полный доступ") else listOf("Ограниченный доступ")))
+                                    list.add(RouterUserAccount(name, tags, userPermissionsFromTags(tags)))
                                 }
                             }
                         }
@@ -2067,8 +2083,7 @@ class RouterViewModel : ViewModel() {
                             if (v.isJsonObject && v.asJsonObject.has("tag")) {
                                 v.asJsonObject.getAsJsonArray("tag").forEach { tags.add(it.asString) }
                             }
-                            val isSuper = tags.contains("admin")
-                            list.add(RouterUserAccount(name, tags, if (isSuper) listOf("Полный доступ") else listOf("Ограниченный доступ")))
+                            list.add(RouterUserAccount(name, tags, userPermissionsFromTags(tags)))
                         }
                     }
                     if (list.isNotEmpty()) {
@@ -2669,13 +2684,7 @@ class RouterViewModel : ViewModel() {
         if (allowVpn) tags.add("vpn")
         if (allowFtp) tags.add("ftp")
         if (allowMedia) tags.add("media")
-        val permissions = mutableListOf<String>()
-        if (isSuperuser) permissions.add("Полный доступ")
-        if (allowSmb) permissions.add("Чтение/запись SMB")
-        if (allowFtp) permissions.add("Чтение/запись FTP")
-        if (allowMedia) permissions.add("Доступ к мультимедиа (DLNA)")
-        if (allowVpn) permissions.add("Доступ к VPN-серверам")
-        val newAcc = RouterUserAccount(username, tags, permissions)
+        val newAcc = RouterUserAccount(username, tags, userPermissionsFromTags(tags))
         _userAccounts.value = _userAccounts.value.filter { it.name != username } + newAcc
         viewModelScope.launch {
             try {
@@ -2684,6 +2693,7 @@ class RouterViewModel : ViewModel() {
                 if (tags.isNotEmpty()) userObj["tag"] = tags
                 val cmd = mapOf("user" to userObj)
                 repository.executeRciWithSave(listOf(cmd))
+                loadUsers()
             } catch (e: Exception) {
                 AppLogger.logError("createUserAccount", e)
             }

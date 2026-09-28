@@ -190,10 +190,12 @@ fun UserAccountsScreen(viewModel: RouterViewModel, onBack: () -> Unit = {}) {
     selectedUser?.let { user ->
         var newPass by remember(user.name) { mutableStateOf("") }
         var hasAdmin by remember(user.name) { mutableStateOf(user.tags.contains("admin")) }
-        var hasVpn by remember(user.name) { mutableStateOf(user.permissions.any { it.contains("vpn", ignoreCase = true) }) }
-        var hasSmb by remember(user.name) { mutableStateOf(user.permissions.any { it.contains("cifs", ignoreCase = true) || it.contains("smb", ignoreCase = true) }) }
-        var hasFtp by remember(user.name) { mutableStateOf(user.permissions.any { it.contains("ftp", ignoreCase = true) }) }
-        var hasMedia by remember(user.name) { mutableStateOf(user.permissions.any { it.contains("media", ignoreCase = true) || it.contains("dlna", ignoreCase = true) }) }
+        // Rights live in the `tag` list reported by the router; `permissions` is only a
+        // human-readable rendering of those tags, so the switches must be driven by tags.
+        var hasVpn by remember(user.name) { mutableStateOf(user.tags.contains("vpn")) }
+        var hasSmb by remember(user.name) { mutableStateOf(user.tags.contains("smb")) }
+        var hasFtp by remember(user.name) { mutableStateOf(user.tags.contains("ftp")) }
+        var hasMedia by remember(user.name) { mutableStateOf(user.tags.contains("media")) }
 
         AlertDialog(
             onDismissRequest = { selectedUser = null },
