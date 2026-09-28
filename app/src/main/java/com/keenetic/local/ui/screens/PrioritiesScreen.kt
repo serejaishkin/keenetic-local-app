@@ -27,6 +27,7 @@ private val PRIORITY_OPTIONS = listOf(
 @Composable
 fun PrioritiesScreen(viewModel: RouterViewModel, onBack: () -> Unit = {}) {
     val interfaces by viewModel.interfaces.collectAsState()
+    LaunchedEffect(Unit) { viewModel.loadInterfaces() }
     val internetInterfaces = remember(interfaces) {
         interfaces.filter { itf ->
             val t = itf.type.lowercase()
