@@ -1266,27 +1266,31 @@ class RouterViewModel : ViewModel() {
 
     fun loadInterfaces() {
         viewModelScope.launch {
-            try {
-                val res = repository.queryShow("interface")
-                if (res != null) {
-                    val ifaceList = InterfaceMapper.toInterfaceList(res)
-                    val wifiList = InterfaceMapper.toWifiNetworks(res)
+            refreshInterfaces()
+        }
+    }
 
-                    val updatedWifi = wifiList.map { wifi ->
-                        val count = _clients.value.count { client ->
-                            client.active && (client.wifiSsid == wifi.ssid || client.interfaceName.contains(wifi.id))
-                        }
-                        wifi.copy(clientsCount = count)
+    private suspend fun refreshInterfaces() {
+        try {
+            val res = repository.queryShow("interface")
+            if (res != null) {
+                val ifaceList = InterfaceMapper.toInterfaceList(res)
+                val wifiList = InterfaceMapper.toWifiNetworks(res)
+
+                val updatedWifi = wifiList.map { wifi ->
+                    val count = _clients.value.count { client ->
+                        client.active && (client.wifiSsid == wifi.ssid || client.interfaceName.contains(wifi.id))
                     }
-
-                    _interfaces.value = ifaceList
-                    _wifiNetworks.value = updatedWifi
-                    _vpnConnections.value = InterfaceMapper.toVpnConnections(res)
-                    _switchPorts.value = InterfaceMapper.toSwitchPorts(res)
+                    wifi.copy(clientsCount = count)
                 }
-            } catch (e: Exception) {
-                AppLogger.logError("loadInterfaces", e)
+
+                _interfaces.value = ifaceList
+                _wifiNetworks.value = updatedWifi
+                _vpnConnections.value = InterfaceMapper.toVpnConnections(res)
+                _switchPorts.value = InterfaceMapper.toSwitchPorts(res)
             }
+        } catch (e: Exception) {
+            AppLogger.logError("loadInterfaces", e)
         }
     }
 
@@ -3315,6 +3319,8 @@ class RouterViewModel : ViewModel() {
 
     private val _mobileTraffic = MutableStateFlow(MobileTraffic())
     val mobileTraffic: StateFlow<MobileTraffic> = _mobileTraffic.asStateFlow()
+    private val _mobileTrafficInterfaceId = MutableStateFlow<String?>(null)
+    val mobileTrafficInterfaceId: StateFlow<String?> = _mobileTrafficInterfaceId.asStateFlow()
 
     fun resolveModemInterfaceId(): String? {
         return _interfaces.value.firstOrNull {
@@ -3329,15 +3335,28 @@ class RouterViewModel : ViewModel() {
 
     fun loadMobileTraffic(interfaceId: String? = null) {
         viewModelScope.launch {
-            try {
-                val id = interfaceId ?: resolveModemInterfaceId() ?: return@launch
-                val res = repository.queryShow("interface/$id")
-                if (res != null) {
-                    _mobileTraffic.value = InterfaceMapper.toMobileTraffic(res)
-                }
-            } catch (e: Exception) {
-                AppLogger.logError("loadMobileTraffic", e)
+            refreshMobileTraffic(interfaceId)
+        }
+    }
+
+    fun loadMobileTrafficWithInterfaces() {
+        viewModelScope.launch {
+            refreshInterfaces()
+            refreshMobileTraffic()
+        }
+    }
+
+    private suspend fun refreshMobileTraffic(interfaceId: String? = null) {
+        try {
+            val id = interfaceId ?: resolveModemInterfaceId()
+            _mobileTrafficInterfaceId.value = id
+            if (id == null) return
+            val res = repository.queryShow("interface/$id")
+            if (res != null) {
+                _mobileTraffic.value = InterfaceMapper.toMobileTraffic(res)
             }
+        } catch (e: Exception) {
+            AppLogger.logError("loadMobileTraffic", e)
         }
     }
 
@@ -3385,8 +3404,23 @@ class RouterViewModel : ViewModel() {
                 traffic["threshold"] = threshold
                 if (actions.isNotEmpty()) traffic["action"] = actions
 
-                val cmd = mapOf("interface" to mapOf("name" to modemInterface, "traffic-counter" to traffic))
-                repository.executeRciWithSave(listOf(cmd))
+                val cmds = mutableListOf<Map<String, Any>>()
+                cmds.add(mapOf("interface" to mapOf("name" to modemInterface, "traffic-counter" to traffic)))
+                // Removing monthly reset requires an explicit `no` command; omitting
+                // the node would leave the router's previous monthly setting in place.
+                if (!cycleResetEnabled && _mobileTraffic.value.cycleResetEnabled) {
+                    cmds.add(
+                        mapOf(
+                            "no" to mapOf(
+                                "interface" to mapOf(
+                                    "name" to modemInterface,
+                                    "traffic-counter" to mapOf("monthly" to true)
+                                )
+                            )
+                        )
+                    )
+                }
+                repository.executeRciWithSave(cmds)
                 loadMobileTraffic(modemInterface)
             } catch (e: Exception) {
                 AppLogger.logError("updateMobileTraffic", e)

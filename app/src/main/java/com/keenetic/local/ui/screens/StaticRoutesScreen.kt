@@ -53,7 +53,6 @@ fun StaticRoutesScreen(viewModel: RouterViewModel, onBack: () -> Unit = {}) {
     var feedbackMessage by remember { mutableStateOf<String?>(null) }
 
     LaunchedEffect(Unit) {
-        viewModel.loadStaticRoutes()
         viewModel.loadIpv6StaticRoutes()
         viewModel.loadDnsRoutes()
         viewModel.loadFqdnGroups()

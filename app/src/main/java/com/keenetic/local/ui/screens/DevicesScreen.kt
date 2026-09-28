@@ -25,6 +25,10 @@ import com.keenetic.local.ui.theme.KeeneticColors
 fun DevicesScreen(viewModel: RouterViewModel) {
     val clients by viewModel.clients.collectAsState()
     val connectionPolicies by viewModel.connectionPolicies.collectAsState()
+    LaunchedEffect(Unit) {
+        viewModel.loadConnectionPolicies()
+        viewModel.loadClients()
+    }
     var selectedClientForDetails by remember { mutableStateOf<ConnectedClient?>(null) }
     var wolMessage by remember { mutableStateOf<String?>(null) }
 

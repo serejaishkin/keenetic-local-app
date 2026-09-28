@@ -37,6 +37,9 @@ private fun ndmToUnit(u: String): String = when (u) {
 @Composable
 fun MobileTrafficScreen(viewModel: RouterViewModel, onBack: () -> Unit = {}) {
     val traffic by viewModel.mobileTraffic.collectAsState()
+    val interfaces by viewModel.interfaces.collectAsState()
+    val modemId by viewModel.mobileTrafficInterfaceId.collectAsState()
+    val modemAvailable = modemId != null
 
     var limitText by remember { mutableStateOf(traffic.limit.toString()) }
     var unitText by remember { mutableStateOf(ndmToUnit(traffic.unit)) }
@@ -65,7 +68,7 @@ fun MobileTrafficScreen(viewModel: RouterViewModel, onBack: () -> Unit = {}) {
     }
 
     LaunchedEffect(Unit) {
-        viewModel.loadMobileTraffic()
+        viewModel.loadMobileTrafficWithInterfaces()
     }
 
     var expandedUnit by remember { mutableStateOf(false) }
@@ -92,9 +95,27 @@ fun MobileTrafficScreen(viewModel: RouterViewModel, onBack: () -> Unit = {}) {
                     color = KeeneticColors.TextPrimary
                 )
                 Spacer(modifier = Modifier.weight(1f))
-                IconButton(onClick = { viewModel.loadMobileTraffic() }) {
+                IconButton(onClick = { viewModel.loadMobileTrafficWithInterfaces() }) {
                     Icon(Icons.Default.Refresh, contentDescription = "Обновить", tint = KeeneticColors.Primary)
                 }
+            }
+        }
+
+        if (interfaces.isEmpty()) {
+            item {
+                Text(
+                    "Загрузка интерфейсов…",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = KeeneticColors.TextSecondary
+                )
+            }
+        } else if (!modemAvailable) {
+            item {
+                Text(
+                    "Модемный интерфейс не найден, поэтому квоту отправить нельзя.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.error
+                )
             }
         }
 
@@ -129,7 +150,7 @@ fun MobileTrafficScreen(viewModel: RouterViewModel, onBack: () -> Unit = {}) {
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text("Ограничить мобильный интернет", style = MaterialTheme.typography.bodyMedium, color = KeeneticColors.TextPrimary)
-                        Switch(checked = traffic.enable, onCheckedChange = {
+                        Switch(checked = traffic.enable, enabled = modemAvailable, onCheckedChange = {
                             viewModel.updateMobileTraffic(
                                 enable = it,
                                 limit = limitText.toLongOrNull() ?: 0,
@@ -292,6 +313,7 @@ fun MobileTrafficScreen(viewModel: RouterViewModel, onBack: () -> Unit = {}) {
                     )
                     feedbackMessage = "Квота мобильного трафика отправлена на роутер"
                 },
+                enabled = modemAvailable,
                 colors = ButtonDefaults.buttonColors(containerColor = KeeneticColors.Primary),
                 modifier = Modifier.fillMaxWidth()
             ) {
