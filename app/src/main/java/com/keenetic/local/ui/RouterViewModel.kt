@@ -5471,7 +5471,8 @@ private val _intelliQos = MutableStateFlow(IntelliQosConfig())
         viewModelScope.launch {
             try {
                 val flags = repository.querySc("service")?.let { SystemDetailParser.parseServiceFlags(it) }
-                val res = repository.queryShow("ftp")
+                // Read the same `show sc ip ftp` tree the web configurator uses.
+                val res = repository.querySc("ip", "ftp")
                 val parsed = if (res != null) SshSnmpParser.parseFtp(res) else FtpSettings()
                 _ftpSettings.value = if (flags != null) parsed.copy(enabled = flags.ftp) else parsed
             } catch (e: Exception) {
@@ -5956,7 +5957,8 @@ private val _intelliQos = MutableStateFlow(IntelliQosConfig())
     fun setFtpAnonymousAccess(enabled: Boolean) {
         viewModelScope.launch {
             try {
-                val cmd = mapOf("ftp" to mapOf("allow-anonymous" to enabled))
+                // The web configurator writes anonymous FTP access as `ip.ftp.permissive`.
+                val cmd = mapOf("ip" to mapOf("ftp" to mapOf("permissive" to enabled)))
                 repository.executeRciWithSave(listOf(cmd))
                 loadFtpSettings()
             } catch (e: Exception) {

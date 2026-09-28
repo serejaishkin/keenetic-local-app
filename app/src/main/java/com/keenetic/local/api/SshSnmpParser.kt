@@ -35,15 +35,29 @@ object SshSnmpParser {
     }
 
     fun parseFtp(root: JsonElement?): FtpSettings {
-        if (root == null || !root.isJsonObject) return FtpSettings()
-        val rootObj = root.asJsonObject
-        val ftp = rootObj.getAsJsonObject("ftp") ?: rootObj
+        // The web configurator reads `show sc ip ftp` as an array and uses `port`
+        // plus the `permissive` anonymous-access flag.
+        val ftp = when {
+            root == null -> null
+            root.isJsonArray -> root.asJsonArray.firstOrNull {
+                it.isJsonObject && (it.asJsonObject.has("port") || it.asJsonObject.has("permissive"))
+            }?.asJsonObject
+            root.isJsonObject -> findKey(root, "ftp") ?: root.asJsonObject.takeIf { it.has("port") || it.has("permissive") }
+            else -> null
+        } ?: return FtpSettings()
+        val port = ftp.get("port")?.takeIf { it.isJsonPrimitive }?.asJsonPrimitive?.let {
+            when {
+                it.isNumber -> it.asInt
+                it.isString -> it.asString.trim().toIntOrNull()
+                else -> null
+            }
+        } ?: 21
         return FtpSettings(
             enabled = ftp.get("enabled")?.takeIf { it.isJsonPrimitive }?.asBoolean
                 ?: ftp.get("enable")?.takeIf { it.isJsonPrimitive }?.asBoolean
                 ?: false,
-            port = ftp.get("port")?.takeIf { it.isJsonPrimitive }?.asInt ?: 21,
-            anonymousAccess = ftp.get("anonymous-access")?.takeIf { it.isJsonPrimitive }?.asBoolean ?: false
+            port = port,
+            anonymousAccess = ftp.get("permissive")?.takeIf { it.isJsonPrimitive }?.asBoolean ?: false
         )
     }
 
