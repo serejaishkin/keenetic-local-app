@@ -22,23 +22,6 @@ object TorrentDetailParser {
         )
     }
 
-    fun parseStatus(root: JsonElement?): TorrentStatusFull {
-        if (root == null || !root.isJsonObject) return TorrentStatusFull()
-        val torrent = findKey(root, "torrent") ?: return TorrentStatusFull()
-        return TorrentStatusFull(
-            enabled = torrent.get("enable")?.takeIf { it.isJsonPrimitive }?.asBoolean ?: false,
-            state = str(torrent, "state") ?: "",
-            rpcPort = torrent.get("rpc-port")?.takeIf { it.isJsonPrimitive }?.asInt ?: 0,
-            rpcPublic = torrent.get("rpc-public")?.takeIf { it.isJsonPrimitive }?.asBoolean ?: false,
-            peerPort = torrent.get("peer-port")?.takeIf { it.isJsonPrimitive }?.asInt ?: 0,
-            downloadDir = str(torrent, "download-dir") ?: "",
-            activeTorrents = torrent.get("active-torrents")?.takeIf { it.isJsonPrimitive }?.asInt ?: 0,
-            totalTorrents = torrent.get("total-torrents")?.takeIf { it.isJsonPrimitive }?.asInt ?: 0,
-            downloadSpeed = torrent.get("download-speed")?.takeIf { it.isJsonPrimitive }?.asLong ?: 0,
-            uploadSpeed = torrent.get("upload-speed")?.takeIf { it.isJsonPrimitive }?.asLong ?: 0
-        )
-    }
-
     fun parseRunningState(root: JsonElement?): String {
         if (root == null || !root.isJsonObject) return ""
         return str(root.asJsonObject, "state") ?: ""

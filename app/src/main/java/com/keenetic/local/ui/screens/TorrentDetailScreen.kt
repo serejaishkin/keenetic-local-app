@@ -49,10 +49,11 @@ fun TorrentDetailScreen(viewModel: RouterViewModel, onBack: () -> Unit = {}) {
                     InfoRow("RPC публичный", if (status.rpcPublic) "Да" else "Нет")
                     InfoRow("Пир порт", "${status.peerPort}")
                     InfoRow("Каталог загрузки", status.downloadDir)
-                    InfoRow("Активных торрентов", "${status.activeTorrents}")
-                    InfoRow("Всего торрентов", "${status.totalTorrents}")
-                    InfoRow("Скорость загрузки", formatSpeed(status.downloadSpeed))
-                    InfoRow("Скорость отдачи", formatSpeed(status.uploadSpeed))
+                    Text(
+                        "RCI отдаёт состояние, настройки и локальную учётную запись. Список раздач и их скорости доступны только в веб-интерфейсе Transmission.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = KeeneticColors.TextSecondary
+                    )
                 }
             }
         }
@@ -82,13 +83,4 @@ private fun InfoRow(label: String, value: String) {
         Text(label, style = MaterialTheme.typography.bodyMedium, color = KeeneticColors.TextSecondary)
         Text(value, style = MaterialTheme.typography.bodyMedium, color = KeeneticColors.TextPrimary, fontWeight = FontWeight.Medium)
     }
-}
-
-private fun formatSpeed(bytesPerSec: Long): String {
-    if (bytesPerSec <= 0) return "0 B/s"
-    val units = arrayOf("B/s", "KB/s", "MB/s", "GB/s")
-    var value = bytesPerSec.toDouble()
-    var unitIndex = 0
-    while (value >= 1024 && unitIndex < units.size - 1) { value /= 1024; unitIndex++ }
-    return "%.1f %s".format(value, units[unitIndex])
 }

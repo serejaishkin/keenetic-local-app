@@ -71,6 +71,32 @@ fun NetworkMonitorScreen(viewModel: RouterViewModel, onBack: () -> Unit = {}) {
             Card(shape = RoundedCornerShape(16.dp), colors = CardDefaults.cardColors(containerColor = KeeneticColors.Surface)) {
                 Column(modifier = Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Icon(Icons.Default.SyncAlt, contentDescription = null, tint = KeeneticColors.Primary)
+                        Text("Активные соединения (${conntrack.size})", style = MaterialTheme.typography.titleMedium, color = KeeneticColors.TextPrimary, fontWeight = FontWeight.Bold)
+                    }
+                    HorizontalDivider(color = KeeneticColors.Divider)
+                    if (conntrack.isEmpty()) { Text("Пусто", color = KeeneticColors.TextSecondary) }
+                }
+            }
+        }
+        items(conntrack.take(20)) { entry ->
+            Card(shape = RoundedCornerShape(8.dp), colors = CardDefaults.cardColors(containerColor = KeeneticColors.Background)) {
+                Row(modifier = Modifier.fillMaxWidth().padding(8.dp), horizontalArrangement = Arrangement.SpaceBetween) {
+                    Text(
+                        "${entry.protocol.ifBlank { "?" }} ${entry.srcIp.ifBlank { "?" }}:${entry.srcPort.ifBlank { "?" }} → ${entry.dstIp.ifBlank { "?" }}:${entry.dstPort.ifBlank { "?" }}",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = KeeneticColors.TextPrimary
+                    )
+                    Text(entry.state.ifBlank { "—" }, style = MaterialTheme.typography.bodySmall, color = KeeneticColors.TextSecondary)
+                }
+            }
+        }
+
+        // ARP
+        item {
+            Card(shape = RoundedCornerShape(16.dp), colors = CardDefaults.cardColors(containerColor = KeeneticColors.Surface)) {
+                Column(modifier = Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         Icon(Icons.Default.List, contentDescription = null, tint = KeeneticColors.Primary)
                         Text("ARP-таблица (${arpEntries.size})", style = MaterialTheme.typography.titleMedium, color = KeeneticColors.TextPrimary, fontWeight = FontWeight.Bold)
                     }

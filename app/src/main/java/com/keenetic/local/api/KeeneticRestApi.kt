@@ -782,11 +782,7 @@ data class TorrentStatusFull(
     val rpcPort: Int = 0,
     val rpcPublic: Boolean = false,
     val peerPort: Int = 0,
-    val downloadDir: String = "",
-    val activeTorrents: Int = 0,
-    val totalTorrents: Int = 0,
-    val downloadSpeed: Long = 0,
-    val uploadSpeed: Long = 0
+    val downloadDir: String = ""
 )
 
 data class TorrentConfig(

@@ -5650,7 +5650,8 @@ private val _intelliQos = MutableStateFlow(IntelliQosConfig())
     fun loadTorrentStatusFull() {
         viewModelScope.launch {
             try {
-                // Config: sc/torrent; running state: torrent/status
+                // Config: sc/torrent; running state: torrent/status;
+                // local account: torrent/local-account.
                 val cfg = repository.queryShow("sc/torrent")
                 if (cfg != null) {
                     _torrentConfig.value = TorrentDetailParser.parseConfig(cfg)
@@ -5662,13 +5663,19 @@ private val _intelliQos = MutableStateFlow(IntelliQosConfig())
                         downloadDir = c.downloadDir
                     )
                 }
+                val serviceEnabled = repository.querySc("service")?.let { findBoolean(it, "torrent") }
+                if (serviceEnabled != null) {
+                    _torrentStatusFull.value = _torrentStatusFull.value.copy(enabled = serviceEnabled)
+                }
                 val st = repository.queryShow("torrent/status")
                 if (st != null) {
-                    val state = TorrentDetailParser.parseRunningState(st)
                     _torrentStatusFull.value = _torrentStatusFull.value.copy(
-                        state = state,
-                        enabled = state == "enabled"
+                        state = TorrentDetailParser.parseRunningState(st)
                     )
+                }
+                val account = repository.queryShow("torrent/local-account")
+                if (account != null) {
+                    _torrentLocalAccount.value = TorrentDetailParser.parseLocalAccount(account)
                 }
             } catch (e: Exception) {
                 AppLogger.logError("loadTorrentStatusFull", e)
