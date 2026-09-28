@@ -509,8 +509,10 @@ data class BackupStatus(
 )
 
 data class LedConfig(
-    val enabled: Boolean = true,
-    val mode: String = "enabled"
+    /** RCI shutdown mode (`on`, `all`, `front` or `back`); empty until successfully read. */
+    val mode: String = "",
+    /** Schedule name for a disabled mode; empty means permanently disabled. */
+    val schedule: String = ""
 )
 
 data class SystemMode(

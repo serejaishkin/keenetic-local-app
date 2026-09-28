@@ -4945,7 +4945,8 @@ private val _intelliQos = MutableStateFlow(IntelliQosConfig())
     fun loadLedConfig() {
         viewModelScope.launch {
             try {
-                val res = repository.queryShow("led")
+                // Read the same `show sc system led` tree the web configurator uses.
+                val res = repository.querySc("system", "led")
                 if (res != null) {
                     _ledConfig.value = SystemDetailParser.parseLed(res)
                 }
@@ -5718,21 +5719,34 @@ private val _intelliQos = MutableStateFlow(IntelliQosConfig())
     }
 
     fun setLedEnabled(enabled: Boolean) {
-        viewModelScope.launch {
-            try {
-                val cmd = mapOf("system" to mapOf("led" to mapOf("enable" to enabled)))
-                repository.executeRciWithSave(listOf(cmd))
-                loadLedConfig()
-            } catch (e: Exception) {
-                AppLogger.logError("setLedEnabled", e)
-            }
-        }
+        setLedMode(if (enabled) "on" else "all")
     }
 
     fun setLedMode(mode: String) {
+        // The web configurator writes `system.led` as `power.schedule` plus
+        // `power.shutdown`; an enabled mode clears both nodes.
+        val normalizedMode = mode.trim().lowercase()
+        if (normalizedMode != "on" && normalizedMode != "all") return
         viewModelScope.launch {
             try {
-                val cmd = mapOf("system" to mapOf("led" to mapOf("mode" to mode)))
+                val shutdown = if (normalizedMode == "on") {
+                    emptyMap<String, Any>()
+                } else {
+                    mapOf("mode" to normalizedMode)
+                }
+                val currentSchedule = _ledConfig.value.schedule.trim()
+                val schedule = if (normalizedMode == "on" || currentSchedule.isBlank()) {
+                    emptyMap<String, Any>()
+                } else {
+                    currentSchedule
+                }
+                val cmd = mapOf(
+                    "system" to mapOf(
+                        "led" to listOf(
+                            mapOf("power" to mapOf("schedule" to schedule, "shutdown" to shutdown))
+                        )
+                    )
+                )
                 repository.executeRciWithSave(listOf(cmd))
                 loadLedConfig()
             } catch (e: Exception) {

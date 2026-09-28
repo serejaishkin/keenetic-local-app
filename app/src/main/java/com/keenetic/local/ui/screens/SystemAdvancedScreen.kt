@@ -121,6 +121,8 @@ fun SystemAdvancedScreen(viewModel: RouterViewModel, onBack: () -> Unit = {}) {
 
         // LED
         item {
+            val ledLoaded = ledConfig.mode.isNotBlank()
+            val ledsOn = ledConfig.mode == "on"
             Card(shape = RoundedCornerShape(16.dp), colors = CardDefaults.cardColors(containerColor = KeeneticColors.Surface)) {
                 Column(modifier = Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -130,9 +132,24 @@ fun SystemAdvancedScreen(viewModel: RouterViewModel, onBack: () -> Unit = {}) {
                     HorizontalDivider(color = KeeneticColors.Divider)
                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                         Text("Индикаторы включены", color = KeeneticColors.TextPrimary)
-                        Switch(checked = ledConfig.enabled, onCheckedChange = { viewModel.setLedEnabled(it) })
+                        Switch(
+                            checked = ledsOn,
+                            enabled = ledLoaded,
+                            onCheckedChange = { viewModel.setLedEnabled(it) }
+                        )
                     }
-                    InfoRow("Режим работы LED", ledConfig.mode.ifBlank { "Стандартный" }, onClick = { showLedModeDialog = true })
+                    InfoRow(
+                        "Режим работы LED",
+                        ledModeLabel(ledConfig.mode),
+                        onClick = if (ledLoaded) {
+                            { showLedModeDialog = true }
+                        } else {
+                            null
+                        }
+                    )
+                    if (ledLoaded && !ledsOn && ledConfig.schedule.isNotBlank()) {
+                        InfoRow("Расписание LED", ledConfig.schedule)
+                    }
                 }
             }
         }
@@ -277,7 +294,9 @@ fun SystemAdvancedScreen(viewModel: RouterViewModel, onBack: () -> Unit = {}) {
             title = { Text("Режим индикаторов (LED)", fontWeight = FontWeight.Bold, color = KeeneticColors.TextPrimary) },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    listOf("enabled" to "Стандартный (все индикаторы)", "night" to "Ночной режим (приглушённые)", "disabled" to "Выключены все").forEach { (modeKey, modeName) ->
+                    // The bundled KN-2311 web configurator exposes only the on/all
+                    // shutdown modes for this model.
+                    listOf("on" to "Все индикаторы включены", "all" to "Все индикаторы выключены").forEach { (modeKey, modeName) ->
                         Button(
                             onClick = {
                                 viewModel.setLedMode(modeKey)
@@ -292,6 +311,13 @@ fun SystemAdvancedScreen(viewModel: RouterViewModel, onBack: () -> Unit = {}) {
                             Text(modeName)
                         }
                     }
+                    if (ledConfig.schedule.isNotBlank()) {
+                        Text(
+                            "Расписание «${ledConfig.schedule}» сохранится.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = KeeneticColors.TextSecondary
+                        )
+                    }
                 }
             },
             confirmButton = {},
@@ -300,6 +326,15 @@ fun SystemAdvancedScreen(viewModel: RouterViewModel, onBack: () -> Unit = {}) {
             }
         )
     }
+}
+
+private fun ledModeLabel(mode: String): String = when (mode) {
+    "on" -> "Все индикаторы включены"
+    "all" -> "Все индикаторы выключены"
+    "front" -> "Основные индикаторы выключены"
+    "back" -> "Индикаторы портов выключены"
+    "" -> "неизвестен (роутер не вернул режим)"
+    else -> "Неизвестный режим: $mode"
 }
 
 @Composable

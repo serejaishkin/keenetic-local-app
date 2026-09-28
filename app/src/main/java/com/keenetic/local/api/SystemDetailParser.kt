@@ -50,16 +50,21 @@ object SystemDetailParser {
     }
 
     fun parseLed(root: JsonElement?): LedConfig {
-        if (root == null || !root.isJsonObject) return LedConfig()
-        val rootObj = root.asJsonObject
-        val led = rootObj.getAsJsonObject("leds")?.getAsJsonObject("led") ?: rootObj
-        val enabled = led.get("FN")?.takeIf { it.isJsonObject }?.let {
-            it.asJsonObject.get("user_configurable")?.takeIf { p -> p.isJsonPrimitive }?.asBoolean
-        } ?: led.get("enable")?.takeIf { it.isJsonPrimitive }?.asBoolean
-        return LedConfig(
-            enabled = enabled ?: true,
-            mode = "enabled"
-        )
+        // The web configurator reads `show sc system led` as an array and uses the
+        // entry containing `power.shutdown.mode` and `power.schedule`.
+        val power = when {
+            root == null -> null
+            root.isJsonArray -> root.asJsonArray.firstOrNull {
+                it.isJsonObject && it.asJsonObject.get("power")?.isJsonObject == true
+            }?.asJsonObject?.getAsJsonObject("power")
+            root.isJsonObject -> findKey(root, "power")
+            else -> null
+        } ?: return LedConfig(mode = "on")
+        val shutdown = power.get("shutdown")?.takeIf { it.isJsonObject }?.asJsonObject
+        // The web UI falls back to enabled when the shutdown node is absent.
+        val mode = shutdown?.get("mode")?.takeIf { it.isJsonPrimitive }?.asString ?: "on"
+        val schedule = power.get("schedule")?.takeIf { it.isJsonPrimitive }?.asString ?: ""
+        return LedConfig(mode = mode, schedule = schedule)
     }
 
     fun parseMode(root: JsonElement?): SystemMode {
