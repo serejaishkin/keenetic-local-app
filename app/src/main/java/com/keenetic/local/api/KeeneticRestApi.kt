@@ -56,7 +56,6 @@ data class ConnectedClient(
     val isStaticIp: Boolean = false,
     val policy: String = "Основная",
     val policyId: String = "",
-    val wifiBandPreference: String = "Авто",
     val speedLimitMbps: Int = 0
 )
 

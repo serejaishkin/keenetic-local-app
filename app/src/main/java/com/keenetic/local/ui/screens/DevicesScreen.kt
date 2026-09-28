@@ -205,19 +205,6 @@ fun DevicesScreen(viewModel: RouterViewModel) {
                                                 )
                                             }
                                         }
-                                        if (client.wifiBandPreference != "Авто") {
-                                            Surface(
-                                                color = KeeneticColors.Secondary.copy(alpha = 0.15f),
-                                                shape = RoundedCornerShape(4.dp)
-                                            ) {
-                                                Text(
-                                                    client.wifiBandPreference,
-                                                    modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp),
-                                                    style = MaterialTheme.typography.labelSmall,
-                                                    color = KeeneticColors.Secondary
-                                                )
-                                            }
-                                        }
                                         if (client.speedLimitMbps > 0) {
                                             Surface(
                                                 color = KeeneticColors.TextSecondary.copy(alpha = 0.15f),
@@ -303,7 +290,6 @@ fun DevicesScreen(viewModel: RouterViewModel) {
                 else connectionPolicies.find { it.name.equals(client.policy, ignoreCase = true) }?.id ?: ""
             )
         }
-        var selectedBand by remember(client.mac) { mutableStateOf(client.wifiBandPreference) }
         var selectedSpeedLimit by remember(client.mac) { mutableStateOf(client.speedLimitMbps) }
         var isBlockedState by remember(client.mac) { mutableStateOf(client.isBlocked) }
 
@@ -481,31 +467,7 @@ fun DevicesScreen(viewModel: RouterViewModel) {
                         }
                     }
 
-                    // 4. Wi-Fi Band Steering / Frequency
-                    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                        Text(
-                            "Частота Wi-Fi диапазона",
-                            style = MaterialTheme.typography.bodyMedium,
-                            fontWeight = FontWeight.SemiBold,
-                            color = KeeneticColors.TextPrimary
-                        )
-                        val bands = listOf("Авто", "5 ГГц", "2.4 ГГц")
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(6.dp)
-                        ) {
-                            bands.forEach { b ->
-                                FilterChip(
-                                    selected = selectedBand == b,
-                                    onClick = { selectedBand = b },
-                                    label = { Text(b, style = MaterialTheme.typography.labelSmall) },
-                                    modifier = Modifier.weight(1f)
-                                )
-                            }
-                        }
-                    }
-
-                    // 5. Speed Limit
+                    // 4. Speed Limit
                     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                         Text(
                             "Ограничение скорости",
@@ -588,7 +550,6 @@ fun DevicesScreen(viewModel: RouterViewModel) {
                             isStatic = isStaticIp,
                             policy = chosenPolicy?.name ?: "Основная",
                             policyId = selectedPolicyId,
-                            wifiBandPreference = selectedBand,
                             speedLimitMbps = selectedSpeedLimit
                         )
                         if (isBlockedState != client.isBlocked) {

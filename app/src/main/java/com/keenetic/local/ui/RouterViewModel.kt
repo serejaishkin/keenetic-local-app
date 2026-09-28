@@ -2891,7 +2891,6 @@ class RouterViewModel : ViewModel() {
         isStatic: Boolean,
         policy: String,
         policyId: String = "",
-        wifiBandPreference: String,
         speedLimitMbps: Int
     ) {
         val resolvedPolicy = _connectionPolicies.value.find {
@@ -2909,7 +2908,6 @@ class RouterViewModel : ViewModel() {
                     isStaticIp = isStatic,
                     policy = targetPolicyName,
                     policyId = targetPolicyId,
-                    wifiBandPreference = wifiBandPreference,
                     speedLimitMbps = speedLimitMbps
                 )
             } else it
@@ -2964,12 +2962,6 @@ class RouterViewModel : ViewModel() {
             } catch (e: Exception) {
                 AppLogger.logError("bindStaticIp", e)
             }
-        }
-    }
-
-    fun setClientWifiBandPreference(mac: String, band: String) {
-        _clients.value = _clients.value.map {
-            if (it.mac.equals(mac, ignoreCase = true)) it.copy(wifiBandPreference = band) else it
         }
     }
 
