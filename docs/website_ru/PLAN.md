@@ -44,22 +44,72 @@
 - Использовать только латиницу в bash-командах (кириллица ломает консоль).
 - Источник правды — `docs/website_ru/webui_texts.txt`, НЕ переизвлекать из HTML.
 
+## Этап G — вёрстка разделов «как на сайте», удобно с телефона (NEW)
+
+Задача: содержимое каждого раздела привести к виду соответствующей страницы
+веб-конфигуратора (те же блоки, поля, порядок, подписи из `locale.ru.json`),
+но в мобильной вёрстке. RCI-команды НЕ менять — уже сверены на этапах A–F.
+
+### G0. Общие мобильные правила (применяются ко всем экранам)
+- Один заголовок экрана с одной кнопкой «назад» (убрать двойные шапки вида
+  «DNS-фильтры» + «DNS / Secure DNS»).
+- Блоки сайта → карточки-секции; длинные списки → `LazyColumn`, таблицы сайта →
+  вертикальные ряды «подпись — значение».
+- Редактирование — через диалог/нижний шит с кнопками Сохранить/Отмена
+  (как на сайте), а не кучей полей на экране.
+- Тап-зоны минимум 48dp; свитчи/кнопки справа, как в веб-морде.
+- Пустые/неподдержанные данные — текст-заглушка, а не нули («—», «нет данных»).
+- После каждого экрана: compile + скриншот на телефоне, сверка с эталоном HTML.
+
+### G1. Главная и устройства
+- [ ] `DashboardScreen.kt` ← «Системный монитор.html»: статус, CPU/RAM, сеть
+- [ ] `DevicesScreen.kt` + `DeviceListDetailedScreen.kt` ← «Списки клиентов.html»:
+  карточка клиента как строка таблицы сайта, действия — в диалоге
+- [ ] `SystemMonitorScreen.kt`, `TrafficMonitorScreen.kt`, `NetworkMonitorScreen.kt`:
+  блоки как на сайте, conntrack/ARP уже есть — причесать ряды
+
+### G2. Интернет
+- [ ] `InternetScreen.kt` + `InternetDetailedScreen.kt` ← «...по Ethernet-кабелю.html»:
+  карточка подключения = строка сайта (имя, тип, IP, шлюз, DNS), настройки — диалог
+- [ ] `OtherConnectionsScreen.kt` ← «Другие подключения.html»
+- [ ] `MobileScreen.kt` ← «...через сотовую сеть.html»
+- [ ] `MobileTrafficScreen.kt` ← «Квота мобильного трафика.html»
+- [ ] `WifiRepeaterScreen.kt` ← «...публичную_соседнюю сеть Wi-Fi.html»
+- [ ] `VpnServersScreen.kt`, `VpnAdvancedScreen.kt` ← «Приложения.html» (VPN-часть)
+- [ ] `StaticRoutesScreen.kt` ← «Маршрутизация.html»: вкладки IPv4/IPv6/DNS как на сайте
+- [ ] `FirewallScreen.kt` ← «Межсетевой экран.html», `PortForwardingScreen.kt` ←
+  «Переадресация портов.html», `UpnpScreen.kt`: правила — ряды + диалог редактора
+- [ ] `DnsScreen.kt`, `DnsFiltersScreen.kt`, `ContentFilterScreen.kt`, `DdnsScreen.kt`,
+  `ObjectGroupScreen.kt`, `Ipv6Screen.kt` ← «Доменное имя / Интернет-фильтры /
+  Сети Wi-Fi (DNS-часть)»: убрать двойную шапку, серверы — ряды с удалением
+
+### G3. Wi-Fi
+- [ ] `WiFiScreen.kt` ← «Сети Wi-Fi.html»: сеть = карточка с SSID/шифрованием/клиентами
+- [ ] `WifiSystemScreen.kt` ← «Общие параметры Wi-Fi» (тексты из locale): радиомодули
+  и точки доступа — отдельные аккордеоны
+- [ ] `WifiAclScreen.kt` ← «Контроль доступа к беспроводной сети.html»
+- [ ] `WpsScreen.kt`, `WiFiMonitorScreen.kt` ← «Монитор Wi-Fi.html», `MwsScreen.kt` ←
+  «Mesh Wi-Fi-система.html»
+
+### G4. Система и сервисы
+- [ ] `SystemAdvancedScreen.kt` + `FirmwareScreen.kt` ← «Настройки системы.html»
+- [ ] `DiagnosticsScreen.kt` + `CableDiagnosticsScreen.kt` + `SystemLogsScreen.kt` ←
+  «Диагностика.html»
+- [ ] `SshSnmpScreen.kt`, `UserAccountsScreen.kt` ← «Пользователи и доступ.html»
+- [ ] `UsbStorageScreen.kt` + `FileBrowserScreen.kt` + `SmbScreen.kt` +
+  `MediaServerScreen.kt` ← «Накопители и устройства.html»
+- [ ] `TorrentDetailScreen.kt` + `ComponentsScreen.kt` + `OpkgScreen.kt` +
+  `CloudScreen.kt` ← «Приложения.html»
+- [ ] `PrioritiesScreen.kt` + `IntelliQosScreen.kt` ← «Приоритеты подключений.html» +
+  «IntelliQoS.html»
+- [ ] `LanSegmentsScreen.kt` ← «Сегменты локальной сети.html»
+- [ ] `LoginScreen.kt`, `AllSectionsScreen.kt`, `ConfigurationScreen.kt`,
+  `SshTerminalScreen.kt` — служебные, причесать последними
+
 ## Состояние
-- ✅ docs/website_ru/ создан (README + webui_texts.txt)
-- ✅ Этап A (подключения): InternetScreen (Ethernet: PPPoE/DHCP/MTU/MAC/приоритеты/WISP),
-  OtherConnectionsScreen (VPN: WireGuard/OpenVPN/L2TP/PPTP/SSTP/ZeroTier/Proxy),
-  MobileScreen (сотовая: APN/AT/TTL/USSD/оператор), WifiRepeaterScreen (WISP)
-- ✅ Этап B (Wi-Fi): WiFiScreen, WiFiMonitorScreen, WifiAclScreen, WpsScreen, WifiSystemScreen,
-  MwsScreen (Mesh) — контроль спектра, точки доступа
-- ✅ Этап C (DNS/фильтры): DdnsScreen, ContentFilterScreen, DnsScreen + DoH/DoT + перехват DNS
-- ✅ Этап D (сети/правила): LanSegmentsScreen, StaticRoutesScreen, FirewallScreen (статусы
-  Включено/Отключено), PortForwardingScreen + UpnpScreen, PrioritiesScreen + IntelliQosScreen
-- ✅ Этап E (служебные): SystemMonitorScreen (CPU/RAM/сер. номер/интерфейсы/клиенты),
-  TrafficMonitorScreen (скорости + топ-5 клиентов), DiagnosticsScreen (Ping/Traceroute/DNS),
-  SettingsScreen + FirmwareScreen (автообновление, расписание, пользователи)
-- ✅ Этап F (клиенты/сервисы): DevicesScreen (блокировка/лимит/политика/WoL), UsbStorageScreen,
-  UserAccountsScreen, OpkgScreen, CloudScreen/MediaServerScreen/SmbScreen, MobileTrafficScreen
-- ✅ Диагностика кабеля: CableDiagnosticsScreen
-- 📍 Все страницы webui_texts.txt сверены; добавлены только поля, существующие в модели API.
-- ⏳ Осталось: полная компиляция + assembleDebug + установка APK на устройство (loopback/JVM
-  на хосте сейчас нестабилен — сборка отложена до перезагрузки/проверки сети).
+- ✅ Этапы A–F: RCI READ/WRITE сверены, сборка и unit-тесты зелёные, APK на телефоне,
+  живые данные подтверждены (KN-2311, KeeneticOS 5.1.5, LIVE RCI).
+- 🔄 Этап G (вёрстка «как на сайте»): открыт, ни один экран не переделан.
+- ⏳ Проверка каждого экрана Этапа G — скриншотом на подключённом телефоне.
+
+## Состояние
