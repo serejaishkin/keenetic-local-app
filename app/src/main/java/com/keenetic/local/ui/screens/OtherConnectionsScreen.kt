@@ -3,22 +3,42 @@ package com.keenetic.local.ui.screens
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowForward
-import androidx.compose.material.icons.filled.ArrowDropDown
-import androidx.compose.material.icons.filled.*
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Call
+import androidx.compose.material.icons.filled.Dns
+import androidx.compose.material.icons.filled.Link
+import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.Share
+import androidx.compose.material.icons.filled.UploadFile
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
@@ -28,7 +48,33 @@ import androidx.compose.ui.unit.dp
 import com.google.gson.JsonObject
 import com.keenetic.local.api.VpnConnection
 import com.keenetic.local.ui.RouterViewModel
+import com.keenetic.local.ui.components.EditableRow
+import com.keenetic.local.ui.components.FormDialog
+import com.keenetic.local.ui.components.InfoRow
+import com.keenetic.local.ui.components.OptionPickerDialog
+import com.keenetic.local.ui.components.RowDivider
+import com.keenetic.local.ui.components.SectionCard
+import com.keenetic.local.ui.components.SectionScaffold
+import com.keenetic.local.ui.components.SubGroupHeader
+import com.keenetic.local.ui.components.SwitchRow
 import com.keenetic.local.ui.theme.KeeneticColors
+
+private val CONN_TYPES = listOf(
+    "proxy" to "Прокси (VPN Liberty)",
+    "wireguard" to "WireGuard",
+    "zerotier" to "ZeroTier",
+    "openvpn" to "OpenVPN",
+    "ike" to "IKEv2",
+    "openconnect" to "OpenConnect",
+    "sstp" to "SSTP",
+    "pppoe" to "PPPoE",
+    "pptp" to "PPTP",
+    "l2tp" to "L2TP",
+    "gre" to "GRE",
+    "ipip" to "IPIP",
+    "eoip" to "EoIP",
+    "ipsec" to "IPsec"
+)
 
 @Composable
 fun OtherConnectionsScreen(viewModel: RouterViewModel, onBack: () -> Unit = {}) {
@@ -55,62 +101,45 @@ fun OtherConnectionsScreen(viewModel: RouterViewModel, onBack: () -> Unit = {}) 
         )
     }
 
-    LazyColumn(
-        modifier = Modifier.fillMaxSize().padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp)
+    SectionScaffold(
+        title = "Другие подключения",
+        subtitle = "WireGuard, OpenVPN, L2TP, PPPoE, SSTP, ZeroTier, прокси",
+        onBack = onBack,
+        onRefresh = { viewModel.loadVpnConnections() }
     ) {
-        item {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp)
-            ) {
-                IconButton(onClick = onBack) {
-                    Icon(Icons.Default.ArrowBack, contentDescription = "Назад", tint = KeeneticColors.TextPrimary)
-                }
-                Spacer(modifier = Modifier.width(8.dp))
-                Icon(Icons.Default.Link, contentDescription = null, tint = KeeneticColors.Primary)
-                Spacer(modifier = Modifier.width(8.dp))
-                Text(
-                    "Другие подключения",
-                    style = MaterialTheme.typography.headlineSmall,
-                    fontWeight = FontWeight.Bold,
-                    color = KeeneticColors.TextPrimary
-                )
-                Spacer(modifier = Modifier.weight(1f))
-                IconButton(onClick = { viewModel.loadVpnConnections() }) {
-                    Icon(Icons.Default.Refresh, contentDescription = "Обновить", tint = KeeneticColors.Primary)
+        LazyColumn(
+            modifier = Modifier.fillMaxSize(),
+            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 24.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            item(key = "add") {
+                SectionCard {
+                    Text(
+                        "Подключения создаются на роутере, включение и отключение отправляется сразу.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = KeeneticColors.TextSecondary
+                    )
+                    OutlinedButton(
+                        onClick = { addConn = true },
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Icon(Icons.Default.Add, contentDescription = null, tint = KeeneticColors.Primary)
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("Добавить подключение", color = KeeneticColors.Primary)
+                    }
                 }
             }
-        }
 
-        item {
-            Text(
-                "VPN и туннельные подключения: WireGuard, OpenVPN, L2TP, PPTP, SSTP, ZeroTier, Proxy и другие. Включение/отключение отправляется на роутер.",
-                style = MaterialTheme.typography.bodySmall,
-                color = KeeneticColors.TextSecondary
-            )
-        }
-
-        item {
-            OutlinedButton(
-                onClick = { addConn = true },
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(12.dp)
-            ) {
-                Icon(Icons.Default.Add, contentDescription = null, tint = KeeneticColors.Primary)
-                Spacer(modifier = Modifier.width(8.dp))
-                Text("Добавить подключение", color = KeeneticColors.Primary)
-            }
-        }
-
-        if (connections.isEmpty()) {
-            item {
-                Card(
-                    shape = RoundedCornerShape(16.dp),
-                    colors = CardDefaults.cardColors(containerColor = KeeneticColors.Surface)
-                ) {
-                    Column(modifier = Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Text("Подключений нет", style = MaterialTheme.typography.titleMedium, color = KeeneticColors.TextPrimary)
+            if (connections.isEmpty()) {
+                item(key = "empty") {
+                    SectionCard {
+                        Text(
+                            "Подключений нет",
+                            style = MaterialTheme.typography.bodyLarge,
+                            fontWeight = FontWeight.SemiBold,
+                            color = KeeneticColors.TextPrimary
+                        )
                         Text(
                             "Нажмите «Добавить подключение», чтобы создать новое, или обновите список.",
                             style = MaterialTheme.typography.bodySmall,
@@ -118,14 +147,17 @@ fun OtherConnectionsScreen(viewModel: RouterViewModel, onBack: () -> Unit = {}) 
                         )
                     }
                 }
-            }
-        } else {
-            items(connections.size) { index ->
-                OtherConnectionCard(
-                    conn = connections[index],
-                    viewModel = viewModel,
-                    onEdit = { detailConn = connections[index] }
-                )
+            } else {
+                item(key = "list-header") {
+                    SubGroupHeader("Подключения", connections.size)
+                }
+                items(connections.size) { index ->
+                    OtherConnectionCard(
+                        conn = connections[index],
+                        viewModel = viewModel,
+                        onEdit = { detailConn = connections[index] }
+                    )
+                }
             }
         }
     }
@@ -133,99 +165,51 @@ fun OtherConnectionsScreen(viewModel: RouterViewModel, onBack: () -> Unit = {}) 
 
 @Composable
 private fun AddConnectionDialog(viewModel: RouterViewModel, onDismiss: () -> Unit, onCreated: () -> Unit) {
-    val sections = listOf(
-        "Прокси" to listOf("proxy" to "Прокси (VPN Liberty)"),
-        "Туннельные" to listOf(
-            "wireguard" to "WireGuard",
-            "zerotier" to "ZeroTier",
-            "openvpn" to "OpenVPN",
-            "ike" to "IKEv2",
-            "openconnect" to "OpenConnect",
-            "sstp" to "SSTP"
-        ),
-        "VPN" to listOf(
-            "pppoe" to "PPPoE",
-            "pptp" to "PPTP",
-            "l2tp" to "L2TP"
-        ),
-        "Точка-точка" to listOf(
-            "gre" to "GRE",
-            "ipip" to "IPIP",
-            "eoip" to "EoIP"
-        ),
-        "IPsec" to listOf("ipsec" to "IPsec")
-    )
-    var selectedType by remember { mutableStateOf(sections.first().second.first().first) }
+    var selectedType by remember { mutableStateOf(CONN_TYPES.first().first) }
     var name by remember { mutableStateOf("") }
-    val selectedLabel = sections.flatMap { it.second }.firstOrNull { it.first == selectedType }?.second ?: selectedType
+    var typePicker by remember { mutableStateOf(false) }
+    val selectedLabel = CONN_TYPES.firstOrNull { it.first == selectedType }?.second ?: selectedType
 
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        containerColor = KeeneticColors.Surface,
-        title = { Text("Добавить подключение", style = MaterialTheme.typography.titleMedium, color = KeeneticColors.TextPrimary) },
-        text = {
-            Column(
-                modifier = Modifier.heightIn(max = 420.dp).verticalScroll(rememberScrollState()),
-                verticalArrangement = Arrangement.spacedBy(2.dp)
-            ) {
-                sections.forEach { (header, items) ->
-                    Text(
-                        header,
-                        style = MaterialTheme.typography.labelLarge,
-                        color = KeeneticColors.Primary,
-                        modifier = Modifier.padding(top = 12.dp, bottom = 4.dp)
-                    )
-                    items.forEach { (type, label) ->
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clip(RoundedCornerShape(8.dp))
-                                .clickable { selectedType = type }
-                                .padding(horizontal = 8.dp, vertical = 6.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            RadioButton(
-                                selected = selectedType == type,
-                                onClick = { selectedType = type },
-                                colors = RadioButtonDefaults.colors(selectedColor = KeeneticColors.Primary)
-                            )
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text(label, style = MaterialTheme.typography.bodyLarge, color = KeeneticColors.TextPrimary)
-                        }
-                    }
-                }
-                Spacer(modifier = Modifier.height(8.dp))
-                ConnText(
-                    label = "Название (описание)",
-                    value = name,
-                    onValue = { name = it },
-                    hint = "Например, VPN для телефонной сети",
-                    loaded = true
-                )
-                Text(
-                    "Интерфейс «$selectedLabel» будет создан на роутере. Настройки (сервер, ключи и т.д.) можно будет заполнить после создания.",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = KeeneticColors.TextSecondary
-                )
-            }
-        },
-        confirmButton = {
-            TextButton(onClick = {
-                viewModel.addVpnConnection(selectedType, name.trim())
-                onCreated()
-            }) {
-                Text("Создать", color = KeeneticColors.Primary)
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text("Отмена", color = KeeneticColors.TextSecondary)
-            }
+    FormDialog(
+        title = "Добавить подключение",
+        confirmLabel = "Создать",
+        onDismiss = onDismiss,
+        onConfirm = {
+            viewModel.addVpnConnection(selectedType, name.trim())
+            onCreated()
         }
-    )
+    ) {
+        EditableRow(
+            label = "Тип подключения",
+            value = selectedLabel,
+            onClick = { typePicker = true }
+        )
+        OutlinedTextField(
+            value = name,
+            onValueChange = { name = it },
+            label = { Text("Название (описание)") },
+            singleLine = true,
+            modifier = Modifier.fillMaxWidth()
+        )
+        Text(
+            "Интерфейс «$selectedLabel» будет создан на роутере. Настройки (сервер, ключи и т.д.) " +
+                "можно будет заполнить после создания.",
+            style = MaterialTheme.typography.bodySmall,
+            color = KeeneticColors.TextSecondary
+        )
+    }
+
+    if (typePicker) {
+        OptionPickerDialog(
+            title = "Тип подключения",
+            options = CONN_TYPES,
+            selectedKey = selectedType,
+            onSelect = { selectedType = it },
+            onDismiss = { typePicker = false }
+        )
+    }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun ConnSettingsDialog(conn: VpnConnection, viewModel: RouterViewModel, onDismiss: () -> Unit) {
     val detail by viewModel.vpnConnDetail.collectAsState()
@@ -329,141 +313,145 @@ private fun ConnSettingsDialog(conn: VpnConnection, viewModel: RouterViewModel, 
 
     LaunchedEffect(conn.id) { viewModel.loadVpnConnDetail(conn.id) }
 
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        containerColor = KeeneticColors.Surface,
-        title = {
-            Column {
-                Text("Настройки: ${conn.name.ifBlank { conn.id }}", style = MaterialTheme.typography.titleMedium, color = KeeneticColors.TextPrimary)
-                Text(typeLabel(conn.type, conn.protocol), style = MaterialTheme.typography.bodySmall, color = KeeneticColors.TextSecondary)
+    FormDialog(
+        title = conn.name.ifBlank { conn.id },
+        onDismiss = onDismiss,
+        onConfirm = {
+            val fields = linkedMapOf<String, Any>()
+            if (has(FieldId.DESCRIPTION)) fields["description"] = description.trim()
+            if (has(FieldId.INTERNET_ACCESS)) fields["ip.global"] = mapOf("enabled" to internetAccess)
+            if (has(FieldId.PROTOCOL) && protocol.isNotBlank()) fields["proxy.protocol.proto"] = protocol.trim()
+            val authSchemeVal = if (has(FieldId.AUTH_TYPE)) authType else authScheme
+            val includeScheme = has(FieldId.AUTH_TYPE) || has(FieldId.AUTHENTICATION)
+            if (includeScheme || has(FieldId.USERNAME) || has(FieldId.PASSWORD)) {
+                val auth = linkedMapOf<String, Any>()
+                if (includeScheme && authSchemeVal.trim().isNotBlank() && !authSchemeVal.trim().equals("auto", ignoreCase = true)) auth["type"] = authSchemeVal.trim()
+                if (username.isNotBlank()) auth["identity"] = username.trim()
+                if (password.isNotBlank()) auth["password"] = password.trim()
+                if (auth.isNotEmpty()) fields["authentication"] = auth
             }
-        },
-        text = {
-            Column(Modifier.heightIn(max = 520.dp).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                if (!isLoaded) Text("Загрузка конфигурации…", style = MaterialTheme.typography.bodySmall, color = KeeneticColors.TextSecondary)
-                if (has(FieldId.INTERNET_ACCESS)) ConnSwitch("Использовать для доступа в Интернет", internetAccess, { internetAccess = it }, loaded = isLoaded)
-                if (has(FieldId.DESCRIPTION)) ConnText("Описание", description, { description = it }, hint = "Необязательно", loaded = isLoaded)
-                if (has(FieldId.PROTOCOL)) ConnDropdown("Протокол (тип)", listOf("http", "https", "socks5"), listOf("HTTP", "HTTPS", "SOCKS5"), protocol, { protocol = it }, loaded = isLoaded)
-                if (has(FieldId.AUTH_TYPE)) ConnDropdown("Авторизация", listOf("auto", "none"), listOf("Автоматически", "Не требуется"), authType, { authType = it }, loaded = isLoaded)
-                if (has(FieldId.PEER)) ConnText("Пиринговый адрес (внешний)", peer, { peer = it }, hint = "IP или домен", loaded = isLoaded)
-                if (has(FieldId.USERNAME)) ConnText("Имя пользователя", username, { username = it }, loaded = isLoaded)
-                if (has(FieldId.PASSWORD)) ConnText("Пароль", password, { password = it }, hint = "Оставьте пустым, чтобы не менять", password = true, loaded = isLoaded)
-                if (has(FieldId.AUTHENTICATION)) ConnDropdown("Метод аутентификации", listOf("auto", "pap", "chap", "mschap", "mschap-v2"), listOf("Автоматически", "PAP", "CHAP", "MS CHAP v1", "MS CHAP v2"), authScheme, { authScheme = it }, loaded = isLoaded)
-                if (has(FieldId.SERVICE)) ConnText("Имя службы (service-name)", service, { service = it }, loaded = isLoaded)
-                if (has(FieldId.WG_KEY)) ConnText("Приватный ключ WireGuard", wgKey, { wgKey = it }, hint = "Оставьте пустым, чтобы не менять", password = true, loaded = isLoaded)
-                if (has(FieldId.WG_KEY) || has(FieldId.OPENVPN_CONFIG)) {
-                    OutlinedButton(onClick = { importLauncher.launch(arrayOf("*/*")) }, enabled = isLoaded, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(12.dp)) {
-                        Icon(Icons.Default.UploadFile, contentDescription = null, tint = KeeneticColors.Primary, modifier = Modifier.size(18.dp))
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(if (conn.type.equals("openvpn", ignoreCase = true)) "Загрузить конфигурацию (.ovpn)" else "Импортировать конфигурацию WireGuard (.conf)", color = KeeneticColors.Primary)
-                    }
-                    if (importedPeers > 0) Text("Импортировано пиров: $importedPeers", style = MaterialTheme.typography.bodySmall, color = KeeneticColors.TextSecondary)
-                }
-                if (has(FieldId.IP_ADDRESS)) ConnText("Адрес", wgAddress, { wgAddress = it }, hint = "Например, 10.0.0.2/24", loaded = isLoaded)
-                if (has(FieldId.LISTEN_PORT)) ConnText("Порт (ListenPort)", listenPort, { listenPort = it }, numeric = true, loaded = isLoaded)
-                if (has(FieldId.PSK)) ConnText("Общий ключ (PSK)", psk, { psk = it }, hint = "Оставьте пустым, чтобы не менять", password = true, loaded = isLoaded)
-                if (has(FieldId.SERVER)) ConnText("Сервер / адрес", server, { server = it }, loaded = isLoaded)
-                if (has(FieldId.IP_MODE)) ConnDropdown("Настройка IP", listOf("auto", "manual"), listOf("Автоматически (DHCP)", "Вручную"), ipMode, { ipMode = it }, loaded = isLoaded)
-                if (has(FieldId.IP_MODE) && ipMode == "manual") {
-                    ConnText("IP-адрес", manualAddress, { manualAddress = it }, hint = "10.0.0.2", loaded = isLoaded)
-                    ConnText("Маска", manualMask, { manualMask = it }, hint = "255.255.255.0", loaded = isLoaded)
-                }
-                if (has(FieldId.REMOTE)) ConnText("Удалённый адрес", manualRemote, { manualRemote = it }, hint = "IP или домен", loaded = isLoaded)
-                if (has(FieldId.DNS_LIST)) ConnText("DNS-серверы (через запятую)", dnsList, { dnsList = it }, hint = "1.1.1.1, 8.8.8.8", loaded = isLoaded)
-                if (has(FieldId.OPENVPN_CONFIG)) ConnText("Конфигурация OpenVPN", openvpnConfig, { openvpnConfig = it }, hint = "Содержимое файла .ovpn", loaded = isLoaded)
-                if (has(FieldId.MTU)) ConnText("MTU", mtu, { mtu = it }, numeric = true, loaded = isLoaded)
-                if (has(FieldId.MSS)) ConnSwitch("Корректировать TCP MSS", mss.isNotBlank(), { mss = if (it) "enable" else "" }, loaded = isLoaded)
-                if (has(FieldId.CCP)) ConnSwitch("Протокол CCP", ccp, { ccp = it }, loaded = isLoaded)
-                if (has(FieldId.MPPE)) ConnSwitch("Шифрование MPPE", mppe, { mppe = it }, loaded = isLoaded)
-                if (has(FieldId.ACCEPT_ROUTES)) ConnSwitch("Принимать маршруты от сервера", acceptRoutes, { acceptRoutes = it }, loaded = isLoaded)
-                if (has(FieldId.CONNECT_VIA)) ConnDropdown("Выход в интернет через", listOf("") + viaList, listOf("Автоматически") + viaList, connectVia, { connectVia = it }, loaded = isLoaded)
-                if (has(FieldId.IS_DNSV4_IGNORED)) ConnSwitch("Не использовать DNS-серверы IPv4 из ответа", isDnsV4Ignored, { isDnsV4Ignored = it }, loaded = isLoaded)
-                if (has(FieldId.IPV6)) {
-                    Text("IPv6", style = MaterialTheme.typography.bodyMedium, color = KeeneticColors.TextPrimary, modifier = Modifier.padding(top = 4.dp))
-                    ConnDropdown("Режим IPv6", listOf("disabled", "auto", "manual"), listOf("Отключено", "Автоматически", "Вручную"), ipv6Mode, { ipv6Mode = it }, loaded = isLoaded)
-                    if (ipv6Mode == "manual") {
-                        ConnText("IPv6-адрес", ipv6Address, { ipv6Address = it }, hint = "fd00::1", loaded = isLoaded)
-                        ConnText("Длина префикса", ipv6PrefixLen, { ipv6PrefixLen = it }, numeric = true, loaded = isLoaded)
-                        ConnText("Шлюз", ipv6Gateway, { ipv6Gateway = it }, loaded = isLoaded)
-                        ConnSwitch("Игнорировать DNS IPv6 от провайдера", ipv6IgnoreDns, { ipv6IgnoreDns = it }, loaded = isLoaded)
-                    }
-                }
-                Text("Изменения применяются через RCI и сохраняются в конфигурацию роутера.", style = MaterialTheme.typography.bodySmall, color = KeeneticColors.TextSecondary)
+            if (has(FieldId.PEER) && peer.isNotBlank()) fields["peer"] = peer.trim()
+            if (has(FieldId.SERVICE)) fields["pppoe.service"] = service.trim()
+            if (has(FieldId.WG_KEY) && wgKey.isNotBlank()) fields["wireguard.private-key"] = wgKey.trim()
+            if (has(FieldId.IP_ADDRESS) && wgAddress.isNotBlank()) fields["ip.address"] = wgAddress.trim()
+            if (has(FieldId.LISTEN_PORT)) listenPort.trim().toIntOrNull()?.let { fields["wireguard.listen-port"] = it }
+            if (has(FieldId.PSK) && (psk.isNotBlank() || detail?.has("ipsec.preshared-key") == true)) fields["ipsec.preshared-key"] = psk.trim()
+            if (has(FieldId.SERVER) && server.isNotBlank()) fields["upstream"] = server.trim()
+            if (has(FieldId.OPENVPN_CONFIG)) fields["openvpn.config"] = openvpnConfig.trim()
+            if (has(FieldId.MTU) && mtu.isNotBlank()) mtu.trim().toIntOrNull()?.let { fields["ip.mtu"] = it }
+            if (has(FieldId.MSS)) fields["ip.tcp.adjust-mss"] = if (mss.isNotBlank()) mss.trim() else "disable"
+            if (has(FieldId.CCP)) fields["ccp"] = ccp
+            if (has(FieldId.MPPE)) fields["encryption.mppe"] = mppe
+            if (has(FieldId.ACCEPT_ROUTES)) {
+                if (conn.type.equals("openconnect", ignoreCase = true)) fields["openconnect.accept-routes"] = acceptRoutes
+                else fields["openvpn.accept-routes"] = acceptRoutes
             }
-        },
-        confirmButton = {
-            TextButton(onClick = {
-                val fields = linkedMapOf<String, Any>()
-                if (has(FieldId.DESCRIPTION)) fields["description"] = description.trim()
-                if (has(FieldId.INTERNET_ACCESS)) fields["ip.global"] = mapOf("enabled" to internetAccess)
-                if (has(FieldId.PROTOCOL) && protocol.isNotBlank()) fields["proxy.protocol.proto"] = protocol.trim()
-                val authSchemeVal = if (has(FieldId.AUTH_TYPE)) authType else authScheme
-                val includeScheme = has(FieldId.AUTH_TYPE) || has(FieldId.AUTHENTICATION)
-                if (includeScheme || has(FieldId.USERNAME) || has(FieldId.PASSWORD)) {
-                    val auth = linkedMapOf<String, Any>()
-                    if (includeScheme && authSchemeVal.trim().isNotBlank() && !authSchemeVal.trim().equals("auto", ignoreCase = true)) auth["type"] = authSchemeVal.trim()
-                    if (username.isNotBlank()) auth["identity"] = username.trim()
-                    if (password.isNotBlank()) auth["password"] = password.trim()
-                    if (auth.isNotEmpty()) fields["authentication"] = auth
+            if (has(FieldId.IP_MODE)) {
+                if (ipMode == "manual" && manualAddress.isNotBlank()) {
+                    val m = maskToPrefix(manualMask).let { if (it > 0) it else 24 }
+                    fields["ip.address"] = manualAddress.trim()
+                    fields["ip.mask"] = prefixToMask(m)
+                } else {
+                    fields["ip.address"] = ""
+                    fields["ip.remote.address"] = ""
                 }
-                if (has(FieldId.PEER) && peer.isNotBlank()) fields["peer"] = peer.trim()
-                if (has(FieldId.SERVICE)) fields["pppoe.service"] = service.trim()
-                if (has(FieldId.WG_KEY) && wgKey.isNotBlank()) fields["wireguard.private-key"] = wgKey.trim()
-                if (has(FieldId.IP_ADDRESS) && wgAddress.isNotBlank()) fields["ip.address"] = wgAddress.trim()
-                if (has(FieldId.LISTEN_PORT)) listenPort.trim().toIntOrNull()?.let { fields["wireguard.listen-port"] = it }
-                if (has(FieldId.PSK) && (psk.isNotBlank() || detail?.has("ipsec.preshared-key") == true)) fields["ipsec.preshared-key"] = psk.trim()
-                if (has(FieldId.SERVER) && server.isNotBlank()) fields["upstream"] = server.trim()
-                if (has(FieldId.OPENVPN_CONFIG)) fields["openvpn.config"] = openvpnConfig.trim()
-                if (has(FieldId.MTU) && mtu.isNotBlank()) mtu.trim().toIntOrNull()?.let { fields["ip.mtu"] = it }
-                if (has(FieldId.MSS)) fields["ip.tcp.adjust-mss"] = if (mss.isNotBlank()) mss.trim() else "disable"
-                if (has(FieldId.CCP)) fields["ccp"] = ccp
-                if (has(FieldId.MPPE)) fields["encryption.mppe"] = mppe
-                if (has(FieldId.ACCEPT_ROUTES)) {
-                    if (conn.type.equals("openconnect", ignoreCase = true)) fields["openconnect.accept-routes"] = acceptRoutes
-                    else fields["openvpn.accept-routes"] = acceptRoutes
-                }
-                if (has(FieldId.IP_MODE)) {
-                    if (ipMode == "manual" && manualAddress.isNotBlank()) {
-                        val m = maskToPrefix(manualMask).let { if (it > 0) it else 24 }
-                        fields["ip.address"] = manualAddress.trim()
-                        fields["ip.mask"] = prefixToMask(m)
-                    } else {
-                        fields["ip.address"] = ""
-                        fields["ip.remote.address"] = ""
+            }
+            if (has(FieldId.REMOTE)) fields["ip.remote.address"] = manualRemote.trim()
+            if (has(FieldId.DNS_LIST)) {
+                val list = dnsList.split(",").map { it.trim() }.filter { it.isNotBlank() }
+                fields["ip.name-server"] = list
+            }
+            if (has(FieldId.CONNECT_VIA)) {
+                val v = connectVia.trim()
+                if (conn.type.equals("proxy", ignoreCase = true)) fields["proxy.connect"] = v
+                else fields["via"] = v
+            }
+            if (has(FieldId.IS_DNSV4_IGNORED) && (detail?.has("ip.name-servers") == true || isDnsV4Ignored)) fields["ip.name-servers"] = !isDnsV4Ignored
+            if (has(FieldId.IPV6)) {
+                val addrs = mutableListOf<String>()
+                val prefixes = mutableListOf<String>()
+                when (ipv6Mode) {
+                    "auto" -> { addrs.add("auto"); prefixes.add("auto") }
+                    "manual" -> {
+                        if (ipv6Address.isNotBlank()) addrs.add("${ipv6Address.trim()}/${ipv6PrefixLen.trim().ifBlank { "64" }}")
+                        if (ipv6Address.isNotBlank()) prefixes.add("/${ipv6PrefixLen.trim().ifBlank { "64" }}")
                     }
                 }
-                if (has(FieldId.REMOTE)) fields["ip.remote.address"] = manualRemote.trim()
-                if (has(FieldId.DNS_LIST)) {
-                    val list = dnsList.split(",").map { it.trim() }.filter { it.isNotBlank() }
-                    fields["ip.name-server"] = list
-                }
-                if (has(FieldId.CONNECT_VIA)) {
-                    val v = connectVia.trim()
-                    if (conn.type.equals("proxy", ignoreCase = true)) fields["proxy.connect"] = v
-                    else fields["via"] = v
-                }
-                if (has(FieldId.IS_DNSV4_IGNORED) && (detail?.has("ip.name-servers") == true || isDnsV4Ignored)) fields["ip.name-servers"] = !isDnsV4Ignored
-                if (has(FieldId.IPV6)) {
-                    val addrs = mutableListOf<String>()
-                    val prefixes = mutableListOf<String>()
-                    when (ipv6Mode) {
-                        "auto" -> { addrs.add("auto"); prefixes.add("auto") }
-                        "manual" -> {
-                            if (ipv6Address.isNotBlank()) addrs.add("${ipv6Address.trim()}/${ipv6PrefixLen.trim().ifBlank { "64" }}")
-                            if (ipv6Address.isNotBlank()) prefixes.add("/${ipv6PrefixLen.trim().ifBlank { "64" }}")
-                        }
-                    }
-                    fields["ipv6.address"] = addrs
-                    fields["ipv6.prefix"] = prefixes
-                    fields["ipv6.gateway"] = ipv6Gateway.trim()
-                    if (detail?.has("ipv6.name-servers") == true || ipv6IgnoreDns) fields["ipv6.name-servers"] = !ipv6IgnoreDns
-                }
-                viewModel.updateVpnConnection(conn.id, fields)
-                onDismiss()
-            }) { Text("Сохранить", color = KeeneticColors.Primary) }
-        },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Отмена", color = KeeneticColors.TextSecondary) } }
-    )
+                fields["ipv6.address"] = addrs
+                fields["ipv6.prefix"] = prefixes
+                fields["ipv6.gateway"] = ipv6Gateway.trim()
+                if (detail?.has("ipv6.name-servers") == true || ipv6IgnoreDns) fields["ipv6.name-servers"] = !ipv6IgnoreDns
+            }
+            viewModel.updateVpnConnection(conn.id, fields)
+            onDismiss()
+        }
+    ) {
+        Text(
+            typeLabel(conn.type, conn.protocol),
+            style = MaterialTheme.typography.labelSmall,
+            color = KeeneticColors.TextSecondary
+        )
+        if (!isLoaded) {
+            Text(
+                "Загрузка конфигурации…",
+                style = MaterialTheme.typography.bodySmall,
+                color = KeeneticColors.TextSecondary
+            )
+        }
+        if (has(FieldId.INTERNET_ACCESS)) ConnSwitch("Использовать для доступа в Интернет", internetAccess, { internetAccess = it }, loaded = isLoaded)
+        if (has(FieldId.DESCRIPTION)) ConnText("Описание", description, { description = it }, hint = "Необязательно", loaded = isLoaded)
+        if (has(FieldId.PROTOCOL)) ConnDropdown("Протокол (тип)", listOf("http" to "HTTP", "https" to "HTTPS", "socks5" to "SOCKS5"), protocol, { protocol = it }, loaded = isLoaded)
+        if (has(FieldId.AUTH_TYPE)) ConnDropdown("Авторизация", listOf("auto" to "Автоматически", "none" to "Не требуется"), authType, { authType = it }, loaded = isLoaded)
+        if (has(FieldId.PEER)) ConnText("Пиринговый адрес (внешний)", peer, { peer = it }, hint = "IP или домен", loaded = isLoaded)
+        if (has(FieldId.USERNAME)) ConnText("Имя пользователя", username, { username = it }, loaded = isLoaded)
+        if (has(FieldId.PASSWORD)) ConnText("Пароль", password, { password = it }, hint = "Оставьте пустым, чтобы не менять", password = true, loaded = isLoaded)
+        if (has(FieldId.AUTHENTICATION)) ConnDropdown("Метод аутентификации", listOf("auto" to "Автоматически", "pap" to "PAP", "chap" to "CHAP", "mschap" to "MS CHAP v1", "mschap-v2" to "MS CHAP v2"), authScheme, { authScheme = it }, loaded = isLoaded)
+        if (has(FieldId.SERVICE)) ConnText("Имя службы (service-name)", service, { service = it }, loaded = isLoaded)
+        if (has(FieldId.WG_KEY)) ConnText("Приватный ключ WireGuard", wgKey, { wgKey = it }, hint = "Оставьте пустым, чтобы не менять", password = true, loaded = isLoaded)
+        if (has(FieldId.WG_KEY) || has(FieldId.OPENVPN_CONFIG)) {
+            OutlinedButton(onClick = { importLauncher.launch(arrayOf("*/*")) }, enabled = isLoaded, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(12.dp)) {
+                Icon(Icons.Default.UploadFile, contentDescription = null, tint = KeeneticColors.Primary, modifier = Modifier.size(18.dp))
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(if (conn.type.equals("openvpn", ignoreCase = true)) "Загрузить конфигурацию (.ovpn)" else "Импортировать конфигурацию WireGuard (.conf)", color = KeeneticColors.Primary)
+            }
+            if (importedPeers > 0) Text("Импортировано пиров: $importedPeers", style = MaterialTheme.typography.bodySmall, color = KeeneticColors.TextSecondary)
+        }
+        if (has(FieldId.IP_ADDRESS)) ConnText("Адрес", wgAddress, { wgAddress = it }, hint = "Например, 10.0.0.2/24", loaded = isLoaded)
+        if (has(FieldId.LISTEN_PORT)) ConnText("Порт (ListenPort)", listenPort, { listenPort = it }, numeric = true, loaded = isLoaded)
+        if (has(FieldId.PSK)) ConnText("Общий ключ (PSK)", psk, { psk = it }, hint = "Оставьте пустым, чтобы не менять", password = true, loaded = isLoaded)
+        if (has(FieldId.SERVER)) ConnText("Сервер / адрес", server, { server = it }, loaded = isLoaded)
+        if (has(FieldId.IP_MODE)) ConnDropdown("Настройка IP", listOf("auto" to "Автоматически (DHCP)", "manual" to "Вручную"), ipMode, { ipMode = it }, loaded = isLoaded)
+        if (has(FieldId.IP_MODE) && ipMode == "manual") {
+            ConnText("IP-адрес", manualAddress, { manualAddress = it }, hint = "10.0.0.2", loaded = isLoaded)
+            ConnText("Маска", manualMask, { manualMask = it }, hint = "255.255.255.0", loaded = isLoaded)
+        }
+        if (has(FieldId.REMOTE)) ConnText("Удалённый адрес", manualRemote, { manualRemote = it }, hint = "IP или домен", loaded = isLoaded)
+        if (has(FieldId.DNS_LIST)) ConnText("DNS-серверы (через запятую)", dnsList, { dnsList = it }, hint = "1.1.1.1, 8.8.8.8", loaded = isLoaded)
+        if (has(FieldId.OPENVPN_CONFIG)) ConnText("Конфигурация OpenVPN", openvpnConfig, { openvpnConfig = it }, hint = "Содержимое файла .ovpn", loaded = isLoaded)
+        if (has(FieldId.MTU)) ConnText("MTU", mtu, { mtu = it }, numeric = true, loaded = isLoaded)
+        if (has(FieldId.MSS)) ConnSwitch("Корректировать TCP MSS", mss.isNotBlank(), { mss = if (it) "enable" else "" }, loaded = isLoaded)
+        if (has(FieldId.CCP)) ConnSwitch("Протокол CCP", ccp, { ccp = it }, loaded = isLoaded)
+        if (has(FieldId.MPPE)) ConnSwitch("Шифрование MPPE", mppe, { mppe = it }, loaded = isLoaded)
+        if (has(FieldId.ACCEPT_ROUTES)) ConnSwitch("Принимать маршруты от сервера", acceptRoutes, { acceptRoutes = it }, loaded = isLoaded)
+        if (has(FieldId.CONNECT_VIA)) ConnDropdown("Выход в интернет через", listOf("" to "Автоматически") + viaList.map { it to it }, connectVia, { connectVia = it }, loaded = isLoaded)
+        if (has(FieldId.IS_DNSV4_IGNORED)) ConnSwitch("Не использовать DNS-серверы IPv4 из ответа", isDnsV4Ignored, { isDnsV4Ignored = it }, loaded = isLoaded)
+        if (has(FieldId.IPV6)) {
+            RowDivider()
+            SubGroupHeader("IPv6")
+            ConnDropdown("Режим IPv6", listOf("disabled" to "Отключено", "auto" to "Автоматически", "manual" to "Вручную"), ipv6Mode, { ipv6Mode = it }, loaded = isLoaded)
+            if (ipv6Mode == "manual") {
+                ConnText("IPv6-адрес", ipv6Address, { ipv6Address = it }, hint = "fd00::1", loaded = isLoaded)
+                ConnText("Длина префикса", ipv6PrefixLen, { ipv6PrefixLen = it }, numeric = true, loaded = isLoaded)
+                ConnText("Шлюз", ipv6Gateway, { ipv6Gateway = it }, loaded = isLoaded)
+                ConnSwitch("Игнорировать DNS IPv6 от провайдера", ipv6IgnoreDns, { ipv6IgnoreDns = it }, loaded = isLoaded)
+            }
+        }
+        Text(
+            "Изменения применяются через RCI и сохраняются в конфигурацию роутера.",
+            style = MaterialTheme.typography.bodySmall,
+            color = KeeneticColors.TextSecondary
+        )
+    }
 }
 
 private fun prefixToMask(prefix: Int): String = when (prefix) {
@@ -591,41 +579,33 @@ private object VisualTransformationNone : androidx.compose.ui.text.input.VisualT
 
 @Composable
 private fun ConnSwitch(label: String, checked: Boolean, onChange: (Boolean) -> Unit, loaded: Boolean) {
-    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
-        Text(label, style = MaterialTheme.typography.bodyMedium, color = KeeneticColors.TextPrimary, modifier = Modifier.weight(1f))
-        Switch(checked = checked, onCheckedChange = onChange, enabled = loaded)
-    }
+    SwitchRow(label = label, checked = checked, onCheckedChange = onChange, enabled = loaded)
 }
 
 @Composable
-private fun ConnDropdown(label: String, options: List<String>, labels: List<String>, selected: String, onSelect: (String) -> Unit, loaded: Boolean) {
-    var expanded by remember { mutableStateOf(false) }
-    Column {
-        Text(label, style = MaterialTheme.typography.bodySmall, color = KeeneticColors.TextSecondary)
-        Box {
-            OutlinedButton(
-                onClick = { expanded = true },
-                enabled = loaded,
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(12.dp),
-                colors = ButtonDefaults.outlinedButtonColors(contentColor = KeeneticColors.TextPrimary)
-            ) {
-                Text(
-                    labels.getOrElse(options.indexOf(selected)) { selected }.ifBlank { "—" },
-                    modifier = Modifier.weight(1f),
-                    style = MaterialTheme.typography.bodyMedium
-                )
-                Icon(Icons.Default.ArrowDropDown, contentDescription = null, tint = KeeneticColors.TextSecondary, modifier = Modifier.size(20.dp))
-            }
-            DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
-                options.forEachIndexed { idx, opt ->
-                    DropdownMenuItem(
-                        text = { Text(labels.getOrElse(idx) { opt }) },
-                        onClick = { onSelect(opt); expanded = false }
-                    )
-                }
-            }
-        }
+private fun ConnDropdown(
+    label: String,
+    options: List<Pair<String, String>>,
+    selected: String,
+    onSelect: (String) -> Unit,
+    loaded: Boolean
+) {
+    var picker by remember { mutableStateOf(false) }
+    val selectedLabel = options.firstOrNull { it.first == selected }?.second ?: selected.ifBlank { "Автоматически" }
+    EditableRow(
+        label = label,
+        value = selectedLabel,
+        enabled = loaded,
+        onClick = { picker = true }
+    )
+    if (picker) {
+        OptionPickerDialog(
+            title = label,
+            options = options,
+            selectedKey = selected,
+            onSelect = onSelect,
+            onDismiss = { picker = false }
+        )
     }
 }
 
@@ -699,66 +679,34 @@ private fun parseWgConf(text: String): WgConf {
 
 @Composable
 private fun OtherConnectionCard(conn: VpnConnection, viewModel: RouterViewModel, onEdit: () -> Unit) {
-    Card(
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = KeeneticColors.Surface),
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(onClick = onEdit)
+    SectionCard(
+        title = conn.name.ifBlank { conn.id },
+        subtitle = typeLabel(conn.type, conn.protocol),
+        icon = typeIcon(conn.type)
     ) {
-        Column(modifier = Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(10.dp)
-            ) {
-                Icon(typeIcon(conn.type), contentDescription = null, tint = KeeneticColors.Primary)
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(conn.name.ifBlank { conn.id }, style = MaterialTheme.typography.titleMedium, color = KeeneticColors.TextPrimary)
-                    Text(typeLabel(conn.type, conn.protocol), style = MaterialTheme.typography.bodySmall, color = KeeneticColors.TextSecondary)
-                }
-                Surface(
-                    color = if (conn.isUp) KeeneticColors.Success.copy(alpha = 0.15f) else KeeneticColors.Error.copy(alpha = 0.15f),
-                    shape = RoundedCornerShape(8.dp)
-                ) {
-                    Text(
-                        if (conn.isUp) "UP" else "DOWN",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = if (conn.isUp) KeeneticColors.Success else KeeneticColors.Error,
-                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
-                    )
-                }
-                Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = "Настройки", tint = KeeneticColors.TextSecondary, modifier = Modifier.size(18.dp))
-            }
-
-            if (conn.ip != null) {
-                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                    Text("IP-адрес", style = MaterialTheme.typography.bodySmall, color = KeeneticColors.TextSecondary)
-                    Text(conn.ip, style = MaterialTheme.typography.bodySmall, color = KeeneticColors.TextPrimary, fontWeight = FontWeight.Bold)
-                }
-            }
-            if (conn.upstream != null) {
-                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                    Text("Сервер", style = MaterialTheme.typography.bodySmall, color = KeeneticColors.TextSecondary)
-                    Text(conn.upstream, style = MaterialTheme.typography.bodySmall, color = KeeneticColors.TextPrimary)
-                }
-            }
-
-            HorizontalDivider(color = KeeneticColors.Divider)
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text("Подключение включено", style = MaterialTheme.typography.bodyMedium, color = KeeneticColors.TextPrimary)
-                Switch(
-                    checked = conn.isUp,
-                    onCheckedChange = { up ->
-                        viewModel.toggleInterface(conn.id, up)
-                    }
-                )
-            }
+        InfoRow(
+            label = "Состояние",
+            value = if (conn.isUp) "Подключено" else "Отключено",
+            valueColor = if (conn.isUp) KeeneticColors.Success else KeeneticColors.TextSecondary
+        )
+        if (conn.ip != null) {
+            InfoRow("IP-адрес", conn.ip, monospace = true)
+        }
+        if (conn.upstream != null) {
+            InfoRow("Сервер", conn.upstream, monospace = true)
+        }
+        RowDivider()
+        SwitchRow(
+            label = "Подключение включено",
+            checked = conn.isUp,
+            onCheckedChange = { up -> viewModel.toggleInterface(conn.id, up) }
+        )
+        OutlinedButton(
+            onClick = onEdit,
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(12.dp)
+        ) {
+            Text("Настройки подключения", color = KeeneticColors.Primary)
         }
     }
 }
