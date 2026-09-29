@@ -1,21 +1,32 @@
 package com.keenetic.local.ui.screens
 
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
-import androidx.compose.ui.Alignment
+import androidx.compose.material.icons.filled.Language
+import androidx.compose.material.icons.filled.Route
+import androidx.compose.material.icons.filled.Router
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import com.keenetic.local.api.*
 import com.keenetic.local.ui.RouterViewModel
-import com.keenetic.local.ui.theme.KeeneticColors
+import com.keenetic.local.ui.components.EmptyHint
+import com.keenetic.local.ui.components.InfoRow
+import com.keenetic.local.ui.components.SectionCard
+import com.keenetic.local.ui.components.SectionScaffold
+import com.keenetic.local.ui.components.SubGroupHeader
 
+/**
+ * IPv6 на телефоне — только чтение: адреса, префиксы, подсети, DHCPv6-привязки
+ * и маршруты. Правки IPv6 живут в «Маршрутизации» (вкладка IPv6) и в настройках
+ * интерфейсов, здесь дублировать их не нужно.
+ */
 @Composable
 fun Ipv6Screen(viewModel: RouterViewModel, onBack: () -> Unit = {}) {
     val addresses by viewModel.ipv6Addresses.collectAsState()
@@ -24,7 +35,7 @@ fun Ipv6Screen(viewModel: RouterViewModel, onBack: () -> Unit = {}) {
     val subnets by viewModel.ipv6Subnets.collectAsState()
     val dhcpBindings by viewModel.ipv6DhcpBindings.collectAsState()
 
-    val loadAll = {
+    fun loadAll() {
         viewModel.loadIpv6Addresses()
         viewModel.loadIpv6Prefixes()
         viewModel.loadIpv6Routes()
@@ -34,54 +45,85 @@ fun Ipv6Screen(viewModel: RouterViewModel, onBack: () -> Unit = {}) {
 
     LaunchedEffect(Unit) { loadAll() }
 
-    LazyColumn(
-        modifier = Modifier.fillMaxSize().padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
-    ) {
-        item {
-            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp)) {
-                IconButton(onClick = onBack) { Icon(Icons.Default.ArrowBack, contentDescription = "Назад", tint = KeeneticColors.TextPrimary) }
-                Spacer(modifier = Modifier.width(8.dp))
-                Icon(Icons.Default.Language, contentDescription = null, tint = KeeneticColors.Primary)
-                Spacer(modifier = Modifier.width(8.dp))
-                Text("IPv6", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold, color = KeeneticColors.TextPrimary)
-                Spacer(modifier = Modifier.weight(1f))
-                IconButton(onClick = { loadAll() }) { Icon(Icons.Default.Refresh, contentDescription = "Обновить", tint = KeeneticColors.Primary) }
-            }
-        }
+    val isEmpty = addresses.isEmpty() && prefixes.isEmpty() && routes.isEmpty() &&
+        subnets.isEmpty() && dhcpBindings.isEmpty()
 
-        if (addresses.isEmpty() && prefixes.isEmpty() && routes.isEmpty() && subnets.isEmpty() && dhcpBindings.isEmpty()) {
-            item {
-                Card(shape = RoundedCornerShape(16.dp), colors = CardDefaults.cardColors(containerColor = KeeneticColors.Surface)) {
-                    Column(modifier = Modifier.fillMaxWidth().padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                        Icon(Icons.Default.Language, contentDescription = null, tint = KeeneticColors.TextSecondary, modifier = Modifier.size(48.dp))
-                        Spacer(modifier = Modifier.height(12.dp))
-                        Text("IPv6 не настроен", style = MaterialTheme.typography.titleMedium, color = KeeneticColors.TextPrimary)
-                        Text("На данном роутере IPv6-адреса, префиксы и маршруты отсутствуют.", style = MaterialTheme.typography.bodySmall, color = KeeneticColors.TextSecondary)
+    SectionScaffold(
+        title = "IPv6",
+        subtitle = "Адреса, префиксы и подсети",
+        onBack = onBack,
+        onRefresh = { loadAll() }
+    ) { padding ->
+        LazyColumn(
+            modifier = Modifier.fillMaxSize(),
+            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 24.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            if (isEmpty) {
+                item(key = "empty") {
+                    SectionCard {
+                        EmptyHint(
+                            "IPv6 не настроен: адреса, префиксы и маршруты отсутствуют. " +
+                                "IPv6 включается в настройках WAN-интерфейса, если его " +
+                                "предоставляет провайдер."
+                        )
                     }
                 }
             }
-        } else {
-            item { SectionCard("Адреса (${addresses.size})", addresses) { a -> Text("${a.address}/${a.prefix} [${a.interfaceName}]", color = KeeneticColors.TextSecondary) } }
-            item { SectionCard("Префиксы (${prefixes.size})", prefixes) { p -> Text("${p.prefix} → ${p.interfaceName}", color = KeeneticColors.TextSecondary) } }
-            item { SectionCard("Маршруты (${routes.size})", routes) { r -> Text("${r.network}/${r.prefix} → ${r.gateway} [${r.interfaceName}]", color = KeeneticColors.TextSecondary) } }
-            item { SectionCard("Подсети (${subnets.size})", subnets) { s -> Text("${s.network}/${s.prefix} [${s.interfaceName}]", color = KeeneticColors.TextSecondary) } }
-            item { SectionCard("DHCPv6 привязки (${dhcpBindings.size})", dhcpBindings) { b -> Text("${b.address} ${b.hostname}", color = KeeneticColors.TextSecondary) } }
-        }
-    }
-}
 
-@Composable
-private fun <T> SectionCard(title: String, items: List<T>, content: @Composable (T) -> Unit) {
-    Card(shape = RoundedCornerShape(16.dp), colors = CardDefaults.cardColors(containerColor = KeeneticColors.Surface)) {
-        Column(modifier = Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Text(title, style = MaterialTheme.typography.titleMedium, color = KeeneticColors.TextPrimary, fontWeight = FontWeight.Bold)
-            HorizontalDivider(color = KeeneticColors.Divider)
-            if (items.isEmpty()) {
-                Text("Нет данных", style = MaterialTheme.typography.bodyMedium, color = KeeneticColors.TextSecondary)
+            if (addresses.isNotEmpty()) {
+                item(key = "addresses-header") { SubGroupHeader("Адреса", addresses.size) }
+                items(addresses, key = { it.address + it.interfaceName }) { address ->
+                    SectionCard(title = address.address, icon = Icons.Default.Language) {
+                        InfoRow("Интерфейс", address.interfaceName)
+                        InfoRow("Префикс", "/${address.prefix}", monospace = true)
+                    }
+                }
             }
-            items.forEach { item ->
-                content(item)
+
+            if (prefixes.isNotEmpty()) {
+                item(key = "prefixes-header") { SubGroupHeader("Префиксы", prefixes.size) }
+                items(prefixes, key = { it.prefix + it.interfaceName }) { prefix ->
+                    SectionCard(title = prefix.prefix, icon = Icons.Default.Language) {
+                        InfoRow("Интерфейс", prefix.interfaceName)
+                    }
+                }
+            }
+
+            if (subnets.isNotEmpty()) {
+                item(key = "subnets-header") { SubGroupHeader("Подсети", subnets.size) }
+                items(subnets, key = { it.network + it.interfaceName }) { subnet ->
+                    SectionCard(title = "${subnet.network}/${subnet.prefix}", icon = Icons.Default.Router) {
+                        InfoRow("Интерфейс", subnet.interfaceName)
+                    }
+                }
+            }
+
+            if (dhcpBindings.isNotEmpty()) {
+                item(key = "dhcp-header") { SubGroupHeader("Привязки DHCPv6", dhcpBindings.size) }
+                items(dhcpBindings, key = { it.address + it.hostname }) { binding ->
+                    SectionCard(
+                        title = binding.hostname.ifBlank { binding.address },
+                        icon = Icons.Default.Router,
+                        subtitle = binding.address
+                    ) {
+                        InfoRow("DUID", binding.duid, monospace = true)
+                        InfoRow("IA ID", binding.iaId, monospace = true)
+                    }
+                }
+            }
+
+            if (routes.isNotEmpty()) {
+                item(key = "routes-header") { SubGroupHeader("Маршруты", routes.size) }
+                items(routes, key = { it.network + it.gateway + it.interfaceName }) { route ->
+                    SectionCard(
+                        title = "${route.network}/${route.prefix}",
+                        icon = Icons.Default.Route
+                    ) {
+                        InfoRow("Шлюз", route.gateway.ifBlank { "авто" }, monospace = true)
+                        InfoRow("Интерфейс", route.interfaceName)
+                    }
+                }
             }
         }
     }
