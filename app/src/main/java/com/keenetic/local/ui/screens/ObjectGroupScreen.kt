@@ -1,20 +1,25 @@
 package com.keenetic.local.ui.screens
 
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
-import androidx.compose.ui.Alignment
+import androidx.compose.material.icons.filled.Dns
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.keenetic.local.api.ObjectGroupFqdn
 import com.keenetic.local.ui.RouterViewModel
-import com.keenetic.local.ui.theme.KeeneticColors
+import com.keenetic.local.ui.components.EmptyHint
+import com.keenetic.local.ui.components.InfoRow
+import com.keenetic.local.ui.components.SectionCard
+import com.keenetic.local.ui.components.SectionScaffold
+import com.keenetic.local.ui.components.SubGroupHeader
 
 @Composable
 fun ObjectGroupScreen(viewModel: RouterViewModel, onBack: () -> Unit = {}) {
@@ -22,44 +27,48 @@ fun ObjectGroupScreen(viewModel: RouterViewModel, onBack: () -> Unit = {}) {
 
     LaunchedEffect(Unit) { viewModel.loadObjectGroups() }
 
-    LazyColumn(modifier = Modifier.fillMaxSize().padding(16.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
-        item {
-            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp)) {
-                IconButton(onClick = onBack) { Icon(Icons.Default.ArrowBack, contentDescription = "Назад", tint = KeeneticColors.TextPrimary) }
-                Spacer(modifier = Modifier.width(8.dp))
-                Icon(Icons.Default.Dns, contentDescription = null, tint = KeeneticColors.Primary)
-                Spacer(modifier = Modifier.width(8.dp))
-                Text("FQDN группы", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold, color = KeeneticColors.TextPrimary)
+    SectionScaffold(
+        title = "Группы доменных имён",
+        subtitle = "Списки FQDN для доменных маршрутов",
+        onBack = onBack,
+        onRefresh = { viewModel.loadObjectGroups() }
+    ) { padding ->
+        LazyColumn(
+            modifier = Modifier.fillMaxSize(),
+            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 24.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            item(key = "header") {
+                SubGroupHeader("Группы FQDN", groups.size)
             }
-        }
 
-        if (groups.isEmpty()) {
-            item {
-                Card(shape = RoundedCornerShape(16.dp), colors = CardDefaults.cardColors(containerColor = KeeneticColors.Surface)) {
-                    Box(modifier = Modifier.fillMaxWidth().padding(32.dp), contentAlignment = Alignment.Center) {
-                        Text("Нет групп", color = KeeneticColors.TextSecondary)
+            if (groups.isEmpty()) {
+                item(key = "empty") {
+                    SectionCard {
+                        EmptyHint(
+                            "Групп доменных имён нет. Группы FQDN используются в доменных " +
+                                "маршрутах («Маршрутизация» → вкладка DNS) для отправки трафика " +
+                                "по списку доменов."
+                        )
                     }
                 }
+            } else {
+                items(groups, key = { it.name }) { group ->
+                    ObjectGroupCard(group)
+                }
             }
-        }
-
-        items(groups) { group ->
-            ObjectGroupCard(group)
         }
     }
 }
 
 @Composable
 private fun ObjectGroupCard(group: ObjectGroupFqdn) {
-    Card(shape = RoundedCornerShape(12.dp), colors = CardDefaults.cardColors(containerColor = KeeneticColors.Surface)) {
-        Column(modifier = Modifier.fillMaxWidth().padding(12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-            Text(group.name, fontWeight = FontWeight.Bold, color = KeeneticColors.TextPrimary)
-            HorizontalDivider(color = KeeneticColors.Divider)
-            if (group.members.isEmpty()) {
-                Text("Нет成员", style = MaterialTheme.typography.bodySmall, color = KeeneticColors.TextSecondary)
-            }
+    SectionCard(title = group.name, icon = Icons.Default.Dns) {
+        if (group.members.isEmpty()) {
+            EmptyHint("В группе нет доменов")
+        } else {
             group.members.forEach { member ->
-                Text(member, style = MaterialTheme.typography.bodySmall, color = KeeneticColors.TextSecondary)
+                InfoRow(label = "Домен", value = member, monospace = true)
             }
         }
     }

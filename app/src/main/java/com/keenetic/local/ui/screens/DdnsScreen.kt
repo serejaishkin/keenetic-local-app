@@ -1,24 +1,56 @@
 package com.keenetic.local.ui.screens
 
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Public
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import com.keenetic.local.ui.RouterViewModel
+import com.keenetic.local.ui.components.ConfirmDialog
+import com.keenetic.local.ui.components.DialogForm
+import com.keenetic.local.ui.components.EditableRow
+import com.keenetic.local.ui.components.EmptyHint
+import com.keenetic.local.ui.components.FormDialog
+import com.keenetic.local.ui.components.InfoRow
+import com.keenetic.local.ui.components.OptionPickerDialog
+import com.keenetic.local.ui.components.RowDivider
+import com.keenetic.local.ui.components.SectionCard
+import com.keenetic.local.ui.components.SectionScaffold
+import com.keenetic.local.ui.components.SubGroupHeader
+import com.keenetic.local.ui.components.SwitchRow
 import com.keenetic.local.ui.theme.KeeneticColors
 
-private val ddnsProviders = listOf(
+private val DDNS_PROVIDERS = listOf(
     "noip" to "No-IP",
     "dyndns" to "DynDNS",
     "regru" to "regru",
@@ -34,6 +66,9 @@ private val ddnsProviders = listOf(
     "custom" to "Другой"
 )
 
+private fun ddnsProviderLabel(key: String): String =
+    DDNS_PROVIDERS.firstOrNull { it.first == key }?.second ?: key.ifBlank { "—" }
+
 @Composable
 fun DdnsScreen(viewModel: RouterViewModel, onBack: () -> Unit = {}) {
     val dyndnsStatus by viewModel.dyndnsStatus.collectAsState()
@@ -41,289 +76,412 @@ fun DdnsScreen(viewModel: RouterViewModel, onBack: () -> Unit = {}) {
     val profiles by viewModel.dyndnsProfiles.collectAsState()
     val interfaces by viewModel.interfaces.collectAsState()
 
-    var provider by remember { mutableStateOf("noip") }
+    var showEditor by remember { mutableStateOf(false) }
+    var confirmDelete by remember { mutableStateOf(false) }
+
+    // Настройки формы подхватываем из профиля _WEBADMIN, если он уже настроен.
+    val webProfile = profiles.firstOrNull { it.name == "_WEBADMIN" } ?: profiles.firstOrNull()
+
+    var provider by remember(webProfile) {
+        mutableStateOf(webProfile?.provider?.takeIf { it.isNotBlank() } ?: "noip")
+    }
     var url by remember { mutableStateOf("") }
-    var domain by remember { mutableStateOf("") }
+    var domain by remember(webProfile) {
+        mutableStateOf(webProfile?.hostname?.ifBlank { null } ?: dyndnsStatus.hostname)
+    }
     var username by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var autoDetectIp by remember { mutableStateOf(true) }
     var selectedInterfaces by remember { mutableStateOf(setOf<String>()) }
-    var showPassword by remember { mutableStateOf(false) }
-    var feedbackMessage by remember { mutableStateOf<String?>(null) }
-
-    // Prefill from current router settings when they arrive.
-    LaunchedEffect(dyndnsStatus) {
-        if (dyndnsStatus.hostname.isNotBlank() && ynderAlias(dyndnsStatus.provider) != null) {
-            provider = ynderAlias(dyndnsStatus.provider) ?: provider
-            domain = dyndnsStatus.hostname
-        }
-    }
 
     LaunchedEffect(Unit) {
         viewModel.loadDyndnsStatus()
         if (interfaces.isEmpty()) viewModel.loadInterfaces()
     }
 
-    LazyColumn(
-        modifier = Modifier.fillMaxSize().padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
-    ) {
-        item {
-            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp)) {
-                IconButton(onClick = onBack) { Icon(Icons.Default.ArrowBack, contentDescription = "Назад", tint = KeeneticColors.TextPrimary) }
-                Spacer(modifier = Modifier.width(8.dp))
-                Icon(Icons.Default.Public, contentDescription = null, tint = KeeneticColors.Primary)
-                Spacer(modifier = Modifier.width(8.dp))
-                Text("Динамический DNS", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold, color = KeeneticColors.TextPrimary)
-                Spacer(modifier = Modifier.weight(1f))
-                IconButton(onClick = { viewModel.loadDyndnsStatus() }) {
-                    Icon(Icons.Default.Refresh, contentDescription = "Обновить", tint = KeeneticColors.Primary)
-                }
-            }
-        }
-
-        if (feedbackMessage != null) {
-            item {
-                Snackbar(
-                    action = {
-                        TextButton(onClick = { feedbackMessage = null }) {
-                            Text("OK", color = KeeneticColors.Primary)
-                        }
-                    }
-                ) {
-                    Text(feedbackMessage ?: "")
-                }
-            }
-        }
-
-        // Статус
-        item {
-            Card(shape = RoundedCornerShape(16.dp), colors = CardDefaults.cardColors(containerColor = KeeneticColors.Surface)) {
-                Column(modifier = Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Icon(Icons.Default.Public, contentDescription = null, tint = KeeneticColors.Primary)
-                        Text("Статус", style = MaterialTheme.typography.titleMedium, color = KeeneticColors.TextPrimary, fontWeight = FontWeight.Bold)
-                    }
-                    HorizontalDivider(color = KeeneticColors.Divider)
-                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                        Text("Отправлять адрес автоматически", color = KeeneticColors.TextPrimary)
-                        // Toggled on the _WEBADMIN profile, real format:
-                        // {"dyndns":{"profile":{"name":"_WEBADMIN","send-address":bool}}}
-                        Switch(checked = dyndnsStatus.sendAddress, onCheckedChange = { viewModel.setDyndnsSendAddress(it) })
-                    }
-                    InfoRow("Профиль", dyndnsStatus.profileName.ifBlank { "_WEBADMIN" })
-                    InfoRow("Доменное имя", dyndnsStatus.hostname.ifBlank { "—" })
+    SectionScaffold(
+        title = "Динамический DNS",
+        subtitle = ddnsProviderLabel(provider),
+        onBack = onBack,
+        onRefresh = { viewModel.loadDyndnsStatus() }
+    ) { padding ->
+        LazyColumn(
+            modifier = Modifier.fillMaxSize(),
+            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 24.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            item(key = "status") {
+                SectionCard(title = "Статус", icon = Icons.Default.Public) {
+                    SwitchRow(
+                        label = "Отправлять адрес автоматически",
+                        description = "Профиль ${dyndnsStatus.profileName.ifBlank { "_WEBADMIN" }}",
+                        checked = dyndnsStatus.sendAddress,
+                        onCheckedChange = { viewModel.setDyndnsSendAddress(it) }
+                    )
+                    RowDivider()
+                    InfoRow("Доменное имя", dyndnsStatus.hostname.ifBlank { "—" }, monospace = true)
                     InfoRow("Зарегистрирован", dyndnsStatus.regtime.ifBlank { "—" })
                     if (dyndnsStatus.status.isNotBlank()) {
-                        InfoRow("Статус IPv4", dyndnsStatus.status)
-                        InfoRow("Статус IPv6", dyndnsStatus.status6)
+                        InfoRow(
+                            label = "Состояние IPv4",
+                            value = dyndnsStatus.status,
+                            valueColor = KeeneticColors.Success
+                        )
                     }
-                    if (dyndnsStatus.message.isNotBlank()) InfoRow("Сообщение IPv4", dyndnsStatus.message)
-                    if (dyndnsStatus.message6.isNotBlank()) InfoRow("Сообщение IPv6", dyndnsStatus.message6)
+                    if (dyndnsStatus.status6.isNotBlank()) {
+                        InfoRow(
+                            label = "Состояние IPv6",
+                            value = dyndnsStatus.status6,
+                            valueColor = KeeneticColors.Success
+                        )
+                    }
+                    if (dyndnsStatus.message.isNotBlank()) {
+                        InfoRow("Сообщение IPv4", dyndnsStatus.message, valueColor = KeeneticColors.Warning)
+                    }
+                    if (dyndnsStatus.message6.isNotBlank()) {
+                        InfoRow("Сообщение IPv6", dyndnsStatus.message6, valueColor = KeeneticColors.Warning)
+                    }
                 }
             }
-        }
 
-        item {
-            Card(shape = RoundedCornerShape(16.dp), colors = CardDefaults.cardColors(containerColor = KeeneticColors.Surface)) {
-                Column(modifier = Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Icon(Icons.Default.Public, contentDescription = null, tint = KeeneticColors.Primary)
-                        Text("Настройки сервиса", style = MaterialTheme.typography.titleMedium, color = KeeneticColors.TextPrimary, fontWeight = FontWeight.Bold)
-                    }
-                    HorizontalDivider(color = KeeneticColors.Divider)
+            item(key = "settings-header") {
+                SubGroupHeader("Настройки сервиса")
+            }
 
-                    // Провайдер
-                    Text("Провайдер DDNS", style = MaterialTheme.typography.bodySmall, color = KeeneticColors.TextSecondary)
-                    var expandedProvider by remember { mutableStateOf(false) }
-                    Box {
-                        OutlinedButton(
-                            onClick = { expandedProvider = true },
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Text(ddnsProviders.firstOrNull { it.first == provider }?.second ?: provider, color = KeeneticColors.TextPrimary, modifier = Modifier.weight(1f))
-                        }
-                        DropdownMenu(
-                            expanded = expandedProvider,
-                            onDismissRequest = { expandedProvider = false },
-                            modifier = Modifier.heightIn(max = 400.dp).verticalScroll(rememberScrollState())
-                        ) {
-                            ddnsProviders.forEach { (key, label) ->
-                                DropdownMenuItem(
-                                    text = { Text(label) },
-                                    onClick = {
-                                        provider = key
-                                        expandedProvider = false
-                                    }
-                                )
-                            }
-                        }
-                    }
-
-                    OutlinedTextField(
-                        value = url,
-                        onValueChange = { url = it },
-                        label = { Text("Адрес сервиса (URL)") },
-                        singleLine = true,
-                        modifier = Modifier.fillMaxWidth()
+            item(key = "settings") {
+                SectionCard {
+                    EditableRow(
+                        label = "Провайдер",
+                        value = ddnsProviderLabel(provider),
+                        onClick = { showEditor = true }
                     )
-
-                    OutlinedTextField(
-                        value = domain,
-                        onValueChange = { domain = it },
-                        label = { Text("Доменное имя") },
-                        singleLine = true,
-                        modifier = Modifier.fillMaxWidth()
+                    EditableRow(
+                        label = "Доменное имя",
+                        value = domain.ifBlank { "не задано" },
+                        onClick = { showEditor = true },
+                        monospaceValue = true
                     )
-
-                    OutlinedTextField(
-                        value = username,
-                        onValueChange = { username = it },
-                        label = { Text("Имя пользователя") },
-                        singleLine = true,
-                        modifier = Modifier.fillMaxWidth()
+                    EditableRow(
+                        label = "Имя пользователя",
+                        value = username.ifBlank { "не задано" },
+                        onClick = { showEditor = true }
                     )
-
-                    OutlinedTextField(
-                        value = password,
-                        onValueChange = { password = it },
-                        label = { Text("Пароль") },
-                        singleLine = true,
-                        visualTransformation = if (showPassword) androidx.compose.ui.text.input.VisualTransformation.None
-                            else androidx.compose.ui.text.input.PasswordVisualTransformation(),
-                        trailingIcon = {
-                            IconButton(onClick = { showPassword = !showPassword }) {
-                                Icon(
-                                    if (showPassword) Icons.Default.VisibilityOff else Icons.Default.Visibility,
-                                    contentDescription = "Показать пароль",
-                                    tint = KeeneticColors.TextSecondary
-                                )
-                            }
+                    EditableRow(
+                        label = "Пароль",
+                        value = if (password.isBlank()) "не задан" else "••••••",
+                        onClick = { showEditor = true }
+                    )
+                    EditableRow(
+                        label = "Адрес сервиса (URL)",
+                        value = url.ifBlank { "не задан" },
+                        onClick = { showEditor = true },
+                        monospaceValue = true
+                    )
+                    EditableRow(
+                        label = "Определять IP автоматически",
+                        value = if (autoDetectIp) "включено" else "выключено",
+                        onClick = { showEditor = true }
+                    )
+                    EditableRow(
+                        label = "Интерфейсы для DDNS",
+                        value = if (selectedInterfaces.isEmpty()) {
+                            "не выбраны"
+                        } else {
+                            selectedInterfaces.joinToString(", ")
                         },
-                        modifier = Modifier.fillMaxWidth()
+                        onClick = { showEditor = true }
                     )
-
-                    HorizontalDivider(color = KeeneticColors.Divider)
-
-                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                        Text("Автоматически из IP-адреса подключения", style = MaterialTheme.typography.bodyMedium, color = KeeneticColors.TextPrimary, modifier = Modifier.weight(1f))
-                        Switch(checked = autoDetectIp, onCheckedChange = { autoDetectIp = it })
+                    RowDivider()
+                    TextButton(onClick = { confirmDelete = true }) {
+                        Icon(Icons.Default.Delete, contentDescription = null, modifier = Modifier.size(18.dp))
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text("Удалить провайдера", color = KeeneticColors.Error)
                     }
+                }
+            }
 
-                    HorizontalDivider(color = KeeneticColors.Divider)
+            if (profiles.isNotEmpty()) {
+                item(key = "profiles-header") { SubGroupHeader("Профили", profiles.size) }
+                items(profiles, key = { it.name }) { profile ->
+                    SectionCard(
+                        title = profile.name.ifBlank { "Профиль" },
+                        icon = Icons.Default.Public
+                    ) {
+                        InfoRow("Провайдер", ddnsProviderLabel(profile.provider))
+                        InfoRow("Домен", profile.hostname.ifBlank { "—" }, monospace = true)
+                    }
+                }
+            }
 
-                    Text("Интерфейсы, для которых действует DDNS", style = MaterialTheme.typography.bodyMedium, color = KeeneticColors.TextSecondary)
-                    if (interfaces.isEmpty()) {
-                        Text("Интерфейсы не загружены", style = MaterialTheme.typography.bodySmall, color = KeeneticColors.TextSecondary)
-                    } else {
-                        interfaces.forEach { iface ->
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .clickable {
-                                        selectedInterfaces = if (iface.name in selectedInterfaces) selectedInterfaces - iface.name else selectedInterfaces + iface.name
-                                    }
-                                    .padding(vertical = 2.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Checkbox(
-                                    checked = iface.name in selectedInterfaces,
-                                    onCheckedChange = { checked ->
-                                        selectedInterfaces = if (checked) selectedInterfaces + iface.name else selectedInterfaces - iface.name
-                                    }
+            if (updaters.isNotEmpty()) {
+                item(key = "updaters-header") {
+                    SubGroupHeader("Провайдеры, известные роутеру", updaters.size)
+                }
+                item(key = "updaters") {
+                    SectionCard {
+                        updaters.forEach { updater ->
+                            Column(modifier = Modifier.fillMaxWidth()) {
+                                Text(
+                                    ddnsProviderLabel(updater.type),
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = KeeneticColors.TextPrimary
                                 )
-                                Column {
-                                    Text(iface.name, style = MaterialTheme.typography.bodyMedium, color = KeeneticColors.TextPrimary)
-                                    Text(iface.description, style = MaterialTheme.typography.bodySmall, color = KeeneticColors.TextSecondary, maxLines = 1)
+                                if (updater.url.isNotBlank()) {
+                                    Text(
+                                        updater.url,
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = KeeneticColors.TextSecondary
+                                    )
+                                }
+                                if (updater.api.isNotBlank()) {
+                                    Text(
+                                        "API: ${updater.api}",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = KeeneticColors.TextSecondary
+                                    )
                                 }
                             }
                         }
                     }
-
-                    HorizontalDivider(color = KeeneticColors.Divider)
-
-                    Button(
-                        onClick = {
-                            if (domain.isBlank()) {
-                                feedbackMessage = "Укажите доменное имя"
-                                return@Button
-                            }
-                            viewModel.saveDyndnsProfile(
-                                provider = provider,
-                                url = url,
-                                domain = domain,
-                                username = username,
-                                password = password,
-                                autoDetectIp = autoDetectIp,
-                                interfaces = selectedInterfaces.toList()
-                            )
-                            feedbackMessage = "Настройки DDNS отправлены на роутер"
-                        },
-                        colors = ButtonDefaults.buttonColors(containerColor = KeeneticColors.Primary),
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Icon(Icons.Default.Check, contentDescription = null, modifier = Modifier.size(18.dp))
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text("Применить")
-                    }
-
-                    OutlinedButton(
-                        onClick = {
-                            viewModel.deleteDyndnsProfile()
-                            feedbackMessage = "Профиль DDNS удалён"
-                        },
-                        colors = ButtonDefaults.outlinedButtonColors(contentColor = KeeneticColors.Error),
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Icon(Icons.Default.Delete, contentDescription = null, modifier = Modifier.size(16.dp))
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text("Удалить провайдера")
-                    }
                 }
-            }
-        }
-
-        if (profiles.isNotEmpty()) {
-            item { Text("Профили", style = MaterialTheme.typography.titleSmall, color = KeeneticColors.TextPrimary, modifier = Modifier.padding(horizontal = 4.dp)) }
-            items(profiles) { profile ->
-                Card(shape = RoundedCornerShape(12.dp), colors = CardDefaults.cardColors(containerColor = KeeneticColors.Surface)) {
-                    Column(modifier = Modifier.fillMaxWidth().padding(12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                        Text(profile.name.ifBlank { "Профиль" }, fontWeight = FontWeight.Bold, color = KeeneticColors.TextPrimary)
-                        if (profile.provider.isNotBlank()) {
-                            Text("Провайдер: ${profile.provider}", style = MaterialTheme.typography.bodySmall, color = KeeneticColors.TextSecondary)
-                        }
-                        Text("Домен: ${profile.hostname.ifBlank { "—" }}", style = MaterialTheme.typography.bodySmall, color = KeeneticColors.TextSecondary)
-                    }
-                }
-            }
-        }
-
-        if (updaters.isNotEmpty()) {
-            item { Text("Поддерживаемые провайдеры", style = MaterialTheme.typography.titleSmall, color = KeeneticColors.TextPrimary, modifier = Modifier.padding(horizontal = 4.dp)) }
-            items(updaters) { updater ->
-                Card(shape = RoundedCornerShape(12.dp), colors = CardDefaults.cardColors(containerColor = KeeneticColors.Surface)) {
-                    Column(modifier = Modifier.fillMaxWidth().padding(12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                        Text(ddnsProviders.firstOrNull { it.first == updater.type }?.second ?: updater.type, fontWeight = FontWeight.Bold, color = KeeneticColors.TextPrimary)
-                        if (updater.url.isNotBlank()) {
-                            Text(updater.url, style = MaterialTheme.typography.bodySmall, color = KeeneticColors.TextSecondary, maxLines = 1)
-                        }
-                        if (updater.api.isNotBlank()) {
-                            Text("API: ${updater.api}", style = MaterialTheme.typography.bodySmall, color = KeeneticColors.TextSecondary, maxLines = 1)
-                        }
+            } else if (profiles.isEmpty()) {
+                item(key = "no-updaters") {
+                    SectionCard {
+                        EmptyHint(
+                            "Роутер ещё не сообщил список провайдеров DDNS. Список приходит " +
+                                "вместе с обновлением прошивки."
+                        )
                     }
                 }
             }
         }
     }
+
+    if (showEditor) {
+        DdnsSettingsDialog(
+            provider = provider,
+            url = url,
+            domain = domain,
+            username = username,
+            password = password,
+            autoDetectIp = autoDetectIp,
+            selectedInterfaces = selectedInterfaces,
+            interfaces = interfaces.map { it.name },
+            onProviderChange = { provider = it },
+            onUrlChange = { url = it },
+            onDomainChange = { domain = it },
+            onUsernameChange = { username = it },
+            onPasswordChange = { password = it },
+            onAutoDetectIpChange = { autoDetectIp = it },
+            onInterfacesChange = { selectedInterfaces = it },
+            onDismiss = { showEditor = false },
+            onSave = {
+                viewModel.saveDyndnsProfile(
+                    provider = provider,
+                    url = url,
+                    domain = domain,
+                    username = username,
+                    password = password,
+                    autoDetectIp = autoDetectIp,
+                    interfaces = selectedInterfaces.toList()
+                )
+                showEditor = false
+            }
+        )
+    }
+
+    if (confirmDelete) {
+        ConfirmDialog(
+            title = "Удалить профиль DDNS?",
+            message = "Профиль с доменным именем ${domain.ifBlank { "—" }} будет удалён с роутера, " +
+                "актуальный адрес перестанет обновляться.",
+            onConfirm = {
+                viewModel.deleteDyndnsProfile()
+                confirmDelete = false
+            },
+            onDismiss = { confirmDelete = false }
+        )
+    }
 }
 
-private fun ynderAlias(key: String): String? =
-    ddnsProviders.firstOrNull { it.first == key }?.first
-
 @Composable
-private fun InfoRow(label: String, value: String) {
-    Row(modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp), horizontalArrangement = Arrangement.SpaceBetween) {
-        Text(label, style = MaterialTheme.typography.bodyMedium, color = KeeneticColors.TextSecondary)
-        Text(value, style = MaterialTheme.typography.bodyMedium, color = KeeneticColors.TextPrimary, fontWeight = FontWeight.Medium)
+private fun DdnsSettingsDialog(
+    provider: String,
+    url: String,
+    domain: String,
+    username: String,
+    password: String,
+    autoDetectIp: Boolean,
+    selectedInterfaces: Set<String>,
+    interfaces: List<String>,
+    onProviderChange: (String) -> Unit,
+    onUrlChange: (String) -> Unit,
+    onDomainChange: (String) -> Unit,
+    onUsernameChange: (String) -> Unit,
+    onPasswordChange: (String) -> Unit,
+    onAutoDetectIpChange: (Boolean) -> Unit,
+    onInterfacesChange: (Set<String>) -> Unit,
+    onDismiss: () -> Unit,
+    onSave: () -> Unit
+) {
+    var draftProvider by remember { mutableStateOf(provider) }
+    var draftUrl by remember { mutableStateOf(url) }
+    var draftDomain by remember { mutableStateOf(domain) }
+    var draftUsername by remember { mutableStateOf(username) }
+    var draftPassword by remember { mutableStateOf(password) }
+    var draftAutoDetect by remember { mutableStateOf(autoDetectIp) }
+    var draftInterfaces by remember { mutableStateOf(selectedInterfaces) }
+    var showPassword by remember { mutableStateOf(false) }
+    var showProviders by remember { mutableStateOf(false) }
+    var showInterfaces by remember { mutableStateOf(false) }
+
+    FormDialog(
+        title = "Настройки динамического DNS",
+        confirmEnabled = draftDomain.isNotBlank(),
+        onDismiss = onDismiss,
+        onConfirm = {
+            onProviderChange(draftProvider)
+            onUrlChange(draftUrl)
+            onDomainChange(draftDomain)
+            onUsernameChange(draftUsername)
+            onPasswordChange(draftPassword)
+            onAutoDetectIpChange(draftAutoDetect)
+            onInterfacesChange(draftInterfaces)
+            onSave()
+        }
+    ) {
+        TextButton(onClick = { showProviders = true }) {
+            Text("Провайдер: ${ddnsProviderLabel(draftProvider)}", color = KeeneticColors.Primary)
+        }
+
+        OutlinedTextField(
+            value = draftDomain,
+            onValueChange = { draftDomain = it },
+            label = { Text("Доменное имя") },
+            singleLine = true,
+            modifier = Modifier.fillMaxWidth()
+        )
+
+        OutlinedTextField(
+            value = draftUsername,
+            onValueChange = { draftUsername = it },
+            label = { Text("Имя пользователя") },
+            singleLine = true,
+            modifier = Modifier.fillMaxWidth()
+        )
+
+        OutlinedTextField(
+            value = draftPassword,
+            onValueChange = { draftPassword = it },
+            label = { Text("Пароль") },
+            singleLine = true,
+            visualTransformation = if (showPassword) {
+                VisualTransformation.None
+            } else {
+                PasswordVisualTransformation()
+            },
+            trailingIcon = {
+                TextButton(onClick = { showPassword = !showPassword }) {
+                    Text(
+                        if (showPassword) "Скрыть" else "Показать",
+                        style = MaterialTheme.typography.labelSmall
+                    )
+                }
+            },
+            modifier = Modifier.fillMaxWidth()
+        )
+
+        OutlinedTextField(
+            value = draftUrl,
+            onValueChange = { draftUrl = it },
+            label = { Text("Адрес сервиса (URL)") },
+            singleLine = true,
+            modifier = Modifier.fillMaxWidth()
+        )
+
+        SwitchRow(
+            label = "Определять IP автоматически",
+            description = "Взять адрес с выбранных интерфейсов",
+            checked = draftAutoDetect,
+            onCheckedChange = { draftAutoDetect = it }
+        )
+
+        TextButton(onClick = { showInterfaces = true }) {
+            Text(
+                "Интерфейсы: " + if (draftInterfaces.isEmpty()) {
+                    "не выбраны"
+                } else {
+                    draftInterfaces.joinToString(", ")
+                },
+                color = KeeneticColors.Primary
+            )
+        }
+    }
+
+    if (showProviders) {
+        OptionPickerDialog(
+            title = "Провайдер DDNS",
+            options = DDNS_PROVIDERS,
+            selectedKey = draftProvider,
+            onSelect = { draftProvider = it },
+            onDismiss = { showProviders = false }
+        )
+    }
+
+    if (showInterfaces) {
+        AlertDialog(
+            onDismissRequest = { showInterfaces = false },
+            title = {
+                Text(
+                    "Интерфейсы для DDNS",
+                    style = MaterialTheme.typography.titleMedium,
+                    color = KeeneticColors.TextPrimary
+                )
+            },
+            text = {
+                DialogForm {
+                    if (interfaces.isEmpty()) {
+                        EmptyHint("Список интерфейсов пуст")
+                    } else {
+                        interfaces.forEach { name ->
+                            val checked = name in draftInterfaces
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .heightIn(min = 48.dp)
+                                    .clickable {
+                                        draftInterfaces = if (checked) {
+                                            draftInterfaces - name
+                                        } else {
+                                            draftInterfaces + name
+                                        }
+                                    },
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    name,
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = KeeneticColors.TextPrimary,
+                                    modifier = Modifier.weight(1f)
+                                )
+                                if (checked) {
+                                    Icon(
+                                        Icons.Default.Check,
+                                        contentDescription = null,
+                                        tint = KeeneticColors.Primary,
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { showInterfaces = false }) {
+                    Text("Готово", color = KeeneticColors.Primary)
+                }
+            }
+        )
     }
 }
