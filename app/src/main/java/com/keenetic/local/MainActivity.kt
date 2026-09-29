@@ -57,64 +57,40 @@ fun MainAppContent() {
         BottomNavItem(Screen.AllSections, "Разделы", Icons.Default.GridView)
     )
 
+    val isRootTab = bottomItems.any { it.screen.route == currentRoute }
+
     if (!isLoggedIn) {
         LoginScreen(viewModel = viewModel)
     } else {
         Scaffold(
+            // Правило G0: одна шапка. На корневых вкладках её рисует MainActivity,
+            // на детальных экранах — SectionScaffold самого раздела.
             topBar = {
-                TopAppBar(
-                    title = {
-                        val title = when (currentRoute) {
-                            Screen.Dashboard.route -> Screen.Dashboard.title
-                            Screen.Devices.route -> Screen.Devices.title
-                            Screen.Internet.route -> Screen.Internet.title
-                            Screen.WiFi.route -> Screen.WiFi.title
-                            Screen.AllSections.route -> Screen.AllSections.title
-                            Screen.PortForwarding.route -> Screen.PortForwarding.title
-                            Screen.Firewall.route -> Screen.Firewall.title
-                            Screen.StaticRoutes.route -> Screen.StaticRoutes.title
-                            Screen.LanSegments.route -> Screen.LanSegments.title
-                            Screen.Mobile.route -> Screen.Mobile.title
-                            Screen.UsbDevices.route -> Screen.UsbDevices.title
-                            Screen.UserAccounts.route -> Screen.UserAccounts.title
-                            Screen.SystemLogs.route -> Screen.SystemLogs.title
-                            Screen.Firmware.route -> Screen.Firmware.title
-                            Screen.Diagnostics.route -> Screen.Diagnostics.title
-                            Screen.DnsSettings.route -> Screen.DnsSettings.title
-                            Screen.VpnAdvanced.route -> Screen.VpnAdvanced.title
-                            else -> "Keenetic Local"
-                        }
-                        Text(
-                            title,
-                            color = KeeneticColors.TextPrimary,
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = androidx.compose.ui.text.font.FontWeight.Bold
-                        )
-                    },
-                    navigationIcon = {
-                        val isRootTab = bottomItems.any { it.screen.route == currentRoute }
-                        if (!isRootTab) {
-                            IconButton(onClick = { navController.popBackStack() }) {
-                                Icon(
-                                    Icons.Default.ArrowBack,
-                                    contentDescription = "Назад",
-                                    tint = KeeneticColors.TextPrimary
-                                )
+                if (isRootTab) {
+                    TopAppBar(
+                        title = {
+                            val title = bottomItems.firstOrNull { it.screen.route == currentRoute }
+                                ?.label ?: "Keenetic Local"
+                            Text(
+                                title,
+                                color = KeeneticColors.TextPrimary,
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = androidx.compose.ui.text.font.FontWeight.Bold
+                            )
+                        },
+                        actions = {
+                            IconButton(onClick = { viewModel.refreshAll() }) {
+                                Icon(Icons.Default.Refresh, "Обновить", tint = KeeneticColors.TextSecondary)
                             }
-                        }
-                    },
-                    actions = {
-                        IconButton(onClick = { viewModel.refreshAll() }) {
-                            Icon(Icons.Default.Refresh, "Обновить", tint = KeeneticColors.TextSecondary)
-                        }
-                        IconButton(onClick = { viewModel.logout() }) {
-                            Icon(Icons.Default.ExitToApp, "Выйти", tint = KeeneticColors.TextSecondary)
-                        }
-                    },
-                    colors = TopAppBarDefaults.topAppBarColors(
-                        containerColor = KeeneticColors.Surface
+                            IconButton(onClick = { viewModel.logout() }) {
+                                Icon(Icons.Default.ExitToApp, "Выйти", tint = KeeneticColors.TextSecondary)
+                            }
+                        },
+                        colors = TopAppBarDefaults.topAppBarColors(
+                            containerColor = KeeneticColors.Surface
+                        )
                     )
-                )
+                }
             },
             bottomBar = {
                 NavigationBar(

@@ -62,16 +62,29 @@
 - После каждого экрана: compile + скриншот на телефоне, сверка с эталоном HTML.
 
 ### G1. Главная и устройства
-- [ ] `DashboardScreen.kt` ← «Системный монитор.html»: статус, CPU/RAM, сеть
-- [ ] `DevicesScreen.kt` + `DeviceListDetailedScreen.kt` ← «Списки клиентов.html»:
-  карточка клиента как строка таблицы сайта, действия — в диалоге
-- [ ] `SystemMonitorScreen.kt`, `TrafficMonitorScreen.kt`, `NetworkMonitorScreen.kt`:
-  блоки как на сайте, conntrack/ARP уже есть — причесать ряды
+- [x] `DashboardScreen.kt` ← «Системный монитор.html»: статус, CPU/RAM, сеть.
+  Карточка «Устройство» сведена к короткому блоку со ссылкой на `SystemMonitorScreen`
+  вместо дублирования спецификации.
+- [x] `DevicesScreen.kt` + `DeviceListDetailedScreen.kt` ← «Списки клиентов.html»:
+  карточка клиента = строка таблицы сайта (`ClientRow`: имя, IP, MAC, политика,
+  фикс. IP, лимит скорости, диапазон, скорость, блокировка), тап открывает диалог
+  параметров. Действия (WoL, блокировка, удаление) убраны из строки в диалог,
+  удаление — через `ConfirmDialog`. `DeviceListDetailedScreen.kt` делит список на
+  «Подключены» / «Не в сети».
+- [x] `SystemMonitorScreen.kt`, `TrafficMonitorScreen.kt`, `NetworkMonitorScreen.kt`:
+  блоки как на сайте, conntrack/ARP причёсаны в ряды «подпись — значение».
 
 ### G2. Интернет
-- [ ] `InternetScreen.kt` + `InternetDetailedScreen.kt` ← «...по Ethernet-кабелю.html»:
-  карточка подключения = строка сайта (имя, тип, IP, шлюз, DNS), настройки — диалог
-- [ ] `OtherConnectionsScreen.kt` ← «Другие подключения.html»
+- [x] `InternetScreen.kt` + `InternetDetailedScreen.kt` ← «...по Ethernet-кабелю.html»:
+  карточка подключения = строка сайта (имя, тип, IP, шлюз, DNS). Подключения
+  сгруппированы (проводные / сотовая / публичные сети / прочие), каждый параметр —
+  `EditableRow` с формой: IP-адрес (DHCP/статика), параметры подключения
+  (описание, MTU, hostname, приоритет, режим MAC), PPPoE (логин, пароль, сервис,
+  метод авторизации). Порты LAN — `SwitchRow` с `setPortUp`.
+- [x] `SystemAdvancedScreen.kt` ← «Настройки системы.html»: имя хоста, NTP (свитч,
+  сервер, часовой пояс), индикаторы LED (свитч + выбор режима), состояние,
+  резервная копия. Всё редактирование — через `FormDialog`/`OptionPickerDialog`.
+- [ ] `OtherConnectionsScreen.kt` ← «Другие подключения.html`
 - [ ] `MobileScreen.kt` ← «...через сотовую сеть.html»
 - [ ] `MobileTrafficScreen.kt` ← «Квота мобильного трафика.html»
 - [ ] `WifiRepeaterScreen.kt` ← «...публичную_соседнюю сеть Wi-Fi.html»
@@ -99,7 +112,8 @@
   «Mesh Wi-Fi-система.html»
 
 ### G4. Система и сервисы
-- [ ] `SystemAdvancedScreen.kt` + `FirmwareScreen.kt` ← «Настройки системы.html»
+- [x] `SystemAdvancedScreen.kt` ← «Настройки системы.html» (сделано в G2, отмечено здесь)
+- [ ] `FirmwareScreen.kt` ← «Настройки системы.html» (обновление прошивки)
 - [ ] `DiagnosticsScreen.kt` + `CableDiagnosticsScreen.kt` + `SystemLogsScreen.kt` ←
   «Диагностика.html»
 - [ ] `SshSnmpScreen.kt`, `UserAccountsScreen.kt` ← «Пользователи и доступ.html»
@@ -120,5 +134,17 @@
 - ⏳ Проверка каждого экрана Этапа G — скриншотом на подключённом телефоне.
   DNS проверен на живых данных: 7 DoH-серверов, 3 DoT, перехват выключен,
   пресеты/профили фильтрации пустые, диалог добавления обычного сервера открывается.
-
-## Состояние
+- ✅ G0: создан общий UI-kit `ui/components/SectionUi.kt` (`SectionScaffold`, `SectionCard`,
+  `InfoRow`, `EditableRow`, `SwitchRow`, `SubGroupHeader`, `RowDivider`, `EmptyHint`,
+  `ConfirmDialog`, `DialogForm`, `FormDialog`, `OptionPickerDialog`). Устранена двойная
+  шапка: `MainActivity` рисует `TopAppBar` только на корневых вкладках, детальные разделы —
+  свою шапку через `SectionScaffold`.
+- ✅ G1: `DashboardScreen.kt`, `DevicesScreen.kt`, `DeviceListDetailedScreen.kt`,
+  `SystemMonitorScreen.kt`, `TrafficMonitorScreen.kt`, `NetworkMonitorScreen.kt`
+  переведены на общие компоненты, дубли заголовков и дубли карточек убраны.
+- ✅ G2 (частично): `InternetScreen.kt`, `InternetDetailedScreen.kt`,
+  `SystemAdvancedScreen.kt` переведены на общие компоненты, редактирование параметров
+  идёт через `EditableRow` → `FormDialog`/`OptionPickerDialog`.
+- ⏳ Сборка и unit-тесты зелёные; APK собран. Проверка на телефоне отложена (устройство
+  отключено). Брандмаур Dr.Web блокировал localhost-соединение с Gradle daemon — с его
+  отключением сборка проходит, временных правок в `gradle.properties` не осталось.

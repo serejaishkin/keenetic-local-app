@@ -19,6 +19,11 @@ import androidx.compose.ui.unit.dp
 import com.keenetic.local.api.ConnectedClient
 import com.keenetic.local.api.ConnectionPolicy
 import com.keenetic.local.ui.RouterViewModel
+import com.keenetic.local.ui.components.ConfirmDialog
+import com.keenetic.local.ui.components.EditableRow
+import com.keenetic.local.ui.components.InfoRow
+import com.keenetic.local.ui.components.RowDivider
+import com.keenetic.local.ui.components.SectionCard
 import com.keenetic.local.ui.theme.KeeneticColors
 
 @Composable
@@ -31,30 +36,24 @@ fun DevicesScreen(viewModel: RouterViewModel) {
     }
     var selectedClientForDetails by remember { mutableStateOf<ConnectedClient?>(null) }
     var wolMessage by remember { mutableStateOf<String?>(null) }
+    var showDeleteConfirm by remember { mutableStateOf(false) }
 
     val onlineCount = clients.count { it.active }
     val offlineCount = clients.size - onlineCount
 
     Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
-        // Header
+        // Заголовок раздела рисует MainActivity (одна шапка, правило G0),
+        // поэтому здесь только строка-сводка и обновление.
         Row(
             modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Column {
-                Text(
-                    "Устройства сети",
-                    style = MaterialTheme.typography.headlineSmall,
-                    fontWeight = FontWeight.Bold,
-                    color = KeeneticColors.TextPrimary
-                )
-                Text(
-                    "Онлайн: $onlineCount  •  Всего: ${clients.size}  •  Политик: ${connectionPolicies.size}",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = KeeneticColors.TextSecondary
-                )
-            }
+            Text(
+                "Онлайн: $onlineCount  •  Всего: ${clients.size}  •  Политик: ${connectionPolicies.size}",
+                style = MaterialTheme.typography.bodySmall,
+                color = KeeneticColors.TextSecondary
+            )
             FilledTonalButton(
                 onClick = {
                     viewModel.loadConnectionPolicies()
@@ -110,174 +109,7 @@ fun DevicesScreen(viewModel: RouterViewModel) {
                 verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
                 items(clients, key = { it.mac }) { client ->
-                    Card(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable { selectedClientForDetails = client },
-                        shape = RoundedCornerShape(14.dp),
-                        colors = CardDefaults.cardColors(containerColor = KeeneticColors.Surface),
-                        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
-                    ) {
-                        Column(modifier = Modifier.fillMaxWidth().padding(14.dp)) {
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(12.dp)
-                            ) {
-                                Box(
-                                    modifier = Modifier
-                                        .size(42.dp)
-                                        .clip(CircleShape)
-                                        .background(
-                                            if (client.active) KeeneticColors.Primary.copy(alpha = 0.15f)
-                                            else KeeneticColors.SurfaceElevated
-                                        ),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Icon(
-                                        if (client.wifiSsid != null) Icons.Default.Wifi else Icons.Default.Lan,
-                                        contentDescription = null,
-                                        tint = if (client.active) KeeneticColors.Primary else KeeneticColors.TextSecondary,
-                                        modifier = Modifier.size(22.dp)
-                                    )
-                                }
-
-                                Column(modifier = Modifier.weight(1f)) {
-                                    Row(
-                                        verticalAlignment = Alignment.CenterVertically,
-                                        horizontalArrangement = Arrangement.spacedBy(6.dp)
-                                    ) {
-                                        Text(
-                                            client.displayName,
-                                            style = MaterialTheme.typography.bodyLarge,
-                                            color = KeeneticColors.TextPrimary,
-                                            fontWeight = FontWeight.SemiBold,
-                                            maxLines = 1
-                                        )
-                                        if (client.isBlocked) {
-                                            Surface(
-                                                color = KeeneticColors.Error.copy(alpha = 0.15f),
-                                                shape = RoundedCornerShape(4.dp)
-                                            ) {
-                                                Text(
-                                                    "Блок",
-                                                    modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp),
-                                                    style = MaterialTheme.typography.labelSmall,
-                                                    color = KeeneticColors.Error,
-                                                    fontWeight = FontWeight.Bold
-                                                )
-                                            }
-                                        }
-                                    }
-
-                                    Spacer(modifier = Modifier.height(2.dp))
-                                    Text(
-                                        "${client.ip}  •  ${client.mac}",
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = KeeneticColors.TextSecondary
-                                    )
-
-                                    // Badges for sub-settings
-                                    Row(
-                                        modifier = Modifier.padding(top = 4.dp),
-                                        horizontalArrangement = Arrangement.spacedBy(6.dp),
-                                        verticalAlignment = Alignment.CenterVertically
-                                    ) {
-                                        if (client.isStaticIp) {
-                                            Surface(
-                                                color = KeeneticColors.Primary.copy(alpha = 0.15f),
-                                                shape = RoundedCornerShape(4.dp)
-                                            ) {
-                                                Text(
-                                                    "Фикс. IP",
-                                                    modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp),
-                                                    style = MaterialTheme.typography.labelSmall,
-                                                    color = KeeneticColors.Primary
-                                                )
-                                            }
-                                        }
-                                        if (client.policyId.isNotBlank() || (client.policy != "Основная" && !client.policy.contains("по умолчанию", ignoreCase = true))) {
-                                            Surface(
-                                                color = KeeneticColors.Warning.copy(alpha = 0.15f),
-                                                shape = RoundedCornerShape(4.dp)
-                                            ) {
-                                                Text(
-                                                    client.policy,
-                                                    modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp),
-                                                    style = MaterialTheme.typography.labelSmall,
-                                                    color = KeeneticColors.Warning
-                                                )
-                                            }
-                                        }
-                                        if (client.speedLimitMbps > 0) {
-                                            Surface(
-                                                color = KeeneticColors.TextSecondary.copy(alpha = 0.15f),
-                                                shape = RoundedCornerShape(4.dp)
-                                            ) {
-                                                Text(
-                                                    "Лимит ${client.speedLimitMbps} Мб/с",
-                                                    modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp),
-                                                    style = MaterialTheme.typography.labelSmall,
-                                                    color = KeeneticColors.TextPrimary
-                                                )
-                                            }
-                                        }
-                                    }
-
-                                    if (client.active) {
-                                        Row(
-                                            modifier = Modifier.padding(top = 4.dp),
-                                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                            verticalAlignment = Alignment.CenterVertically
-                                        ) {
-                                            if (client.wifiBand != null) {
-                                                Text(
-                                                    client.wifiBand,
-                                                    style = MaterialTheme.typography.labelSmall,
-                                                    color = KeeneticColors.Primary
-                                                )
-                                            }
-                                            if (client.rxSpeedKbps > 0 || client.txSpeedKbps > 0) {
-                                                Text(
-                                                    "↓ ${client.rxSpeedKbps / 1000f} Мб/с  ↑ ${client.txSpeedKbps / 1000f} Мб/с",
-                                                    style = MaterialTheme.typography.labelSmall,
-                                                    color = KeeneticColors.Success
-                                                )
-                                            }
-                                        }
-                                    }
-                                }
-
-                                // Quick Actions (WoL + Block)
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    IconButton(
-                                        onClick = {
-                                            viewModel.wakeOnLan(client.mac)
-                                            wolMessage = "Пакет Wake-on-LAN отправлен на ${client.displayName}"
-                                        }
-                                    ) {
-                                        Icon(
-                                            Icons.Default.PowerSettingsNew,
-                                            contentDescription = "Разбудить (WoL)",
-                                            tint = KeeneticColors.Primary,
-                                            modifier = Modifier.size(20.dp)
-                                        )
-                                    }
-
-                                    IconButton(
-                                        onClick = { viewModel.toggleClientBlock(client) }
-                                    ) {
-                                        Icon(
-                                            if (client.isBlocked) Icons.Default.Block else Icons.Default.CheckCircle,
-                                            contentDescription = if (client.isBlocked) "Разблокировать" else "Заблокировать",
-                                            tint = if (client.isBlocked) KeeneticColors.Error else KeeneticColors.Success,
-                                            modifier = Modifier.size(22.dp)
-                                        )
-                                    }
-                                }
-                            }
-                        }
-                    }
+                    ClientRow(client = client, onClick = { selectedClientForDetails = client })
                 }
             }
         }
@@ -528,11 +360,7 @@ fun DevicesScreen(viewModel: RouterViewModel) {
                         }
                         Spacer(modifier = Modifier.width(8.dp))
                         OutlinedButton(
-                            onClick = {
-                                viewModel.deleteKnownDevice(client.mac)
-                                wolMessage = "Устройство ${client.displayName} удалено из известных"
-                                selectedClientForDetails = null
-                            },
+                            onClick = { showDeleteConfirm = true },
                             colors = ButtonDefaults.outlinedButtonColors(contentColor = KeeneticColors.Error),
                             modifier = Modifier.weight(1f)
                         ) {
@@ -573,5 +401,68 @@ fun DevicesScreen(viewModel: RouterViewModel) {
                 }
             }
         )
+    }
+
+    // Удаление из известных — только после подтверждения.
+    if (showDeleteConfirm) {
+        val client = selectedClientForDetails
+        ConfirmDialog(
+            title = "Удалить устройство?",
+            message = client?.let { "«${it.displayName}» (${it.mac}) будет удалено из списка известных устройств." }
+                ?: "Устройство будет удалено из списка известных.",
+            confirmLabel = "Удалить",
+            onConfirm = {
+                client?.let {
+                    viewModel.deleteKnownDevice(it.mac)
+                    wolMessage = "Устройство ${it.displayName} удалено из известных"
+                }
+                showDeleteConfirm = false
+                selectedClientForDetails = null
+            },
+            onDismiss = { showDeleteConfirm = false }
+        )
+    }
+}
+
+/** Строка списка клиентов: как строка таблицы на сайте, действия — в диалоге. */
+@Composable
+private fun ClientRow(client: ConnectedClient, onClick: () -> Unit) {
+    SectionCard(
+        title = client.displayName.ifBlank { client.mac },
+        icon = if (client.wifiSsid != null) Icons.Default.Wifi else Icons.Default.Lan,
+        trailing = {
+            Text(
+                if (client.active) "В сети" else "Не в сети",
+                style = MaterialTheme.typography.labelSmall,
+                fontWeight = FontWeight.SemiBold,
+                color = if (client.active) KeeneticColors.Success else KeeneticColors.TextSecondary
+            )
+        }
+    ) {
+        InfoRow("IP-адрес", client.ip.ifBlank { "нет данных" }, monospace = true)
+        InfoRow("MAC", client.mac, monospace = true)
+        if (client.policyId.isNotBlank() ||
+            (client.policy != "Основная" && !client.policy.contains("по умолчанию", ignoreCase = true))
+        ) {
+            InfoRow("Политика", client.policy, valueColor = KeeneticColors.Warning)
+        }
+        if (client.isStaticIp) InfoRow("IP-адрес", "зафиксирован", valueColor = KeeneticColors.Primary)
+        if (client.speedLimitMbps > 0) InfoRow("Ограничение скорости", "${client.speedLimitMbps} Мб/с")
+        if (!client.schedule.isNullOrBlank()) InfoRow("Расписание", client.schedule)
+        if (client.active && !client.wifiBand.isNullOrBlank()) {
+            InfoRow("Диапазон", client.wifiBand, valueColor = KeeneticColors.Primary)
+        }
+        if (client.rxSpeedKbps > 0 || client.txSpeedKbps > 0) {
+            InfoRow(
+                "Скорость",
+                "↓ ${client.rxSpeedKbps / 1000f} • ↑ ${client.txSpeedKbps / 1000f} Мб/с",
+                valueColor = KeeneticColors.Success
+            )
+        }
+        if (client.isBlocked) {
+            InfoRow("Доступ в интернет", "заблокирован", valueColor = KeeneticColors.Error)
+        }
+        RowDivider()
+        EditableRow(label = "Параметры устройства", value = "изменить", onClick = onClick)
     }
 }

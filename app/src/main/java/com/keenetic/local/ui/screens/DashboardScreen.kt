@@ -39,6 +39,10 @@ import androidx.compose.ui.unit.sp
 import com.keenetic.local.api.SystemInfo
 import com.keenetic.local.ui.RouterViewModel
 import com.keenetic.local.ui.Screen
+import com.keenetic.local.ui.components.EditableRow
+import com.keenetic.local.ui.components.InfoRow
+import com.keenetic.local.ui.components.RowDivider
+import com.keenetic.local.ui.components.SectionCard
 import com.keenetic.local.ui.theme.KeeneticColors
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -625,12 +629,12 @@ fun DashboardScreen(
                             .padding(12.dp),
                         verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        DetailInfoRow("Время запуска роутера", bootTime)
-                        HorizontalDivider(color = KeeneticColors.Divider.copy(alpha = 0.5f))
-                        DetailInfoRow("Всего секунд аптайма", "${String.format(Locale.US, "%,d", uptimeSec)} сек")
+                        InfoRow("Время запуска роутера", bootTime)
+                        RowDivider()
+                        InfoRow("Всего секунд аптайма", "${String.format(Locale.US, "%,d", uptimeSec)} сек")
                         if (sysInfo?.clockTime?.isNotBlank() == true) {
-                            HorizontalDivider(color = KeeneticColors.Divider.copy(alpha = 0.5f))
-                            DetailInfoRow("Часы роутера (clock)", sysInfo?.clockTime ?: "—")
+                            RowDivider()
+                            InfoRow("Часы роутера (clock)", sysInfo?.clockTime ?: "—")
                         }
                     }
                 }
@@ -639,59 +643,20 @@ fun DashboardScreen(
 
         // 6. Router Specifications (show version & show system)
         item {
-            Card(
-                shape = RoundedCornerShape(16.dp),
-                colors = CardDefaults.cardColors(containerColor = KeeneticColors.Surface),
-                border = CardDefaults.outlinedCardBorder().copy(brush = androidx.compose.ui.graphics.SolidColor(KeeneticColors.CardBorder))
+            SectionCard(
+                title = "Устройство",
+                icon = Icons.Default.Router,
+                subtitle = "RCI show version & show system"
             ) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(14.dp)
-                ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(10.dp)
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .size(36.dp)
-                                .clip(RoundedCornerShape(8.dp))
-                                .background(KeeneticColors.Primary.copy(alpha = 0.15f)),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(Icons.Default.Router, contentDescription = null, tint = KeeneticColors.Primary, modifier = Modifier.size(20.dp))
-                        }
-                        Column {
-                            Text("Спецификация оборудования", style = MaterialTheme.typography.titleMedium, color = KeeneticColors.TextPrimary, fontWeight = FontWeight.Bold)
-                            Text("RCI show version & show system", style = MaterialTheme.typography.bodySmall, color = KeeneticColors.TextSecondary)
-                        }
-                    }
-
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clip(RoundedCornerShape(10.dp))
-                            .background(KeeneticColors.SurfaceElevated)
-                            .padding(12.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        DetailInfoRow("Модель устройства", sysInfo?.model ?: "Keenetic")
-                        HorizontalDivider(color = KeeneticColors.Divider.copy(alpha = 0.5f))
-                        DetailInfoRow("Версия KeeneticOS", sysInfo?.osVersion ?: "—")
-                        HorizontalDivider(color = KeeneticColors.Divider.copy(alpha = 0.5f))
-                        DetailInfoRow("Ядро Linux (kernel)", sysInfo?.kernel ?: "—")
-                        HorizontalDivider(color = KeeneticColors.Divider.copy(alpha = 0.5f))
-                        DetailInfoRow("Архитектура CPU", sysInfo?.arch ?: "—")
-                        HorizontalDivider(color = KeeneticColors.Divider.copy(alpha = 0.5f))
-                        DetailInfoRow("Ревизия платы (hw)", sysInfo?.hwVersion ?: "rev.A")
-                        HorizontalDivider(color = KeeneticColors.Divider.copy(alpha = 0.5f))
-                        DetailInfoRow("Имя хоста (hostname)", "${sysInfo?.hostname ?: "Keenetic"}.${sysInfo?.domainName?.ifBlank { "local" }}")
-                        HorizontalDivider(color = KeeneticColors.Divider.copy(alpha = 0.5f))
-                        DetailInfoRow("Производитель", sysInfo?.manufacturer ?: "Keenetic Limited")
-                    }
-                }
+                InfoRow("Модель", sysInfo?.model ?: "Keenetic")
+                InfoRow("KeeneticOS", sysInfo?.osVersion ?: "—")
+                InfoRow("Имя хоста", "${sysInfo?.hostname ?: "Keenetic"}.${sysInfo?.domainName?.ifBlank { "local" }}")
+                RowDivider()
+                EditableRow(
+                    label = "Системный монитор",
+                    value = "подробнее",
+                    onClick = { onNavigate(Screen.SystemMonitor.route) }
+                )
             }
         }
 
