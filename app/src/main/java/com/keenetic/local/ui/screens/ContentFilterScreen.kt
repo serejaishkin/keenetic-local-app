@@ -11,6 +11,8 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.FilterAlt
+import androidx.compose.material.icons.filled.Shield
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -23,11 +25,15 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
+import com.keenetic.local.api.DnsFilterPreset
+import com.keenetic.local.api.DnsFilterProfile
 import com.keenetic.local.ui.RouterViewModel
 import com.keenetic.local.ui.components.EmptyHint
+import com.keenetic.local.ui.components.InfoRow
 import com.keenetic.local.ui.components.SectionCard
 import com.keenetic.local.ui.components.SectionScaffold
 import com.keenetic.local.ui.components.SubGroupHeader
+import com.keenetic.local.ui.components.SwitchRow
 import com.keenetic.local.ui.screens.common.ApiCallState
 import com.keenetic.local.ui.theme.KeeneticColors
 
@@ -103,7 +109,7 @@ fun ContentFilterScreen(viewModel: RouterViewModel, onBack: () -> Unit = {}) {
                 }
             } else {
                 items(dnsPresets, key = { it.id }) { preset ->
-                    DnsFilterPresetCard(preset = preset)
+                    FilterPresetCard(preset = preset)
                 }
             }
 
@@ -133,9 +139,61 @@ fun ContentFilterScreen(viewModel: RouterViewModel, onBack: () -> Unit = {}) {
                 }
             } else {
                 items(dnsProfiles, key = { it.id }) { profile ->
-                    DnsFilterProfileCard(profile = profile, presets = dnsPresets)
+                    FilterProfileCard(profile = profile, presets = dnsPresets)
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun FilterPresetCard(preset: DnsFilterPreset) {
+    SectionCard(
+        title = preset.name,
+        subtitle = preset.provider.ifBlank { preset.type.ifBlank { null } },
+        icon = Icons.Default.Shield
+    ) {
+        if (preset.description.isNotBlank()) {
+            Text(
+                preset.description,
+                style = MaterialTheme.typography.bodySmall,
+                color = KeeneticColors.TextSecondary
+            )
+        }
+        InfoRow("Идентификатор", preset.id, monospace = true)
+        InfoRow("Тип", preset.type.ifBlank { "—" })
+        InfoRow("Профилей", preset.profilesCount.toString())
+    }
+}
+
+@Composable
+private fun FilterProfileCard(profile: DnsFilterProfile, presets: List<DnsFilterPreset>) {
+    val preset = presets.firstOrNull { it.id == profile.presetId || it.name == profile.presetName }
+
+    SectionCard(
+        title = profile.name,
+        subtitle = preset?.name ?: profile.presetName.ifBlank { "Без пресета" },
+        icon = Icons.Default.FilterAlt
+    ) {
+        if (profile.description.isNotBlank()) {
+            Text(
+                profile.description,
+                style = MaterialTheme.typography.bodySmall,
+                color = KeeneticColors.TextSecondary
+            )
+        }
+        InfoRow("Пресет", preset?.id ?: profile.presetId.ifBlank { "—" }, monospace = true)
+        InfoRow(
+            label = "Назначен интерфейсам",
+            value = if (profile.assignedTo.isEmpty()) "—" else profile.assignedTo.joinToString(", "),
+            monospace = true
+        )
+        SwitchRow(
+            label = "Профиль активен",
+            checked = profile.enabled,
+            onCheckedChange = {},
+            enabled = false,
+            description = "Переключение профиля выполняется в веб-интерфейсе"
+        )
     }
 }
