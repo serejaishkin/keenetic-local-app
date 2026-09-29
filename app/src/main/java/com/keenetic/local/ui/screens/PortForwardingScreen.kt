@@ -1,359 +1,275 @@
 package com.keenetic.local.ui.screens
 
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.Edit
-import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Router
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.keenetic.local.api.PortForwardingRule
 import com.keenetic.local.ui.RouterViewModel
+import com.keenetic.local.ui.components.ConfirmDialog
+import com.keenetic.local.ui.components.EditableRow
+import com.keenetic.local.ui.components.EmptyHint
+import com.keenetic.local.ui.components.FormDialog
+import com.keenetic.local.ui.components.InfoRow
+import com.keenetic.local.ui.components.OptionPickerDialog
+import com.keenetic.local.ui.components.RowDivider
+import com.keenetic.local.ui.components.SectionCard
+import com.keenetic.local.ui.components.SectionScaffold
+import com.keenetic.local.ui.components.SubGroupHeader
 import com.keenetic.local.ui.theme.KeeneticColors
+
+private val PF_PROTOCOLS = listOf("TCP", "UDP", "TCP/UDP")
 
 @Composable
 fun PortForwardingScreen(viewModel: RouterViewModel, onBack: () -> Unit = {}) {
     val rules by viewModel.portForwardingRules.collectAsState()
-    var selectedRule by remember { mutableStateOf<PortForwardingRule?>(null) }
-    var editingRule by remember { mutableStateOf<PortForwardingRule?>(null) }
-    var showAddDialog by remember { mutableStateOf(false) }
-    var feedbackMessage by remember { mutableStateOf<String?>(null) }
+    val interfaces by viewModel.interfaces.collectAsState()
 
-    // Add rule form fields
-    var ruleName by remember { mutableStateOf("") }
-    var ruleProto by remember { mutableStateOf("TCP") }
-    var ruleSrcPort by remember { mutableStateOf("") }
-    var ruleDstIp by remember { mutableStateOf("192.168.1.") }
-    var ruleDstPort by remember { mutableStateOf("") }
-    var ruleIface by remember { mutableStateOf("ISP") }
+    var editingRule by remember { mutableStateOf<PortForwardingRule?>(null) }
+    var showEditor by remember { mutableStateOf(false) }
+    var ruleToDelete by remember { mutableStateOf<PortForwardingRule?>(null) }
 
     LaunchedEffect(Unit) {
         viewModel.loadPortForwardingRules()
+        if (interfaces.isEmpty()) viewModel.loadInterfaces()
     }
 
-    val snackbarHostState = remember { SnackbarHostState() }
-    LaunchedEffect(feedbackMessage) {
-        feedbackMessage?.let {
-            snackbarHostState.showSnackbar(it)
-            feedbackMessage = null
-        }
-    }
+    val interfaceNames = interfaces.map { it.id }.ifEmpty { listOf("ISP") }
 
-    Scaffold(
-        floatingActionButton = {
-            FloatingActionButton(
-                onClick = { showAddDialog = true },
-                containerColor = KeeneticColors.Primary
-            ) {
-                Icon(Icons.Default.Add, contentDescription = "Добавить правило", tint = KeeneticColors.Background)
-            }
-        },
-        snackbarHost = { SnackbarHost(snackbarHostState) },
-        containerColor = KeeneticColors.Background
-    ) { paddingValues ->
+    SectionScaffold(
+        title = "Переадресация портов",
+        subtitle = "Доступ к устройствам из интернета",
+        onBack = onBack,
+        onRefresh = { viewModel.loadPortForwardingRules() }
+    ) { padding ->
         LazyColumn(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(paddingValues)
-                .padding(16.dp),
+            modifier = Modifier.fillMaxSize(),
+            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 24.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            item {
+            item(key = "list-header") {
                 Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp)
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    IconButton(onClick = onBack) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Назад", tint = KeeneticColors.TextPrimary)
-                    }
+                    SubGroupHeader("Правила переадресации", rules.size)
                     Spacer(modifier = Modifier.width(8.dp))
-                    Icon(Icons.Default.Router, contentDescription = null, tint = KeeneticColors.Primary)
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(
-                        "Переадресация портов",
-                        style = MaterialTheme.typography.headlineSmall,
-                        fontWeight = FontWeight.Bold,
-                        color = KeeneticColors.TextPrimary
-                    )
-                    Spacer(modifier = Modifier.weight(1f))
-                    IconButton(onClick = { viewModel.loadPortForwardingRules() }) {
-                        Icon(Icons.Default.Refresh, contentDescription = "Обновить", tint = KeeneticColors.Primary)
+                    TextButton(
+                        onClick = {
+                            editingRule = null
+                            showEditor = true
+                        }
+                    ) {
+                        Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(18.dp))
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text("Добавить", color = KeeneticColors.Primary)
                     }
                 }
             }
 
             if (rules.isEmpty()) {
-                item {
-                    Card(
-                        shape = RoundedCornerShape(16.dp),
-                        colors = CardDefaults.cardColors(containerColor = KeeneticColors.Surface)
-                    ) {
-                        Column(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(24.dp),
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                            verticalArrangement = Arrangement.spacedBy(12.dp)
-                        ) {
-                            Icon(
-                                Icons.Default.Router,
-                                contentDescription = null,
-                                tint = KeeneticColors.TextSecondary,
-                                modifier = Modifier.size(48.dp)
-                            )
-                            Text(
-                                "Правила переадресации не настроены",
-                                style = MaterialTheme.typography.titleMedium,
-                                color = KeeneticColors.TextPrimary,
-                                fontWeight = FontWeight.SemiBold
-                            )
-                            Text(
-                                "Переадресация портов (Port Forwarding / NAT) позволяет открыть доступ к внутренним серверам, NAS, игровым сервисам или камерам видеонаблюдения из интернета.",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = KeeneticColors.TextSecondary,
-                                textAlign = androidx.compose.ui.text.style.TextAlign.Center
-                            )
-                            Button(
-                                onClick = { showAddDialog = true },
-                                colors = ButtonDefaults.buttonColors(containerColor = KeeneticColors.Primary)
-                            ) {
-                                Icon(Icons.Default.Add, contentDescription = null)
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Text("Создать правило переадресации")
-                            }
-                        }
+                item(key = "empty") {
+                    SectionCard {
+                        EmptyHint(
+                            "Правила переадресации не настроены. Переадресация портов " +
+                                "(port forwarding) открывает доступ из интернета к устройствам " +
+                                "локальной сети: NAS, камерам, игровым серверам."
+                        )
                     }
                 }
             } else {
-                items(rules) { rule ->
-                    Card(
-                        shape = RoundedCornerShape(16.dp),
-                        colors = CardDefaults.cardColors(containerColor = KeeneticColors.Surface),
-                        modifier = Modifier.clickable { selectedRule = rule }
-                    ) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth().padding(16.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(12.dp)
-                        ) {
-                            Surface(
-                                color = KeeneticColors.Primary.copy(alpha = 0.15f),
-                                shape = RoundedCornerShape(8.dp)
-                            ) {
-                                Text(
-                                    rule.proto,
-                                    color = KeeneticColors.Primary,
-                                    style = MaterialTheme.typography.labelSmall,
-                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-                                    fontWeight = FontWeight.Bold
-                                )
-                            }
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text(rule.name, style = MaterialTheme.typography.titleMedium, color = KeeneticColors.TextPrimary)
-                                Text(
-                                    "Порт ${rule.srcPort} → ${rule.dstIp}:${rule.dstPort} (${rule.interfaceName})",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = KeeneticColors.TextSecondary
-                                )
-                            }
-                            IconButton(onClick = {
-                                viewModel.deletePortForwardingRule(rule.id)
-                                feedbackMessage = "Правило «${rule.name}» удалено"
-                            }) {
-                                Icon(Icons.Default.Delete, contentDescription = "Удалить", tint = KeeneticColors.Error)
-                            }
-                        }
-                    }
+                items(rules, key = { it.id.ifBlank { it.name + it.srcPort } }) { rule ->
+                    PortForwardingRuleRow(
+                        rule = rule,
+                        onEdit = {
+                            editingRule = rule
+                            showEditor = true
+                        },
+                        onDelete = { ruleToDelete = rule }
+                    )
                 }
             }
         }
     }
 
-    // Rule Details Sub-actions Dialog
-    selectedRule?.let { rule ->
-        AlertDialog(
-            onDismissRequest = { selectedRule = null },
-            title = {
-                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Icon(Icons.Default.Router, contentDescription = null, tint = KeeneticColors.Primary)
-                    Text("Правило: ${rule.name}", fontWeight = FontWeight.Bold, color = KeeneticColors.TextPrimary)
-                }
+    if (showEditor) {
+        PortForwardingRuleDialog(
+            initial = editingRule,
+            interfaces = interfaceNames,
+            onDismiss = {
+                showEditor = false
+                editingRule = null
             },
-            text = {
-                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                        Text("Протокол", color = KeeneticColors.TextSecondary, style = MaterialTheme.typography.bodyMedium)
-                        Text(rule.proto, fontWeight = FontWeight.Bold, color = KeeneticColors.Primary)
-                    }
-                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                        Text("Входящий порт (WAN)", color = KeeneticColors.TextSecondary, style = MaterialTheme.typography.bodyMedium)
-                        Text(rule.srcPort, fontWeight = FontWeight.SemiBold, color = KeeneticColors.TextPrimary)
-                    }
-                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                        Text("IP-адрес назначения", color = KeeneticColors.TextSecondary, style = MaterialTheme.typography.bodyMedium)
-                        Text(rule.dstIp, fontWeight = FontWeight.SemiBold, color = KeeneticColors.TextPrimary)
-                    }
-                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                        Text("Порт назначения", color = KeeneticColors.TextSecondary, style = MaterialTheme.typography.bodyMedium)
-                        Text(rule.dstPort, fontWeight = FontWeight.SemiBold, color = KeeneticColors.TextPrimary)
-                    }
-                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                        Text("Входной интерфейс", color = KeeneticColors.TextSecondary, style = MaterialTheme.typography.bodyMedium)
-                        Text(rule.interfaceName, color = KeeneticColors.TextPrimary)
-                    }
-
-                    HorizontalDivider(color = KeeneticColors.Divider)
-
-                    OutlinedButton(
-                        onClick = {
-                            ruleName = rule.name
-                            ruleProto = rule.proto
-                            ruleSrcPort = rule.srcPort
-                            ruleDstIp = rule.dstIp
-                            ruleDstPort = rule.dstPort
-                            editingRule = rule
-                            selectedRule = null
-                            showAddDialog = true
-                        },
-                        colors = ButtonDefaults.outlinedButtonColors(contentColor = KeeneticColors.Primary),
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Icon(Icons.Default.Edit, contentDescription = null, modifier = Modifier.size(16.dp))
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text("Редактировать правило")
-                    }
-
-                    OutlinedButton(
-                        onClick = {
-                            viewModel.deletePortForwardingRule(rule.id)
-                            feedbackMessage = "Правило «${rule.name}» удалено"
-                            selectedRule = null
-                        },
-                        colors = ButtonDefaults.outlinedButtonColors(contentColor = KeeneticColors.Error),
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Icon(Icons.Default.Delete, contentDescription = null, modifier = Modifier.size(16.dp))
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text("Удалить правило")
-                    }
-                }
-            },
-            confirmButton = {
-                TextButton(onClick = { selectedRule = null }) {
-                    Text("Закрыть", color = KeeneticColors.TextPrimary)
-                }
+            onSave = { rule ->
+                viewModel.addPortForwardingRule(rule)
+                showEditor = false
+                editingRule = null
             }
         )
     }
 
-    // Add / Edit Rule Dialog
-    if (showAddDialog) {
-        AlertDialog(
-            onDismissRequest = {
-                showAddDialog = false
-                editingRule = null
+    ruleToDelete?.let { rule ->
+        ConfirmDialog(
+            title = "Удалить правило?",
+            message = "Правило «${rule.name}» (порт ${rule.srcPort}) будет удалено с роутера. " +
+                "Отменить это действие нельзя.",
+            onConfirm = {
+                viewModel.deletePortForwardingRule(rule.id)
+                ruleToDelete = null
             },
-            title = {
-                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Icon(Icons.Default.Add, contentDescription = null, tint = KeeneticColors.Primary)
-                    Text(
-                        if (editingRule != null) "Редактирование правила NAT" else "Новое правило NAT",
-                        fontWeight = FontWeight.Bold,
-                        color = KeeneticColors.TextPrimary
-                    )
-                }
-            },
-            text = {
-                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    OutlinedTextField(
-                        value = ruleName,
-                        onValueChange = { ruleName = it },
-                        label = { Text("Название правила (напр. Web, NAS, SSH)") },
-                        singleLine = true,
-                        modifier = Modifier.fillMaxWidth()
-                    )
-
-                    Text("Протокол:", style = MaterialTheme.typography.bodySmall, color = KeeneticColors.TextSecondary)
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        listOf("TCP", "UDP", "TCP/UDP").forEach { proto ->
-                            FilterChip(
-                                selected = ruleProto == proto,
-                                onClick = { ruleProto = proto },
-                                label = { Text(proto) }
-                            )
-                        }
-                    }
-
-                    OutlinedTextField(
-                        value = ruleSrcPort,
-                        onValueChange = { ruleSrcPort = it },
-                        label = { Text("Входящий порт (напр. 8080)") },
-                        singleLine = true,
-                        modifier = Modifier.fillMaxWidth()
-                    )
-
-                    OutlinedTextField(
-                        value = ruleDstIp,
-                        onValueChange = { ruleDstIp = it },
-                        label = { Text("IP-адрес в локальной сети") },
-                        singleLine = true,
-                        modifier = Modifier.fillMaxWidth()
-                    )
-
-                    OutlinedTextField(
-                        value = ruleDstPort,
-                        onValueChange = { ruleDstPort = it },
-                        label = { Text("Порт назначения (напр. 80)") },
-                        singleLine = true,
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                }
-            },
-            confirmButton = {
-                Button(
-                    onClick = {
-                        if (ruleName.isNotBlank() && ruleSrcPort.isNotBlank() && ruleDstIp.isNotBlank()) {
-                            val newRule = PortForwardingRule(
-                                id = editingRule?.id ?: (rules.size + 1).toString(),
-                                name = ruleName,
-                                proto = ruleProto,
-                                srcPort = ruleSrcPort,
-                                dstIp = ruleDstIp,
-                                dstPort = ruleDstPort.ifBlank { ruleSrcPort },
-                                interfaceName = editingRule?.interfaceName ?: ruleIface,
-                                enabled = true
-                            )
-                            viewModel.addPortForwardingRule(newRule)
-                            feedbackMessage = if (editingRule != null) "Правило «$ruleName» обновлено" else "Правило «$ruleName» добавлено"
-                            showAddDialog = false
-                            editingRule = null
-                            ruleName = ""
-                            ruleSrcPort = ""
-                            ruleDstPort = ""
-                        }
-                    },
-                    colors = ButtonDefaults.buttonColors(containerColor = KeeneticColors.Primary)
-                ) {
-                    Text(if (editingRule != null) "Сохранить" else "Создать")
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { showAddDialog = false }) {
-                    Text("Отмена", color = KeeneticColors.TextSecondary)
-                }
-            }
+            onDismiss = { ruleToDelete = null }
         )
     }
 }
 
+@Composable
+private fun PortForwardingRuleRow(
+    rule: PortForwardingRule,
+    onEdit: () -> Unit,
+    onDelete: () -> Unit
+) {
+    SectionCard(
+        title = rule.name,
+        subtitle = "${rule.proto} · ${rule.interfaceName}",
+        icon = Icons.Default.Router
+    ) {
+        InfoRow(label = "Входящий порт", value = rule.srcPort, monospace = true)
+        InfoRow(label = "Адресат", value = "${rule.dstIp}:${rule.dstPort}", monospace = true)
+        RowDivider()
+        EditableRow(label = "Правило переадресации", value = "изменить", onClick = onEdit)
+        TextButton(onClick = onDelete) {
+            Icon(Icons.Default.Delete, contentDescription = null, modifier = Modifier.size(18.dp))
+            Spacer(modifier = Modifier.width(4.dp))
+            Text("Удалить правило", color = KeeneticColors.Error)
+        }
+    }
+}
+
+@Composable
+private fun PortForwardingRuleDialog(
+    initial: PortForwardingRule?,
+    interfaces: List<String>,
+    onDismiss: () -> Unit,
+    onSave: (PortForwardingRule) -> Unit
+) {
+    val from = initial
+    var name by remember(from) { mutableStateOf(from?.name ?: "") }
+    var proto by remember(from) { mutableStateOf(from?.proto ?: "TCP") }
+    var srcPort by remember(from) { mutableStateOf(from?.srcPort ?: "") }
+    var dstIp by remember(from) { mutableStateOf(from?.dstIp ?: "") }
+    var dstPort by remember(from) { mutableStateOf(from?.dstPort ?: "") }
+    var iface by remember(from) { mutableStateOf(from?.interfaceName ?: "ISP") }
+    var showInterfaces by remember { mutableStateOf(false) }
+
+    val valid = name.isNotBlank() && srcPort.isNotBlank() && dstIp.isNotBlank()
+
+    FormDialog(
+        title = if (from == null) "Новое правило переадресации" else "Правило переадресации",
+        confirmLabel = if (from == null) "Создать" else "Сохранить",
+        confirmEnabled = valid,
+        onDismiss = onDismiss,
+        onConfirm = {
+            onSave(
+                PortForwardingRule(
+                    id = from?.id.orEmpty(),
+                    name = name.trim(),
+                    proto = proto,
+                    srcPort = srcPort.trim(),
+                    dstIp = dstIp.trim(),
+                    dstPort = dstPort.trim().ifBlank { srcPort.trim() },
+                    interfaceName = iface,
+                    enabled = from?.enabled ?: true
+                )
+            )
+        }
+    ) {
+        OutlinedTextField(
+            value = name,
+            onValueChange = { name = it },
+            label = { Text("Название правила") },
+            placeholder = { Text("Например: Web-сервер, NAS, SSH") },
+            singleLine = true,
+            modifier = Modifier.fillMaxWidth()
+        )
+
+        Text(
+            "Протокол",
+            style = MaterialTheme.typography.bodyMedium,
+            color = KeeneticColors.TextSecondary
+        )
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            PF_PROTOCOLS.forEach { value ->
+                FilterChip(
+                    selected = proto == value,
+                    onClick = { proto = value },
+                    label = { Text(value) }
+                )
+            }
+        }
+
+        OutlinedTextField(
+            value = srcPort,
+            onValueChange = { srcPort = it.filter { ch -> ch.isDigit() } },
+            label = { Text("Входящий порт (WAN)") },
+            singleLine = true,
+            modifier = Modifier.fillMaxWidth()
+        )
+
+        OutlinedTextField(
+            value = dstIp,
+            onValueChange = { dstIp = it },
+            label = { Text("IP-адрес в локальной сети") },
+            singleLine = true,
+            modifier = Modifier.fillMaxWidth()
+        )
+
+        OutlinedTextField(
+            value = dstPort,
+            onValueChange = { dstPort = it.filter { ch -> ch.isDigit() } },
+            label = { Text("Порт назначения") },
+            supportingText = { Text("Пусто — использовать входящий порт") },
+            singleLine = true,
+            modifier = Modifier.fillMaxWidth()
+        )
+
+        TextButton(onClick = { showInterfaces = true }) {
+            Text("Входной интерфейс: $iface", color = KeeneticColors.Primary)
+        }
+    }
+
+    if (showInterfaces) {
+        OptionPickerDialog(
+            title = "Входной интерфейс",
+            options = interfaces.map { it to it },
+            selectedKey = iface,
+            onSelect = { iface = it },
+            onDismiss = { showInterfaces = false }
+        )
+    }
+}
