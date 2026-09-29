@@ -80,7 +80,7 @@ fun MainAppContent() {
                             Screen.SystemLogs.route -> Screen.SystemLogs.title
                             Screen.Firmware.route -> Screen.Firmware.title
                             Screen.Diagnostics.route -> Screen.Diagnostics.title
-                            Screen.DnsFilters.route -> Screen.DnsFilters.title
+                            Screen.DnsSettings.route -> Screen.DnsSettings.title
                             Screen.VpnAdvanced.route -> Screen.VpnAdvanced.title
                             else -> "Keenetic Local"
                         }

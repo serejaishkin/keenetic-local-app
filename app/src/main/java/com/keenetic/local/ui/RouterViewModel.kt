@@ -4791,6 +4791,38 @@ private val _intelliQos = MutableStateFlow(IntelliQosConfig())
         )
     }
 
+    /** Правка DoH-записи без гонки «удалить + добавить»: список перезаписывается один раз. */
+    fun updateDohServer(oldUrl: String, oldInterface: String?, newUrl: String, newInterface: String?) {
+        val current = _dohServers.value
+        if (current.any { it.url == newUrl && it.interfaceName == newInterface && it.url != oldUrl }) return
+        setDohUpstreams(
+            current.map {
+                if (it.url == oldUrl && it.interfaceName == oldInterface)
+                    DohServerInfo(url = newUrl, interfaceName = newInterface)
+                else it
+            }
+        )
+    }
+
+    /** Правка DoT-записи одним запросом. */
+    fun updateDotServer(
+        oldAddress: String,
+        oldFqdn: String?,
+        oldInterface: String?,
+        newAddress: String,
+        newFqdn: String?,
+        newInterface: String?
+    ) {
+        val current = _dotServers.value
+        setDotUpstreams(
+            current.map {
+                if (it.address == oldAddress && it.fqdn == oldFqdn && it.interfaceName == oldInterface)
+                    DotServerInfo(address = newAddress, fqdn = newFqdn, interfaceName = newInterface)
+                else it
+            }
+        )
+    }
+
     fun addDotServer(address: String, fqdn: String? = null, interfaceName: String? = null) {
         val existing = _dotServers.value.filter {
             it.address != address && (fqdn.isNullOrBlank() || it.fqdn != fqdn)
@@ -4826,7 +4858,7 @@ private val _intelliQos = MutableStateFlow(IntelliQosConfig())
     }
 
     fun addPlainDnsServer(address: String, interfaceName: String) {
-        val existing = _scNameServers.value
+        val existing = _nameServers.value
         if (existing.any { it.address == address && it.interfaceName == interfaceName }) return
         setPlainDnsServers(existing + DnsServerInfo(address = address, interfaceName = interfaceName))
     }
@@ -4838,7 +4870,7 @@ private val _intelliQos = MutableStateFlow(IntelliQosConfig())
         newAddress: String,
         newInterfaceName: String
     ) {
-        val current = _scNameServers.value
+        val current = _nameServers.value
         if (current.any { it.address == newAddress && it.interfaceName == newInterfaceName }) return
         setPlainDnsServers(
             current.map { s ->
@@ -4849,9 +4881,9 @@ private val _intelliQos = MutableStateFlow(IntelliQosConfig())
         )
     }
 
-    fun removePlainDnsServer(address: String, interfaceName: String) {
+    fun removePlainDnsServer(address: String, interfaceName: String?) {
         setPlainDnsServers(
-            _scNameServers.value.filter { it.address != address || it.interfaceName != interfaceName }
+            _nameServers.value.filter { it.address != address || it.interfaceName != interfaceName }
         )
     }
 

@@ -40,7 +40,7 @@ fun AllSectionsScreen(
             items = listOf(
                 SectionItem("Проводной интернет (ISP)", Screen.Internet.route, "WAN/LAN и сетевые интерфейсы"),
                 SectionItem("Интернет (подробно)", Screen.InternetDetailed.route, "IP, шлюз, DNS, скорость"),
-                SectionItem("DNS / Secure DNS", Screen.DnsSettings.route, "Серверы, DoH/DoT, перехват DNS"),
+                SectionItem("DNS", Screen.DnsSettings.route, "Серверы, DoH/DoT, перехват и фильтрация"),
                 SectionItem("Wi-Fi сети", Screen.WiFi.route, "Беспроводные точки доступа 2.4/5 GHz"),
                 SectionItem("Общие параметры Wi-Fi", Screen.WifiSystem.route, "Каналы, мощность, роуминг, изоляция"),
                 SectionItem("Монитор Wi-Fi", Screen.WifiMonitor.route, "Сканирование, загрузка каналов, клиенты"),
@@ -60,7 +60,6 @@ fun AllSectionsScreen(
             title = "Сетевые правила и безопасность",
             icon = Icons.Default.Security,
             items = listOf(
-                SectionItem("DNS-фильтры", Screen.DnsFilters.route, "Контентная фильтрация и безопасность"),
                 SectionItem("Контентная фильтрация", Screen.ContentFilter.route, "NextDNS, SafeDNS, SkyDNS"),
                 SectionItem("Переадресация портов", Screen.PortForwarding.route, "NAT и виртуальные серверы"),
                 SectionItem("Межсетевой экран", Screen.Firewall.route, "Правила фильтрации трафика"),
