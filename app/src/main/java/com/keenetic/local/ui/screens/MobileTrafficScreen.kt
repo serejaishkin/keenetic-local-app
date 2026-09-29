@@ -1,23 +1,41 @@
 package com.keenetic.local.ui.screens
 
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
-import androidx.compose.ui.Alignment
+import androidx.compose.material.icons.filled.DateRange
+import androidx.compose.material.icons.filled.Notifications
+import androidx.compose.material.icons.filled.Speed
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.keenetic.local.ui.RouterViewModel
+import com.keenetic.local.ui.components.EditableRow
+import com.keenetic.local.ui.components.FormDialog
+import com.keenetic.local.ui.components.OptionPickerDialog
+import com.keenetic.local.ui.components.SectionCard
+import com.keenetic.local.ui.components.SectionScaffold
+import com.keenetic.local.ui.components.SwitchRow
 import com.keenetic.local.ui.theme.KeeneticColors
 
-private val UNITS = listOf("Б", "КБ", "МБ", "ГБ", "ТБ")
-private fun unitToNdm(u: String): String = when (u) {
+private val MT_UNITS = listOf("Б", "КБ", "МБ", "ГБ", "ТБ")
+
+private fun mtUnitToNdm(u: String): String = when (u) {
     "Б" -> "B"
     "КБ" -> "KB"
     "МБ" -> "MB"
@@ -25,7 +43,8 @@ private fun unitToNdm(u: String): String = when (u) {
     "ТБ" -> "TB"
     else -> u
 }
-private fun ndmToUnit(u: String): String = when (u) {
+
+private fun mtNdmToUnit(u: String): String = when (u) {
     "B" -> "Б"
     "KB" -> "КБ"
     "MB" -> "МБ"
@@ -34,15 +53,16 @@ private fun ndmToUnit(u: String): String = when (u) {
     else -> u
 }
 
+private const val DLG_LIMIT = "limit"
+private const val DLG_SMS = "sms"
+private const val DLG_DAY = "day"
+
 @Composable
 fun MobileTrafficScreen(viewModel: RouterViewModel, onBack: () -> Unit = {}) {
     val traffic by viewModel.mobileTraffic.collectAsState()
-    val interfaces by viewModel.interfaces.collectAsState()
-    val modemId by viewModel.mobileTrafficInterfaceId.collectAsState()
-    val modemAvailable = modemId != null
 
     var limitText by remember { mutableStateOf(traffic.limit.toString()) }
-    var unitText by remember { mutableStateOf(ndmToUnit(traffic.unit)) }
+    var unitText by remember { mutableStateOf(mtNdmToUnit(traffic.unit)) }
     var thresholdText by remember { mutableStateOf(traffic.threshold.toString()) }
     var dayText by remember { mutableStateOf(traffic.dayOfMonth.toString()) }
     var smsWarning by remember { mutableStateOf(traffic.smsWarningEnabled) }
@@ -51,12 +71,14 @@ fun MobileTrafficScreen(viewModel: RouterViewModel, onBack: () -> Unit = {}) {
     var smsPhone by remember { mutableStateOf(traffic.smsPhone) }
     var smsMessage by remember { mutableStateOf(traffic.smsMessage) }
     var cycleReset by remember { mutableStateOf(traffic.cycleResetEnabled) }
-    var feedbackMessage by remember { mutableStateOf<String?>(null) }
 
-    // refresh local fields when router data arrives
+    var dialog by remember { mutableStateOf<String?>(null) }
+    var showUnits by remember { mutableStateOf(false) }
+
+    // Данные с роутера — источник истины, локальные поля подстраиваются под них.
     LaunchedEffect(traffic) {
         limitText = traffic.limit.toString()
-        unitText = ndmToUnit(traffic.unit)
+        unitText = mtNdmToUnit(traffic.unit)
         thresholdText = traffic.threshold.toString()
         dayText = traffic.dayOfMonth.toString()
         smsWarning = traffic.smsWarningEnabled
@@ -68,257 +90,210 @@ fun MobileTrafficScreen(viewModel: RouterViewModel, onBack: () -> Unit = {}) {
     }
 
     LaunchedEffect(Unit) {
-        viewModel.loadMobileTrafficWithInterfaces()
+        viewModel.loadMobileTraffic()
     }
 
-    var expandedUnit by remember { mutableStateOf(false) }
+    // Любое изменение сразу уходит на роутер — кнопка «Активировать» не нужна.
+    fun push(enable: Boolean = traffic.enable) {
+        viewModel.updateMobileTraffic(
+            enable = enable,
+            limit = limitText.toLongOrNull() ?: 0,
+            unit = mtUnitToNdm(unitText),
+            dayOfMonth = dayText.toIntOrNull() ?: 1,
+            cycleResetEnabled = cycleReset,
+            threshold = thresholdText.toIntOrNull() ?: 90,
+            smsWarningEnabled = smsWarning,
+            smsLimitEnabled = smsLimit,
+            smsPhone = smsPhone,
+            smsMessage = smsMessage,
+            disconnect = disconnect
+        )
+    }
 
-    LazyColumn(
-        modifier = Modifier.fillMaxSize().padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
-    ) {
-        item {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp)
-            ) {
-                IconButton(onClick = onBack) {
-                    Icon(Icons.Default.ArrowBack, contentDescription = "Назад", tint = KeeneticColors.TextPrimary)
-                }
-                Spacer(modifier = Modifier.width(8.dp))
-                Icon(Icons.Default.Speed, contentDescription = null, tint = KeeneticColors.Primary)
-                Spacer(modifier = Modifier.width(8.dp))
-                Text(
-                    "Квота мобильного трафика",
-                    style = MaterialTheme.typography.headlineSmall,
-                    fontWeight = FontWeight.Bold,
-                    color = KeeneticColors.TextPrimary
-                )
-                Spacer(modifier = Modifier.weight(1f))
-                IconButton(onClick = { viewModel.loadMobileTrafficWithInterfaces() }) {
-                    Icon(Icons.Default.Refresh, contentDescription = "Обновить", tint = KeeneticColors.Primary)
-                }
-            }
-        }
-
-        if (interfaces.isEmpty()) {
-            item {
-                Text(
-                    "Загрузка интерфейсов…",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = KeeneticColors.TextSecondary
-                )
-            }
-        } else if (!modemAvailable) {
-            item {
-                Text(
-                    "Модемный интерфейс не найден, поэтому квоту отправить нельзя.",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.error
-                )
-            }
-        }
-
-        if (feedbackMessage != null) {
-            item {
-                Snackbar(
-                    action = {
-                        TextButton(onClick = { feedbackMessage = null }) {
-                            Text("OK", color = KeeneticColors.Primary)
-                        }
-                    }
-                ) {
-                    Text(feedbackMessage ?: "")
-                }
-            }
-        }
-
-        item {
-            Card(
-                shape = RoundedCornerShape(16.dp),
-                colors = CardDefaults.cardColors(containerColor = KeeneticColors.Surface)
-            ) {
-                Column(modifier = Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                        Icon(Icons.Default.Speed, contentDescription = null, tint = KeeneticColors.Primary)
-                        Text("Лимит трафика", style = MaterialTheme.typography.titleMedium, color = KeeneticColors.TextPrimary)
-                    }
-
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text("Ограничить мобильный интернет", style = MaterialTheme.typography.bodyMedium, color = KeeneticColors.TextPrimary)
-                        Switch(checked = traffic.enable, enabled = modemAvailable, onCheckedChange = {
-                            viewModel.updateMobileTraffic(
-                                enable = it,
-                                limit = limitText.toLongOrNull() ?: 0,
-                                unit = unitToNdm(unitText),
-                                dayOfMonth = dayText.toIntOrNull() ?: 1,
-                                cycleResetEnabled = cycleReset,
-                                threshold = thresholdText.toIntOrNull() ?: 90,
-                                smsWarningEnabled = smsWarning,
-                                smsLimitEnabled = smsLimit,
-                                smsPhone = smsPhone,
-                                smsMessage = smsMessage,
-                                disconnect = disconnect
-                            )
-                        })
-                    }
-
-                    if (traffic.enable) {
-                        Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            OutlinedTextField(
-                                value = limitText,
-                                onValueChange = { limitText = it.filter { c -> c.isDigit() || c == '.' }.take(10) },
-                                label = { Text("Лимит данных") },
-                                singleLine = true,
-                                keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = androidx.compose.ui.text.input.KeyboardType.Decimal),
-                                modifier = Modifier.weight(1f)
-                            )
-                            Box {
-                                OutlinedButton(onClick = { expandedUnit = true }, modifier = Modifier.fillMaxWidth()) {
-                                    Text(unitText, color = KeeneticColors.TextPrimary)
-                                }
-                                DropdownMenu(
-                                    expanded = expandedUnit,
-                                    onDismissRequest = { expandedUnit = false },
-                                    modifier = Modifier.heightIn(max = 400.dp).verticalScroll(rememberScrollState())
-                                ) {
-                                    UNITS.forEach { u ->
-                                        DropdownMenuItem(
-                                            text = { Text("$u (${unitToNdm(u)})") },
-                                            onClick = { unitText = u; expandedUnit = false }
-                                        )
-                                    }
-                                }
-                            }
-                        }
-                        OutlinedTextField(
-                            value = thresholdText,
-                            onValueChange = { thresholdText = it.filter { c -> c.isDigit() }.take(3) },
-                            label = { Text("Порог предупреждения, %") },
-                            singleLine = true,
-                            keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = androidx.compose.ui.text.input.KeyboardType.Number),
-                            modifier = Modifier.fillMaxWidth()
-                        )
-                    }
-                }
-            }
-        }
-
-        item {
-            Card(
-                shape = RoundedCornerShape(16.dp),
-                colors = CardDefaults.cardColors(containerColor = KeeneticColors.Surface)
-            ) {
-                Column(modifier = Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                        Icon(Icons.Default.Notifications, contentDescription = null, tint = KeeneticColors.Primary)
-                        Text("Действия при превышении", style = MaterialTheme.typography.titleMedium, color = KeeneticColors.TextPrimary)
-                    }
-
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text("SMS при достижении порога", style = MaterialTheme.typography.bodyMedium, color = KeeneticColors.TextPrimary)
-                        Switch(checked = smsWarning, onCheckedChange = { smsWarning = it })
-                    }
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text("SMS при достижении лимита", style = MaterialTheme.typography.bodyMedium, color = KeeneticColors.TextPrimary)
-                        Switch(checked = smsLimit, onCheckedChange = { smsLimit = it })
-                    }
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text("Отключить мобильное подключение", style = MaterialTheme.typography.bodyMedium, color = KeeneticColors.TextPrimary)
-                        Switch(checked = disconnect, onCheckedChange = { disconnect = it })
-                    }
-
-                    if (smsWarning || smsLimit) {
-                        OutlinedTextField(
-                            value = smsPhone,
-                            onValueChange = { smsPhone = it },
-                            label = { Text("Номер телефона (пусто = центр SMS)") },
-                            singleLine = true,
-                            modifier = Modifier.fillMaxWidth()
-                        )
-                        OutlinedTextField(
-                            value = smsMessage,
-                            onValueChange = { smsMessage = it },
-                            label = { Text("Текст SMS-сообщения") },
-                            modifier = Modifier.fillMaxWidth()
-                        )
-                    }
-                }
-            }
-        }
-
-        item {
-            Card(
-                shape = RoundedCornerShape(16.dp),
-                colors = CardDefaults.cardColors(containerColor = KeeneticColors.Surface)
-            ) {
-                Column(modifier = Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                        Icon(Icons.Default.DateRange, contentDescription = null, tint = KeeneticColors.Primary)
-                        Text("Сброс счётчика", style = MaterialTheme.typography.titleMedium, color = KeeneticColors.TextPrimary)
-                    }
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text("Ежемесячно сбрасывать использование", style = MaterialTheme.typography.bodyMedium, color = KeeneticColors.TextPrimary)
-                        Switch(checked = cycleReset, onCheckedChange = { cycleReset = it })
-                    }
-                    if (cycleReset) {
-                        OutlinedTextField(
-                            value = dayText,
-                            onValueChange = { dayText = it.filter { c -> c.isDigit() }.take(2) },
-                            label = { Text("День месяца (1-28)") },
-                            singleLine = true,
-                            keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = androidx.compose.ui.text.input.KeyboardType.Number),
-                            modifier = Modifier.fillMaxWidth()
-                        )
-                    }
-                }
-            }
-        }
-
-        item {
-            Button(
-                onClick = {
-                    viewModel.updateMobileTraffic(
-                        enable = traffic.enable,
-                        limit = limitText.toLongOrNull() ?: 0,
-                        unit = unitToNdm(unitText),
-                        dayOfMonth = dayText.toIntOrNull() ?: 1,
-                        cycleResetEnabled = cycleReset,
-                        threshold = thresholdText.toIntOrNull() ?: 90,
-                        smsWarningEnabled = smsWarning,
-                        smsLimitEnabled = smsLimit,
-                        smsPhone = smsPhone,
-                        smsMessage = smsMessage,
-                        disconnect = disconnect
+    SectionScaffold(
+        title = "Квота мобильного трафика",
+        subtitle = if (traffic.enable) "Ограничение включено" else "Ограничение выключено",
+        onBack = onBack,
+        onRefresh = { viewModel.loadMobileTraffic() }
+    ) { padding ->
+        LazyColumn(
+            modifier = Modifier.fillMaxSize(),
+            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 24.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            item(key = "limit") {
+                SectionCard(title = "Лимит трафика", icon = Icons.Default.Speed) {
+                    SwitchRow(
+                        label = "Ограничить мобильный интернет",
+                        checked = traffic.enable,
+                        onCheckedChange = { push(enable = it) }
                     )
-                    feedbackMessage = "Квота мобильного трафика отправлена на роутер"
-                },
-                enabled = modemAvailable,
-                colors = ButtonDefaults.buttonColors(containerColor = KeeneticColors.Primary),
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Text("Активировать")
+                    if (traffic.enable) {
+                        EditableRow(
+                            label = "Объём трафика",
+                            value = "$limitText $unitText",
+                            onClick = { dialog = DLG_LIMIT },
+                            monospaceValue = true
+                        )
+                        EditableRow(
+                            label = "Порог предупреждения",
+                            value = "$thresholdText %",
+                            onClick = { dialog = DLG_LIMIT }
+                        )
+                    }
+                }
+            }
+
+            item(key = "actions") {
+                SectionCard(title = "Действия при превышении", icon = Icons.Default.Notifications) {
+                    SwitchRow(
+                        label = "SMS при достижении порога",
+                        checked = smsWarning,
+                        enabled = traffic.enable,
+                        onCheckedChange = {
+                            smsWarning = it
+                            push()
+                        }
+                    )
+                    SwitchRow(
+                        label = "SMS при достижении лимита",
+                        checked = smsLimit,
+                        enabled = traffic.enable,
+                        onCheckedChange = {
+                            smsLimit = it
+                            push()
+                        }
+                    )
+                    SwitchRow(
+                        label = "Отключить мобильное подключение",
+                        checked = disconnect,
+                        enabled = traffic.enable,
+                        onCheckedChange = {
+                            disconnect = it
+                            push()
+                        }
+                    )
+                    if (smsWarning || smsLimit) {
+                        EditableRow(
+                            label = "Номер и текст SMS",
+                            value = if (smsPhone.isBlank()) {
+                                "центр SMS"
+                            } else {
+                                smsPhone
+                            },
+                            onClick = { dialog = DLG_SMS },
+                            enabled = traffic.enable,
+                            monospaceValue = true
+                        )
+                    }
+                }
+            }
+
+            item(key = "reset") {
+                SectionCard(title = "Сброс счётчика", icon = Icons.Default.DateRange) {
+                    SwitchRow(
+                        label = "Ежемесячно сбрасывать использование",
+                        checked = cycleReset,
+                        enabled = traffic.enable,
+                        onCheckedChange = {
+                            cycleReset = it
+                            push()
+                        }
+                    )
+                    if (cycleReset) {
+                        EditableRow(
+                            label = "День месяца",
+                            value = dayText,
+                            onClick = { dialog = DLG_DAY },
+                            enabled = traffic.enable
+                        )
+                    }
+                }
             }
         }
+    }
+
+    when (dialog) {
+        DLG_LIMIT -> FormDialog(
+            title = "Лимит трафика",
+            onDismiss = { dialog = null; showUnits = false },
+            onConfirm = {
+                push()
+                dialog = null
+                showUnits = false
+            }
+        ) {
+            OutlinedTextField(
+                value = limitText,
+                onValueChange = { limitText = it.filter { c -> c.isDigit() || c == '.' }.take(10) },
+                label = { Text("Объём") },
+                singleLine = true,
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                modifier = Modifier.fillMaxWidth()
+            )
+            TextButton(onClick = { showUnits = true }) {
+                Text("Единица измерения: $unitText", color = KeeneticColors.Primary)
+            }
+            OutlinedTextField(
+                value = thresholdText,
+                onValueChange = { thresholdText = it.filter { c -> c.isDigit() }.take(3) },
+                label = { Text("Порог предупреждения, %") },
+                singleLine = true,
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                modifier = Modifier.fillMaxWidth()
+            )
+        }
+
+        DLG_SMS -> FormDialog(
+            title = "SMS-оповещение",
+            onDismiss = { dialog = null },
+            onConfirm = {
+                push()
+                dialog = null
+            }
+        ) {
+            OutlinedTextField(
+                value = smsPhone,
+                onValueChange = { smsPhone = it },
+                label = { Text("Номер телефона") },
+                supportingText = { Text("Пусто — центр SMS провайдера") },
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth()
+            )
+            OutlinedTextField(
+                value = smsMessage,
+                onValueChange = { smsMessage = it },
+                label = { Text("Текст сообщения") },
+                modifier = Modifier.fillMaxWidth()
+            )
+        }
+
+        DLG_DAY -> FormDialog(
+            title = "День сброса счётчика",
+            onDismiss = { dialog = null },
+            onConfirm = {
+                push()
+                dialog = null
+            }
+        ) {
+            OutlinedTextField(
+                value = dayText,
+                onValueChange = { dayText = it.filter { c -> c.isDigit() }.take(2) },
+                label = { Text("День месяца (1–28)") },
+                singleLine = true,
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                modifier = Modifier.fillMaxWidth()
+            )
+        }
+    }
+
+    if (showUnits) {
+        OptionPickerDialog(
+            title = "Единица измерения",
+            options = MT_UNITS.map { it to "$it (${mtUnitToNdm(it)})" },
+            selectedKey = unitText,
+            onSelect = { unitText = it },
+            onDismiss = { showUnits = false }
+        )
     }
 }
