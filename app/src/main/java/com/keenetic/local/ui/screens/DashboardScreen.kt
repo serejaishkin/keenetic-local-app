@@ -709,25 +709,13 @@ fun DashboardScreen(
                             }
                         }
 
-                        // Copy + save buttons
+                        // Copy button (save lives in the probe tab now)
                         val currentTextToCopy = when (selectedRciTab) {
                             0 -> rawVersion
                             1 -> rawSystem
                             else -> rciProbeResult
                         }
-                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            if (selectedRciTab == 2 && rciProbeResult.isNotBlank()) {
-                                FilledTonalButton(
-                                    onClick = { viewModel.saveRciProbe(context) },
-                                    shape = RoundedCornerShape(8.dp),
-                                    contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
-                                    colors = ButtonDefaults.filledTonalButtonColors(containerColor = KeeneticColors.SurfaceElevated)
-                                ) {
-                                    Icon(Icons.Default.Save, contentDescription = null, modifier = Modifier.size(14.dp), tint = KeeneticColors.Primary)
-                                    Spacer(Modifier.width(4.dp))
-                                    Text("Сохранить", style = MaterialTheme.typography.labelSmall, color = KeeneticColors.Primary, maxLines = 1)
-                                }
-                            }
+                        if (currentTextToCopy.isNotBlank()) {
                             FilledTonalButton(
                                 onClick = {
                                     clipboardManager.setText(AnnotatedString(currentTextToCopy))
@@ -769,8 +757,37 @@ fun DashboardScreen(
                         )
                     }
 
-                    // Произвольный show-запрос: путь + кнопка + статус
+                    // Произвольный show-запрос: пресеты + путь + кнопки + статус
                     if (selectedRciTab == 2) {
+                        val probePresets = listOf(
+                            "interface", "ip/route", "interface/ISP",
+                            "system", "version", "ip/hotspot", "dyndns"
+                        )
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .horizontalScroll(rememberScrollState()),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            probePresets.forEach { preset ->
+                                FilledTonalButton(
+                                    onClick = {
+                                        viewModel.setRciProbePath(preset)
+                                        viewModel.probeRci()
+                                    },
+                                    shape = RoundedCornerShape(8.dp),
+                                    contentPadding = PaddingValues(horizontal = 10.dp, vertical = 2.dp),
+                                    colors = ButtonDefaults.filledTonalButtonColors(containerColor = KeeneticColors.SurfaceElevated)
+                                ) {
+                                    Text(
+                                        "show/$preset",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = KeeneticColors.Primary,
+                                        maxLines = 1
+                                    )
+                                }
+                            }
+                        }
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -791,6 +808,18 @@ fun DashboardScreen(
                                 contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp)
                             ) {
                                 Text("Запросить", maxLines = 1)
+                            }
+                        }
+                        if (rciProbeResult.isNotBlank()) {
+                            FilledTonalButton(
+                                onClick = { viewModel.saveRciProbe(context) },
+                                shape = RoundedCornerShape(8.dp),
+                                contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
+                                colors = ButtonDefaults.filledTonalButtonColors(containerColor = KeeneticColors.SurfaceElevated)
+                            ) {
+                                Icon(Icons.Default.Save, contentDescription = null, modifier = Modifier.size(14.dp), tint = KeeneticColors.Primary)
+                                Spacer(Modifier.width(4.dp))
+                                Text("Сохранить JSON в загрузки", style = MaterialTheme.typography.labelSmall, color = KeeneticColors.Primary, maxLines = 1)
                             }
                         }
                         if (rciProbeMessage.isNotBlank()) {
