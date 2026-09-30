@@ -539,7 +539,7 @@ fun DashboardScreen(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.SpaceBetween
                         ) {
-                            Text("История использования RAM (RCI show system)", style = MaterialTheme.typography.labelSmall, color = KeeneticColors.TextSecondary)
+                            Text("История использования RAM (RCI show system)", style = MaterialTheme.typography.labelSmall, color = KeeneticColors.TextSecondary, modifier = Modifier.weight(1f))
                             Text("Политика пула ОС", style = MaterialTheme.typography.labelSmall, color = KeeneticColors.TextSecondary)
                         }
 
