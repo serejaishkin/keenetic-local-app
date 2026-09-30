@@ -1,21 +1,30 @@
 package com.keenetic.local.ui.screens
 
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
-import androidx.compose.ui.Alignment
+import androidx.compose.material.icons.filled.Wifi
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.keenetic.local.api.MwsMember
 import com.keenetic.local.api.MwsWlan
 import com.keenetic.local.api.MwsWlanBand
 import com.keenetic.local.ui.RouterViewModel
+import com.keenetic.local.ui.components.InfoRow
+import com.keenetic.local.ui.components.RowDivider
+import com.keenetic.local.ui.components.SectionCard
+import com.keenetic.local.ui.components.SectionScaffold
+import com.keenetic.local.ui.components.SubGroupHeader
+import com.keenetic.local.ui.components.SwitchRow
 import com.keenetic.local.ui.theme.KeeneticColors
 
 @Composable
@@ -29,62 +38,63 @@ fun MwsScreen(viewModel: RouterViewModel, onBack: () -> Unit = {}) {
         viewModel.loadMwsWlan()
     }
 
-    LazyColumn(modifier = Modifier.fillMaxSize().padding(16.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
-        item {
-            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp)) {
-                IconButton(onClick = onBack) { Icon(Icons.Default.ArrowBack, contentDescription = "Назад", tint = KeeneticColors.TextPrimary) }
-                Spacer(modifier = Modifier.width(8.dp))
-                Icon(Icons.Default.Wifi, contentDescription = null, tint = KeeneticColors.Primary)
-                Spacer(modifier = Modifier.width(8.dp))
-                Text("Mesh Wi-Fi", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold, color = KeeneticColors.TextPrimary)
-                Spacer(modifier = Modifier.weight(1f))
-                IconButton(onClick = {
-                    viewModel.loadMwsStatus()
-                    viewModel.loadMwsWlan()
-                }) {
-                    Icon(Icons.Default.Refresh, contentDescription = "Обновить", tint = KeeneticColors.Primary)
+    SectionScaffold(
+        title = "Mesh Wi-Fi",
+        subtitle = "Состав и настройки Mesh-системы",
+        onBack = onBack,
+        onRefresh = {
+            viewModel.loadMwsStatus()
+            viewModel.loadMwsWlan()
+        }
+    ) {
+        LazyColumn(
+            modifier = Modifier.fillMaxSize(),
+            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 24.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            item(key = "status") {
+                SectionCard(
+                    title = "Статус MWS",
+                    icon = Icons.Default.Wifi
+                ) {
+                    SwitchRow(
+                        label = "Mesh Wi-Fi включён",
+                        checked = mwsStatus.enabled,
+                        onCheckedChange = { viewModel.setMwsEnabled(it) }
+                    )
+                    RowDivider()
+                    InfoRow("Роль", mwsStatus.role.ifBlank { "—" })
+                    InfoRow("SSID", mwsStatus.ssid.ifBlank { "—"}, monospace = true)
+                    InfoRow("Канал", mwsStatus.channel.toString())
                 }
             }
-        }
 
-        item {
-            Card(shape = RoundedCornerShape(16.dp), colors = CardDefaults.cardColors(containerColor = KeeneticColors.Surface)) {
-                Column(modifier = Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Icon(Icons.Default.Wifi, contentDescription = null, tint = KeeneticColors.Primary)
-                        Text("Статус MWS", style = MaterialTheme.typography.titleMedium, color = KeeneticColors.TextPrimary, fontWeight = FontWeight.Bold)
+            if (wlanList.isNotEmpty()) {
+                item(key = "wlan-header") {
+                    SubGroupHeader("Сети Mesh (WLAN)", wlanList.size)
+                }
+                items(wlanList) { wlan ->
+                    MwsWlanCard(wlan, onToggleWlan = { id, enabled -> viewModel.setMwsWlanEnabled(id, enabled) })
+                }
+                item(key = "wlan-note") {
+                    SectionCard {
+                        Text(
+                            "Переключение «Включён» выполняет mws wlan {id} enable " +
+                                "(проверено на KN-2311).",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = KeeneticColors.TextSecondary
+                        )
                     }
-                    HorizontalDivider(color = KeeneticColors.Divider)
-                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                        Text("Включён", color = KeeneticColors.TextPrimary)
-                        Switch(checked = mwsStatus.enabled, onCheckedChange = { viewModel.setMwsEnabled(it) })
-                    }
-                    InfoRow("Роль", mwsStatus.role)
-                    InfoRow("SSID", mwsStatus.ssid)
-                    InfoRow("Канал", "${mwsStatus.channel}")
                 }
             }
-        }
 
-        if (wlanList.isNotEmpty()) {
-            item { Text("Сети Mesh (WLAN)", style = MaterialTheme.typography.titleSmall, color = KeeneticColors.TextPrimary, modifier = Modifier.padding(horizontal = 4.dp)) }
-            items(wlanList) { wlan ->
-                MwsWlanCard(wlan, onToggleWlan = { id, enabled -> viewModel.setMwsWlanEnabled(id, enabled) })
-            }
-            item {
-                Text(
-                    "Переключение «Включён» выполняет mws wlan {id} enable (проверено на KN-2311).",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = KeeneticColors.TextSecondary,
-                    modifier = Modifier.padding(horizontal = 4.dp)
-                )
-            }
-        }
-
-        if (members.isNotEmpty()) {
-            item { Text("Участники", style = MaterialTheme.typography.titleSmall, color = KeeneticColors.TextPrimary, modifier = Modifier.padding(horizontal = 4.dp)) }
-            items(members) { member ->
-                MwsMemberCard(member)
+            if (members.isNotEmpty()) {
+                item(key = "members-header") {
+                    SubGroupHeader("Участники", members.size)
+                }
+                items(members) { member ->
+                    MwsMemberCard(member)
+                }
             }
         }
     }
@@ -92,13 +102,13 @@ fun MwsScreen(viewModel: RouterViewModel, onBack: () -> Unit = {}) {
 
 @Composable
 private fun MwsWlanCard(wlan: MwsWlan, onToggleWlan: (String, Boolean) -> Unit) {
-    Card(shape = RoundedCornerShape(12.dp), colors = CardDefaults.cardColors(containerColor = KeeneticColors.Surface)) {
-        Column(modifier = Modifier.fillMaxWidth().padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-            Text(wlan.id, fontWeight = FontWeight.Bold, color = KeeneticColors.TextPrimary)
-            InfoRow("По расписанию выключена", if (wlan.disabledBySchedule) "Да" else "Нет")
-            wlan.bands.forEach { band ->
-                MwsBandRow(band, onToggleBand = { enabled -> onToggleWlan(wlan.id, enabled) })
-            }
+    SectionCard(title = wlan.id) {
+        InfoRow("По расписанию выключена", if (wlan.disabledBySchedule) "Да" else "Нет")
+        if (wlan.bands.isNotEmpty()) {
+            RowDivider()
+        }
+        wlan.bands.forEach { band ->
+            MwsBandRow(band, onToggleBand = { enabled -> onToggleWlan(wlan.id, enabled) })
         }
     }
 }
@@ -110,40 +120,33 @@ private fun MwsBandRow(band: MwsWlanBand, onToggleBand: (Boolean) -> Unit) {
         "1" -> "5 ГГц"
         else -> "Полоса ${band.band}"
     }
-    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-        Column(modifier = Modifier.weight(1f)) {
-            Text(label, color = KeeneticColors.TextPrimary)
-            if (band.accessPointId.isNotBlank()) {
-                Text(band.accessPointId, style = MaterialTheme.typography.bodySmall, color = KeeneticColors.TextSecondary)
-            }
-        }
-        val wpsReady = band.wpsConfigured && band.wpsStatus.equals("enabled", ignoreCase = true)
-        Text(
-            if (wpsReady) "WPS: готов" else "WPS: ${band.wpsStatus.ifBlank { "выкл" }}",
-            style = MaterialTheme.typography.bodySmall,
-            color = if (wpsReady) KeeneticColors.Primary else KeeneticColors.TextSecondary
+    val wpsReady = band.wpsConfigured && band.wpsStatus.equals("enabled", ignoreCase = true)
+
+    SectionCard {
+        InfoRow(
+            label = label,
+            value = band.accessPointId.ifBlank { "точка доступа не задана" },
+            monospace = true
         )
-        Switch(checked = band.enabled, onCheckedChange = onToggleBand)
+        InfoRow(
+            label = "WPS",
+            value = if (wpsReady) "готов" else band.wpsStatus.ifBlank { "выкл" },
+            valueColor = if (wpsReady) KeeneticColors.Primary else KeeneticColors.TextSecondary
+        )
+        SwitchRow(
+            label = "Полоса включена",
+            checked = band.enabled,
+            onCheckedChange = onToggleBand
+        )
     }
 }
 
 @Composable
 private fun MwsMemberCard(member: MwsMember) {
-    Card(shape = RoundedCornerShape(12.dp), colors = CardDefaults.cardColors(containerColor = KeeneticColors.Surface)) {
-        Column(modifier = Modifier.fillMaxWidth().padding(12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-            Text(member.name, fontWeight = FontWeight.Bold, color = KeeneticColors.TextPrimary)
-            InfoRow("MAC", member.mac)
-            InfoRow("IP", member.ip)
-            InfoRow("Статус", member.status)
-            InfoRow("Прошивка", member.firmware)
-        }
-    }
-}
-
-@Composable
-private fun InfoRow(label: String, value: String) {
-    Row(modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp), horizontalArrangement = Arrangement.SpaceBetween) {
-        Text(label, style = MaterialTheme.typography.bodyMedium, color = KeeneticColors.TextSecondary)
-        Text(value, style = MaterialTheme.typography.bodyMedium, color = KeeneticColors.TextPrimary, fontWeight = FontWeight.Medium)
+    SectionCard(title = member.name.ifBlank { "Участник" }) {
+        InfoRow("MAC", member.mac, monospace = true)
+        InfoRow("IP", member.ip, monospace = true)
+        InfoRow("Статус", member.status.ifBlank { "—" })
+        InfoRow("Прошивка", member.firmware.ifBlank { "—" }, monospace = true)
     }
 }
