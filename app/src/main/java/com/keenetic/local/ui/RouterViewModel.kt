@@ -6562,4 +6562,72 @@ private val _intelliQos = MutableStateFlow(IntelliQosConfig())
             }
         }
     }
+
+    // ---- RCI probe: произвольный GET /rci/show/<path>, только чтение ----
+    private val _rciProbePath = MutableStateFlow("interface")
+    val rciProbePath: StateFlow<String> = _rciProbePath.asStateFlow()
+    private val _rciProbeResult = MutableStateFlow("")
+    val rciProbeResult: StateFlow<String> = _rciProbeResult.asStateFlow()
+    private val _rciProbeMessage = MutableStateFlow("")
+    val rciProbeMessage: StateFlow<String> = _rciProbeMessage.asStateFlow()
+
+    fun setRciProbePath(p: String) { _rciProbePath.value = p }
+
+    fun probeRci() {
+        val path = _rciProbePath.value.trim().trim('/').replace(' ', '/')
+        if (path.isBlank()) {
+            _rciProbeMessage.value = "Укажите путь, например interface"
+            return
+        }
+        viewModelScope.launch {
+            try {
+                _rciProbeMessage.value = "Запрос show/$path…"
+                val el = repository.queryShow(path)
+                if (el == null) {
+                    _rciProbeResult.value = ""
+                    _rciProbeMessage.value = "Пустой ответ show/$path"
+                } else {
+                    val gson = com.google.gson.GsonBuilder().setPrettyPrinting().create()
+                    _rciProbeResult.value = gson.toJson(el)
+                    _rciProbeMessage.value = "OK show/$path"
+                }
+            } catch (e: Exception) {
+                AppLogger.logError("probeRci", e)
+                _rciProbeMessage.value = "Ошибка: ${e.message}"
+            }
+        }
+    }
+
+    fun saveRciProbe(context: android.content.Context) {
+        val text = _rciProbeResult.value
+        if (text.isBlank()) {
+            _rciProbeMessage.value = "Нечего сохранять: сначала выполните запрос"
+            return
+        }
+        viewModelScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+            try {
+                val safe = _rciProbePath.value.trim().trim('/')
+                    .replace(Regex("[^A-Za-z0-9]+"), "_").ifBlank { "probe" }
+                val name = "rci_${safe}.json"
+                val resolver = context.contentResolver
+                val values = android.content.ContentValues().apply {
+                    put(android.provider.MediaStore.Downloads.DISPLAY_NAME, name)
+                    put(android.provider.MediaStore.Downloads.MIME_TYPE, "application/json")
+                    put(android.provider.MediaStore.Downloads.RELATIVE_PATH, "Download/Keenetic")
+                }
+                val uri = resolver.insert(
+                    android.provider.MediaStore.Downloads.EXTERNAL_CONTENT_URI, values
+                )
+                if (uri == null) {
+                    _rciProbeMessage.value = "Нет доступа к загрузкам"
+                    return@launch
+                }
+                resolver.openOutputStream(uri)?.use { it.write(text.toByteArray(Charsets.UTF_8)) }
+                _rciProbeMessage.value = "Сохранено в Download/Keenetic/$name"
+            } catch (e: Exception) {
+                AppLogger.logError("saveRciProbe", e)
+                _rciProbeMessage.value = "Ошибка сохранения: ${e.message}"
+            }
+        }
+    }
 }

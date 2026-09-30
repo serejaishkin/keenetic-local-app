@@ -63,6 +63,9 @@ fun DashboardScreen(
     val wifiNetworks by viewModel.wifiNetworks.collectAsState()
     val isDemo by viewModel.isDemoMode.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
+    val rciProbePath by viewModel.rciProbePath.collectAsState()
+    val rciProbeResult by viewModel.rciProbeResult.collectAsState()
+    val rciProbeMessage by viewModel.rciProbeMessage.collectAsState()
 
     val context = LocalContext.current
     val clipboardManager = LocalClipboardManager.current
@@ -706,9 +709,25 @@ fun DashboardScreen(
                             }
                         }
 
-                        // Copy button
-                        val currentTextToCopy = if (selectedRciTab == 0) rawVersion else rawSystem
-                        if (currentTextToCopy.isNotBlank()) {
+                        // Copy + save buttons
+                        val currentTextToCopy = when (selectedRciTab) {
+                            0 -> rawVersion
+                            1 -> rawSystem
+                            else -> rciProbeResult
+                        }
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            if (selectedRciTab == 2 && rciProbeResult.isNotBlank()) {
+                                FilledTonalButton(
+                                    onClick = { viewModel.saveRciProbe(context) },
+                                    shape = RoundedCornerShape(8.dp),
+                                    contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
+                                    colors = ButtonDefaults.filledTonalButtonColors(containerColor = KeeneticColors.SurfaceElevated)
+                                ) {
+                                    Icon(Icons.Default.Save, contentDescription = null, modifier = Modifier.size(14.dp), tint = KeeneticColors.Primary)
+                                    Spacer(Modifier.width(4.dp))
+                                    Text("Сохранить", style = MaterialTheme.typography.labelSmall, color = KeeneticColors.Primary, maxLines = 1)
+                                }
+                            }
                             FilledTonalButton(
                                 onClick = {
                                     clipboardManager.setText(AnnotatedString(currentTextToCopy))
@@ -716,7 +735,8 @@ fun DashboardScreen(
                                 },
                                 shape = RoundedCornerShape(8.dp),
                                 contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
-                                colors = ButtonDefaults.filledTonalButtonColors(containerColor = KeeneticColors.SurfaceElevated)
+                                colors = ButtonDefaults.filledTonalButtonColors(containerColor = KeeneticColors.SurfaceElevated),
+                                enabled = currentTextToCopy.isNotBlank()
                             ) {
                                 Icon(Icons.Default.ContentCopy, contentDescription = null, modifier = Modifier.size(14.dp), tint = KeeneticColors.Primary)
                                 Spacer(Modifier.width(4.dp))
@@ -742,13 +762,52 @@ fun DashboardScreen(
                             onClick = { selectedRciTab = 1 },
                             text = { Text("GET /rci/show/system", maxLines = 1) }
                         )
+                        Tab(
+                            selected = selectedRciTab == 2,
+                            onClick = { selectedRciTab = 2 },
+                            text = { Text("Свой запрос", maxLines = 1) }
+                        )
+                    }
+
+                    // Произвольный show-запрос: путь + кнопка + статус
+                    if (selectedRciTab == 2) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            OutlinedTextField(
+                                value = rciProbePath,
+                                onValueChange = { viewModel.setRciProbePath(it) },
+                                label = { Text("show/…", maxLines = 1) },
+                                placeholder = { Text("interface", maxLines = 1) },
+                                singleLine = true,
+                                modifier = Modifier.weight(1f),
+                                textStyle = MaterialTheme.typography.bodyMedium.copy(fontFamily = FontFamily.Monospace)
+                            )
+                            Button(
+                                onClick = { viewModel.probeRci() },
+                                shape = RoundedCornerShape(8.dp),
+                                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp)
+                            ) {
+                                Text("Запросить", maxLines = 1)
+                            }
+                        }
+                        if (rciProbeMessage.isNotBlank()) {
+                            Text(
+                                rciProbeMessage,
+                                style = MaterialTheme.typography.labelSmall,
+                                color = KeeneticColors.TextSecondary,
+                                maxLines = 2
+                            )
+                        }
                     }
 
                     // Terminal JSON display
-                    val displayText = if (selectedRciTab == 0) {
-                        rawVersion.ifBlank { "{\n  \"status\": \"Ожидание данных от /rci/show/version...\"\n}" }
-                    } else {
-                        rawSystem.ifBlank { "{\n  \"status\": \"Ожидание данных от /rci/show/system...\"\n}" }
+                    val displayText = when (selectedRciTab) {
+                        0 -> rawVersion.ifBlank { "{\n  \"status\": \"Ожидание данных от /rci/show/version...\"\n}" }
+                        1 -> rawSystem.ifBlank { "{\n  \"status\": \"Ожидание данных от /rci/show/system...\"\n}" }
+                        else -> rciProbeResult.ifBlank { "{\n  \"status\": \"Введите путь show/… и нажмите «Запросить»\"\n}" }
                     }
 
                     Box(
