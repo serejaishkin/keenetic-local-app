@@ -1,29 +1,55 @@
 package com.keenetic.local.ui.screens
 
-import androidx.compose.foundation.background
-import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Lan
 import androidx.compose.material.icons.filled.PowerSettingsNew
 import androidx.compose.material.icons.filled.Refresh
-import androidx.compose.material.icons.filled.Security
 import androidx.compose.material.icons.filled.SystemUpdate
 import androidx.compose.material.icons.filled.Terminal
-import androidx.compose.material.icons.filled.Warning
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.keenetic.local.ui.RouterViewModel
+import com.keenetic.local.ui.components.ConfirmDialog
+import com.keenetic.local.ui.components.EditableRow
+import com.keenetic.local.ui.components.InfoRow
+import com.keenetic.local.ui.components.OptionPickerDialog
+import com.keenetic.local.ui.components.RowDivider
+import com.keenetic.local.ui.components.SectionCard
+import com.keenetic.local.ui.components.SectionScaffold
 import com.keenetic.local.ui.theme.KeeneticColors
+
+private val REBOOT_METHODS = listOf(
+    RouterViewModel.RebootMethod.RCI.name to "RCI REST API (основной)",
+    RouterViewModel.RebootMethod.SSH.name to "SSH JSch (резервный)"
+)
 
 @Composable
 fun FirmwareScreen(viewModel: RouterViewModel, onBack: () -> Unit = {}) {
@@ -35,322 +61,137 @@ fun FirmwareScreen(viewModel: RouterViewModel, onBack: () -> Unit = {}) {
     val savedIp by viewModel.savedIp.collectAsState()
     val savedUsername by viewModel.savedUsername.collectAsState()
     var showRebootDialog by remember { mutableStateOf(false) }
+    var methodPicker by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) {
         viewModel.loadFirmwareStatus()
     }
 
-    LazyColumn(
-        modifier = Modifier.fillMaxSize().padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
+    SectionScaffold(
+        title = "KeeneticOS и система",
+        subtitle = "Прошивка и перезагрузка",
+        onBack = onBack,
+        onRefresh = { viewModel.loadFirmwareStatus() }
     ) {
-        item {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp)
-            ) {
-                IconButton(onClick = onBack) {
-                    Icon(Icons.Default.ArrowBack, contentDescription = "Назад", tint = KeeneticColors.TextPrimary)
-                }
-                Spacer(modifier = Modifier.width(8.dp))
-                Icon(Icons.Default.SystemUpdate, contentDescription = null, tint = KeeneticColors.Primary)
-                Spacer(modifier = Modifier.width(8.dp))
-                Text(
-                    "KeeneticOS и система",
-                    style = MaterialTheme.typography.headlineSmall,
-                    fontWeight = FontWeight.Bold,
-                    color = KeeneticColors.TextPrimary
-                )
-            }
-        }
-
-        rebootMessage?.let { msg ->
-            item {
-                Card(
-                    shape = RoundedCornerShape(16.dp),
-                    colors = CardDefaults.cardColors(containerColor = KeeneticColors.Primary.copy(alpha = 0.15f))
-                ) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth().padding(16.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(12.dp)
-                    ) {
-                        Icon(Icons.Default.CheckCircle, contentDescription = null, tint = KeeneticColors.Primary)
-                        Text(
-                            msg,
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = KeeneticColors.TextPrimary,
-                            modifier = Modifier.weight(1f)
-                        )
-                        IconButton(onClick = { viewModel.clearRebootMessage() }) {
-                            Text("OK", color = KeeneticColors.Primary, fontWeight = FontWeight.Bold)
+        LazyColumn(
+            modifier = Modifier.fillMaxSize(),
+            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 24.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            rebootMessage?.let { msg ->
+                item(key = "reboot-message") {
+                    SectionCard(
+                        trailing = {
+                            TextButton(onClick = { viewModel.clearRebootMessage() }) {
+                                Text("OK", color = KeeneticColors.Primary)
+                            }
                         }
-                    }
-                }
-            }
-        }
-
-        item {
-            Card(
-                shape = RoundedCornerShape(16.dp),
-                colors = CardDefaults.cardColors(containerColor = KeeneticColors.Surface)
-            ) {
-                Column(modifier = Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
-                            Icon(Icons.Default.SystemUpdate, contentDescription = null, tint = KeeneticColors.Primary)
-                            Text(status?.title ?: "KeeneticOS", style = MaterialTheme.typography.titleMedium, color = KeeneticColors.TextPrimary)
-                        }
-                        Surface(
-                            color = KeeneticColors.Primary.copy(alpha = 0.15f),
-                            shape = RoundedCornerShape(8.dp)
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(12.dp)
                         ) {
+                            Icon(Icons.Default.CheckCircle, contentDescription = null, tint = KeeneticColors.Primary)
                             Text(
-                                status?.channel ?: "Release",
-                                color = KeeneticColors.Primary,
-                                style = MaterialTheme.typography.bodySmall,
-                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-                                fontWeight = FontWeight.Medium
+                                msg,
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = KeeneticColors.TextPrimary
                             )
                         }
                     }
+                }
+            }
 
+            item(key = "firmware") {
+                SectionCard(
+                    title = status?.title ?: "KeeneticOS",
+                    subtitle = status?.channel ?: "Release",
+                    icon = Icons.Default.SystemUpdate
+                ) {
                     if (status?.model?.isNotBlank() == true) {
-                        Text(
-                            "Модель: ${status?.model}",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = KeeneticColors.TextSecondary
-                        )
+                        InfoRow("Модель", status?.model ?: "—")
                     }
-
-                    HorizontalDivider(color = KeeneticColors.Divider)
-
                     if (status?.updateAvailable == true) {
-                        Text("Доступно обновление: ${status?.availableVersion}", color = KeeneticColors.Success, style = MaterialTheme.typography.titleSmall)
-                        Text(status?.changelog ?: "", color = KeeneticColors.TextSecondary, style = MaterialTheme.typography.bodySmall)
+                        InfoRow(
+                            label = "Доступно обновление",
+                            value = status?.availableVersion ?: "—",
+                            valueColor = KeeneticColors.Success
+                        )
+                        if (status?.changelog?.isNotBlank() == true) {
+                            Text(
+                                status?.changelog ?: "",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = KeeneticColors.TextSecondary
+                            )
+                        }
                         // Установка прошивки - это загрузка файла в веб-интерфейс роутера,
                         // а не команда RCI: рабочий эндпоинт не документирован, поэтому
                         // кнопка не имитирует установку и не меняет локальное состояние.
                         Text(
-                            "Установить обновление из этого приложения нельзя: прошивка загружается файлом через веб-интерфейс роутера (Обновления → KeeneticOS).",
-                            color = KeeneticColors.TextSecondary, style = MaterialTheme.typography.bodySmall
+                            "Установить обновление из этого приложения нельзя: прошивка " +
+                                "загружается файлом через веб-интерфейс роутера " +
+                                "(Обновления → KeeneticOS).",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = KeeneticColors.TextSecondary
                         )
-                        Button(
-                            onClick = { viewModel.loadFirmwareStatus() },
-                            modifier = Modifier.fillMaxWidth(),
-                            colors = ButtonDefaults.outlinedButtonColors()
-                        ) {
-                            Icon(Icons.Default.Refresh, contentDescription = null, tint = KeeneticColors.Primary)
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text("Проверить обновления", color = KeeneticColors.Primary)
-                        }
                     } else {
-                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            Icon(Icons.Default.CheckCircle, contentDescription = null, tint = KeeneticColors.Success)
-                            Text("Установлена актуальная версия ПО", color = KeeneticColors.Success, style = MaterialTheme.typography.bodyMedium)
-                        }
-                        Button(
-                            onClick = { viewModel.loadFirmwareStatus() },
-                            modifier = Modifier.fillMaxWidth(),
-                            colors = ButtonDefaults.outlinedButtonColors()
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
-                            Icon(Icons.Default.Refresh, contentDescription = null, tint = KeeneticColors.Primary)
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text("Проверить обновления", color = KeeneticColors.Primary)
+                            Icon(Icons.Default.CheckCircle, contentDescription = null, tint = KeeneticColors.Success)
+                            Text(
+                                "Установлена актуальная версия ПО",
+                                color = KeeneticColors.Success,
+                                style = MaterialTheme.typography.bodyMedium
+                            )
                         }
+                    }
+                    OutlinedButton(
+                        onClick = { viewModel.loadFirmwareStatus() },
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Icon(Icons.Default.Refresh, contentDescription = null, tint = KeeneticColors.Primary)
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("Проверить обновления", color = KeeneticColors.Primary)
                     }
                 }
             }
-        }
 
-        item {
-            Card(
-                shape = RoundedCornerShape(16.dp),
-                colors = CardDefaults.cardColors(containerColor = KeeneticColors.Surface)
-            ) {
-                Column(
-                    modifier = Modifier.fillMaxWidth().padding(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(14.dp)
+            item(key = "reboot") {
+                SectionCard(
+                    title = "Перезагрузка интернет-центра",
+                    subtitle = "Все соединения будут кратковременно прерваны",
+                    icon = Icons.Default.PowerSettingsNew
                 ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(10.dp)
-                    ) {
-                        Icon(
-                            Icons.Default.PowerSettingsNew,
-                            contentDescription = null,
-                            tint = KeeneticColors.Error
-                        )
-                        Column {
-                            Text(
-                                "Перезагрузка интернет-центра",
-                                style = MaterialTheme.typography.titleMedium,
-                                color = KeeneticColors.TextPrimary,
-                                fontWeight = FontWeight.SemiBold
-                            )
-                            Text(
-                                "Основной метод через RCI и вторичный через SSH (JSch)",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = KeeneticColors.TextSecondary
-                            )
-                        }
-                    }
-
-                    Text(
-                        "Выберите протокол для передачи команды перезагрузки интернет-центру Keenetic. При перезагрузке все текущие соединения будут кратковременно прерваны.",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = KeeneticColors.TextSecondary
+                    EditableRow(
+                        label = "Метод перезагрузки",
+                        value = if (selectedRebootMethod == RouterViewModel.RebootMethod.SSH) {
+                            "SSH (JSch)"
+                        } else {
+                            "RCI REST API"
+                        },
+                        onClick = { methodPicker = true }
                     )
 
-                    // Method Selector
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        // RCI API Card
-                        val isRciSelected = selectedRebootMethod == RouterViewModel.RebootMethod.RCI
-                        Card(
-                            modifier = Modifier
-                                .weight(1f)
-                                .clickable { viewModel.setSelectedRebootMethod(RouterViewModel.RebootMethod.RCI) }
-                                .border(
-                                    width = if (isRciSelected) 2.dp else 1.dp,
-                                    color = if (isRciSelected) KeeneticColors.Primary else KeeneticColors.Border,
-                                    shape = RoundedCornerShape(12.dp)
-                                ),
-                            shape = RoundedCornerShape(12.dp),
-                            colors = CardDefaults.cardColors(
-                                containerColor = if (isRciSelected) KeeneticColors.Primary.copy(alpha = 0.12f) else KeeneticColors.Background
-                            )
-                        ) {
-                            Column(
-                                modifier = Modifier.padding(12.dp),
-                                verticalArrangement = Arrangement.spacedBy(4.dp)
-                            ) {
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(6.dp)
-                                ) {
-                                    Icon(
-                                        Icons.Default.Lan,
-                                        contentDescription = null,
-                                        tint = if (isRciSelected) KeeneticColors.Primary else KeeneticColors.TextSecondary,
-                                        modifier = Modifier.size(18.dp)
-                                    )
-                                    Text(
-                                        "RCI REST API",
-                                        style = MaterialTheme.typography.titleSmall,
-                                        fontWeight = FontWeight.Bold,
-                                        color = if (isRciSelected) KeeneticColors.Primary else KeeneticColors.TextPrimary
-                                    )
-                                }
-                                Text(
-                                    "Основной способ (HTTP/S)",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = KeeneticColors.TextSecondary
-                                )
-                            }
-                        }
-
-                        // SSH JSch Card
-                        val isSshSelected = selectedRebootMethod == RouterViewModel.RebootMethod.SSH
-                        Card(
-                            modifier = Modifier
-                                .weight(1f)
-                                .clickable { viewModel.setSelectedRebootMethod(RouterViewModel.RebootMethod.SSH) }
-                                .border(
-                                    width = if (isSshSelected) 2.dp else 1.dp,
-                                    color = if (isSshSelected) KeeneticColors.Primary else KeeneticColors.Border,
-                                    shape = RoundedCornerShape(12.dp)
-                                ),
-                            shape = RoundedCornerShape(12.dp),
-                            colors = CardDefaults.cardColors(
-                                containerColor = if (isSshSelected) KeeneticColors.Primary.copy(alpha = 0.12f) else KeeneticColors.Background
-                            )
-                        ) {
-                            Column(
-                                modifier = Modifier.padding(12.dp),
-                                verticalArrangement = Arrangement.spacedBy(4.dp)
-                            ) {
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(6.dp)
-                                ) {
-                                    Icon(
-                                        Icons.Default.Terminal,
-                                        contentDescription = null,
-                                        tint = if (isSshSelected) KeeneticColors.Primary else KeeneticColors.TextSecondary,
-                                        modifier = Modifier.size(18.dp)
-                                    )
-                                    Text(
-                                        "SSH (JSch)",
-                                        style = MaterialTheme.typography.titleSmall,
-                                        fontWeight = FontWeight.Bold,
-                                        color = if (isSshSelected) KeeneticColors.Primary else KeeneticColors.TextPrimary
-                                    )
-                                }
-                                Text(
-                                    "Вторичный способ (SSH2)",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = KeeneticColors.TextSecondary
-                                )
-                            }
-                        }
-                    }
-
-                    // Configuration & Explanations based on selected method
                     if (selectedRebootMethod == RouterViewModel.RebootMethod.SSH) {
-                        Column(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .background(KeeneticColors.Background, RoundedCornerShape(10.dp))
-                                .padding(12.dp),
-                            verticalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(6.dp)
-                            ) {
-                                Icon(
-                                    Icons.Default.Security,
-                                    contentDescription = null,
-                                    tint = KeeneticColors.Success,
-                                    modifier = Modifier.size(16.dp)
-                                )
-                                Text(
-                                    "Защищенный SSH-канал (библиотека JSch v0.1.55)",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    fontWeight = FontWeight.SemiBold,
-                                    color = KeeneticColors.Success
-                                )
-                            }
-                            Text(
-                                "Отправляет CLI-команду 'system reboot' напрямую через зашифрованный SSH2 сеанс. Незаменим в качестве резервного метода, если веб-сервер роутера (порт 80/443) недоступен.",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = KeeneticColors.TextSecondary
-                            )
-                            OutlinedTextField(
-                                value = sshPort,
-                                onValueChange = { viewModel.setSshPort(it.filter { ch -> ch.isDigit() }) },
-                                label = { Text("SSH порт интернет-центра") },
-                                singleLine = true,
-                                modifier = Modifier.fillMaxWidth(),
-                                colors = OutlinedTextFieldDefaults.colors(
-                                    focusedBorderColor = KeeneticColors.Primary,
-                                    unfocusedBorderColor = KeeneticColors.Border
-                                )
-                            )
-                        }
+                        Text(
+                            "Отправляет CLI-команду 'system reboot' через зашифрованный SSH2-сеанс " +
+                                "(библиотека JSch). Незаменим, если веб-сервер роутера (порт 80/443) " +
+                                "недоступен.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = KeeneticColors.TextSecondary
+                        )
+                        OutlinedTextField(
+                            value = sshPort,
+                            onValueChange = { viewModel.setSshPort(it.filter { ch -> ch.isDigit() }) },
+                            label = { Text("SSH порт интернет-центра") },
+                            singleLine = true,
+                            modifier = Modifier.fillMaxWidth()
+                        )
                     } else {
                         Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .background(KeeneticColors.Background, RoundedCornerShape(10.dp))
-                                .padding(12.dp),
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
@@ -361,12 +202,15 @@ fun FirmwareScreen(viewModel: RouterViewModel, onBack: () -> Unit = {}) {
                                 modifier = Modifier.size(18.dp)
                             )
                             Text(
-                                "Отправка команды {'system': {'reboot': {}}} через REST API локального интерфейса KeeneticOS.",
+                                "Отправка команды {'system': {'reboot': {}}} через REST API " +
+                                    "локального интерфейса KeeneticOS.",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = KeeneticColors.TextSecondary
                             )
                         }
                     }
+
+                    RowDivider()
 
                     Button(
                         onClick = { showRebootDialog = true },
@@ -375,7 +219,8 @@ fun FirmwareScreen(viewModel: RouterViewModel, onBack: () -> Unit = {}) {
                         colors = ButtonDefaults.buttonColors(
                             containerColor = KeeneticColors.Error.copy(alpha = 0.85f),
                             contentColor = KeeneticColors.Background
-                        )
+                        ),
+                        shape = RoundedCornerShape(12.dp)
                     ) {
                         if (isRebooting) {
                             CircularProgressIndicator(
@@ -389,10 +234,11 @@ fun FirmwareScreen(viewModel: RouterViewModel, onBack: () -> Unit = {}) {
                             Icon(Icons.Default.PowerSettingsNew, contentDescription = null)
                             Spacer(modifier = Modifier.width(8.dp))
                             Text(
-                                if (selectedRebootMethod == RouterViewModel.RebootMethod.SSH)
+                                if (selectedRebootMethod == RouterViewModel.RebootMethod.SSH) {
                                     "Перезагрузить через SSH (JSch)"
-                                else
+                                } else {
                                     "Перезагрузить через RCI API"
+                                }
                             )
                         }
                     }
@@ -401,88 +247,41 @@ fun FirmwareScreen(viewModel: RouterViewModel, onBack: () -> Unit = {}) {
         }
     }
 
+    if (methodPicker) {
+        OptionPickerDialog(
+            title = "Метод перезагрузки",
+            options = REBOOT_METHODS,
+            selectedKey = selectedRebootMethod.name,
+            onSelect = {
+                viewModel.setSelectedRebootMethod(
+                    if (it == RouterViewModel.RebootMethod.SSH.name) {
+                        RouterViewModel.RebootMethod.SSH
+                    } else {
+                        RouterViewModel.RebootMethod.RCI
+                    }
+                )
+            },
+            onDismiss = { methodPicker = false }
+        )
+    }
+
     if (showRebootDialog) {
-        AlertDialog(
-            onDismissRequest = { if (!isRebooting) showRebootDialog = false },
-            icon = {
-                Icon(
-                    Icons.Default.Warning,
-                    contentDescription = null,
-                    tint = KeeneticColors.Error,
-                    modifier = Modifier.size(36.dp)
-                )
-            },
-            title = {
-                Text(
-                    "Подтверждение перезагрузки",
-                    style = MaterialTheme.typography.titleLarge,
-                    color = KeeneticColors.TextPrimary,
-                    fontWeight = FontWeight.Bold
-                )
-            },
-            text = {
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text(
-                        "Вы действительно хотите перезагрузить интернет-центр Keenetic? Все активные сетевые сессии клиентов будут кратковременно прерваны.",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = KeeneticColors.TextSecondary
-                    )
-                    Card(
-                        shape = RoundedCornerShape(8.dp),
-                        colors = CardDefaults.cardColors(containerColor = KeeneticColors.Background),
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Column(modifier = Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                            Text(
-                                "Метод: ${if (selectedRebootMethod == RouterViewModel.RebootMethod.SSH) "SSH (JSch библиотека)" else "RCI REST API"}",
-                                style = MaterialTheme.typography.bodySmall,
-                                fontWeight = FontWeight.SemiBold,
-                                color = KeeneticColors.TextPrimary
-                            )
-                            Text(
-                                "Цель: $savedIp:${if (selectedRebootMethod == RouterViewModel.RebootMethod.SSH) sshPort else "80/443"}",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = KeeneticColors.TextSecondary
-                            )
-                            Text(
-                                "Пользователь: $savedUsername",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = KeeneticColors.TextSecondary
-                            )
-                        }
-                    }
+        ConfirmDialog(
+            title = "Подтверждение перезагрузки",
+            message = "Вы действительно хотите перезагрузить интернет-центр Keenetic? " +
+                "Все активные сетевые сессии клиентов будут кратковременно прерваны.\n\n" +
+                "Метод: " +
+                (if (selectedRebootMethod == RouterViewModel.RebootMethod.SSH) "SSH (JSch)" else "RCI REST API") +
+                "\nЦель: $savedIp:" +
+                (if (selectedRebootMethod == RouterViewModel.RebootMethod.SSH) sshPort else "80/443") +
+                "\nПользователь: $savedUsername",
+            confirmLabel = "Да, перезагрузить",
+            onConfirm = {
+                viewModel.rebootRouter(selectedRebootMethod) { _, _ ->
+                    showRebootDialog = false
                 }
             },
-            confirmButton = {
-                Button(
-                    onClick = {
-                        viewModel.rebootRouter(selectedRebootMethod) { success, _ ->
-                            showRebootDialog = false
-                        }
-                    },
-                    enabled = !isRebooting,
-                    colors = ButtonDefaults.buttonColors(containerColor = KeeneticColors.Error)
-                ) {
-                    if (isRebooting) {
-                        CircularProgressIndicator(
-                            modifier = Modifier.size(16.dp),
-                            color = KeeneticColors.Background,
-                            strokeWidth = 2.dp
-                        )
-                        Spacer(modifier = Modifier.width(6.dp))
-                    }
-                    Text("Да, перезагрузить")
-                }
-            },
-            dismissButton = {
-                TextButton(
-                    onClick = { showRebootDialog = false },
-                    enabled = !isRebooting
-                ) {
-                    Text("Отмена", color = KeeneticColors.TextPrimary)
-                }
-            },
-            containerColor = KeeneticColors.Surface
+            onDismiss = { if (!isRebooting) showRebootDialog = false }
         )
     }
 }
