@@ -97,24 +97,43 @@ java -version
 
 ```
 com.keenetic.local
-├── api/                    # Retrofit, репозиторий, модели данных
-│   ├── KeeneticApi.kt      # Интерфейс REST API (batch + отдельные запросы)
-│   ├── RouterRepository.kt # Инициализация Retrofit, cookie-jar, авторизация
-│   └── RouterModels.kt     # SystemInfo, Client, InterfaceInfo, WifiNetwork
+├── KeeneticApp.kt          # Application, DI-граф, DataStore
+├── MainActivity.kt         # Точка входа, нижняя навигация
+├── api/                    # Транспорт RCI и парсеры (28 файлов)
+│   ├── KeeneticRciService.kt   # Интерфейс REST API (batch + отдельные запросы)
+│   ├── KeeneticRciRepository.kt# RCI-репозиторий поверх сервиса
+│   ├── RouterRepository.kt     # Инициализация Retrofit, cookie-jar, авторизация
+│   ├── KeeneticSshClient.kt    # SSH (JSch) для терминала и fallback-перезагрузки
+│   └── *Parser.kt              # По одному парсеру на домен: Wans, Ddns, Vpn,
+│                               # Ipv6, Conntrack, SmbDlna, Torrent, Opkg, …,
+│                               # SystemDetail, InterfaceDetail/Stat/Mapper
 ├── data/
-│   └── DataStoreManager.kt # Хранение IP, логина, пароля, флагов
+│   ├── DataStoreManager.kt # Хранение IP, логина, пароля, флагов
+│   └── SavedService.kt     # Сохранённые SSH/Serial-сервисы
 ├── discovery/
 │   └── AutoDiscovery.kt    # Поиск роутеров в локальной сети
-├── ui/
-│   ├── RouterViewModel.kt  # MVVM: парсинг JSON, batch-загрузка, действия
-│   └── screens/
-│       ├── DashboardScreen.kt
-│       ├── WiFiScreen.kt
-│       ├── DevicesScreen.kt
-│       ├── TerminalScreen.kt
-│       └── SettingsScreen.kt
-└── MainActivity.kt         # Compose Navigation + BottomBar
+└── ui/
+    ├── Navigation.kt       # ~50 composable-маршрутов, BottomBar, TopAppBar
+    ├── RouterViewModel.kt  # MVVM: ~164 StateFlow, batch-загрузка, действия
+    ├── RouterViewModelCompatibility.kt # Обратная совместимость с прошивкой
+    ├── components/
+    │   └── SectionUi.kt    # SectionScaffold, SectionCard, InfoRow — общий UI-kit
+    └── screens/            # 54 файла: экраны разделов + common/RawJsonCard.kt
+        ├── DashboardScreen / LoginScreen / AllSectionsScreen
+        ├── WiFi* (WiFi, Wps, Mws, WifiAcl, WifiRepeater, WifiSystem, WiFiMonitor)
+        ├── Internet* (Internet, InternetDetailed, Ipv6, Mobile, MobileTraffic)
+        ├── DnsScreen + DnsFilterContent   # DNS — один экран
+        ├── Devices* (Devices, DeviceListDetailed)
+        ├── Vpn* (VpnAdvanced, VpnServers)
+        └── …по одному файлу на остальные разделы
 ```
+
+### Правила вёрстки
+
+- Корневые вкладки (Дашборд, Wi-Fi, Интернет, DNS, Устройства, Разделы)
+  используют собственную шапку; детальные экраны — `SectionScaffold`.
+- Эти два подхода не смешиваются внутри одного экрана.
+- Неподдерживаемые разделы показывают `UnsupportedNotice`, а не пустой список.
 
 ### Поток данных
 
@@ -174,6 +193,10 @@ Content-Type: application/json
 - [x] WPS: PBC-кнопка, авто-PIN, статусы WPS по WLAN/диапазонам (`show/mws/wlan`)
 - [x] Mesh (MWS): включение/выключение WLAN 2.4/5 ГГц (`mws.wlan[{id,enable}]`)
 - [x] Установка/удаление компонентов через RCI (`components.component`, карточка в SSH/SNMP)
+- [x] Единый UI-kit `SectionScaffold`/`SectionCard` для всех детальных экранов
+- [x] Сквозная вёрстка «рядами» по разделам Wi-Fi, системы и сервисов (этапы G3, G4)
+- [x] Права пользователей выводятся из `user.tags`, а не задаются вручную
+- [x] Реальные флаги `service.cifs/ftp/dlna` вместо предположений при загрузке разделов
 
 ### 🚧 В работе / частично
 
@@ -191,6 +214,20 @@ Content-Type: application/json
 - **Контроль доступа Wi-Fi (MAC ACL)** — `show/sc/interface/mac.access-list` отсутствует
 - **SMB/CIFS** — компонент не установлен (управление только через OPKG)
 - **Мобильный интернет** — `show/mobile`, `show/sim` отсутствуют (нет USB-модема)
+
+---
+
+## 🧑‍💻 Правила работы над репозиторием
+
+Обязательный порядок: **правка → `git add` целевых файлов → `git commit` →
+`git push origin main` → и только потом сборка и тесты.**
+
+Причина — рабочее дерево уже было один раз молча перезаписано чужой версией,
+и незакоммиченные правки пропали. Коммит с пушем до тестирования делает
+работу невосприимчивой к такой перезаписи.
+
+Полный набор правил (структура UI-kit, ограничения RCI, артефакты, которых
+нельзя коммитить, правила живого QA) — в [AGENTS.md](AGENTS.md).
 
 ---
 
