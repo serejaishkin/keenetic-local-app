@@ -47,7 +47,8 @@ fun UnsupportedNotice(sectionTitle: String, description: String? = null) {
                 },
                 style = MaterialTheme.typography.bodyMedium,
                 fontWeight = FontWeight.Medium,
-                color = KeeneticColors.TextPrimary
+                color = KeeneticColors.TextPrimary,
+                modifier = Modifier.weight(1f)
             )
         }
     }

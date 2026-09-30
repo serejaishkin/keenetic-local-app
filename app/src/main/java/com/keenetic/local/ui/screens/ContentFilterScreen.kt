@@ -75,7 +75,8 @@ fun ContentFilterScreen(viewModel: RouterViewModel, onBack: () -> Unit = {}) {
                                     "Фильтрация недоступна, пока компонент не установлен " +
                                     "через «Общие настройки» → «Компоненты».",
                                 style = MaterialTheme.typography.bodySmall,
-                                color = KeeneticColors.TextPrimary
+                                color = KeeneticColors.TextPrimary,
+                                modifier = Modifier.weight(1f)
                             )
                         }
                     }

@@ -81,7 +81,8 @@ fun VpnAdvancedScreen(viewModel: RouterViewModel, onBack: () -> Unit = {}) {
                                 "через защищённые протоколы. Настройка протоколов и ключей — " +
                                 "в веб-интерфейсе KeeneticOS.",
                             style = MaterialTheme.typography.bodySmall,
-                            color = KeeneticColors.TextPrimary
+                            color = KeeneticColors.TextPrimary,
+                            modifier = Modifier.weight(1f)
                         )
                     }
                 }

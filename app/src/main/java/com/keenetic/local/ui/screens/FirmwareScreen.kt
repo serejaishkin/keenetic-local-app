@@ -95,7 +95,8 @@ fun FirmwareScreen(viewModel: RouterViewModel, onBack: () -> Unit = {}) {
                             Text(
                                 msg,
                                 style = MaterialTheme.typography.bodyMedium,
-                                color = KeeneticColors.TextPrimary
+                                color = KeeneticColors.TextPrimary,
+                                modifier = Modifier.weight(1f)
                             )
                         }
                     }
@@ -205,7 +206,8 @@ fun FirmwareScreen(viewModel: RouterViewModel, onBack: () -> Unit = {}) {
                                 "Отправка команды {'system': {'reboot': {}}} через REST API " +
                                     "локального интерфейса KeeneticOS.",
                                 style = MaterialTheme.typography.bodySmall,
-                                color = KeeneticColors.TextSecondary
+                                color = KeeneticColors.TextSecondary,
+                                modifier = Modifier.weight(1f)
                             )
                         }
                     }
