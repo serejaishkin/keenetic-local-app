@@ -84,14 +84,27 @@
 - [x] `SystemAdvancedScreen.kt` ← «Настройки системы.html»: имя хоста, NTP (свитч,
   сервер, часовой пояс), индикаторы LED (свитч + выбор режима), состояние,
   резервная копия. Всё редактирование — через `FormDialog`/`OptionPickerDialog`.
-- [ ] `OtherConnectionsScreen.kt` ← «Другие подключения.html`
-- [ ] `MobileScreen.kt` ← «...через сотовую сеть.html»
-- [ ] `MobileTrafficScreen.kt` ← «Квота мобильного трафика.html»
-- [ ] `WifiRepeaterScreen.kt` ← «...публичную_соседнюю сеть Wi-Fi.html»
-- [ ] `VpnServersScreen.kt`, `VpnAdvancedScreen.kt` ← «Приложения.html» (VPN-часть)
-- [ ] `StaticRoutesScreen.kt` ← «Маршрутизация.html»: вкладки IPv4/IPv6/DNS как на сайте
-- [ ] `FirewallScreen.kt` ← «Межсетевой экран.html», `PortForwardingScreen.kt` ←
-  «Переадресация портов.html», `UpnpScreen.kt`: правила — ряды + диалог редактора
+- [x] `OtherConnectionsScreen.kt` ← «Другие подключения.html»: карточка подключения —
+  состояние, IP, сервер, свитч включения и кнопка настроек; тип подключения и
+  перечисляемые параметры выбираются через `OptionPickerDialog`.
+- [x] `MobileScreen.kt` ← «...через сотовую сеть.html»: статус модема карточкой,
+  режим работы — `OptionPickerDialog`, APN/USSD — `FormDialog`.
+- [x] `MobileTrafficScreen.kt` ← «Квота мобильного трафика.html»: лимит, SMS и сброс
+  счётчика — карточки, поля — `EditableRow` → `FormDialog`, свитчи пишут сразу.
+- [x] `WifiRepeaterScreen.kt` ← «...публичную_соседнюю сеть Wi-Fi.html»: WISP-строка,
+  список найденных сетей и состояние станции; ключ списка — `bssid` (поля `mac`
+  в модели нет).
+- [x] `VpnServersScreen.kt`, `VpnAdvancedScreen.kt` ← «Приложения.html» (VPN-часть):
+  выбор протокола чипами, карточка протокола с `SwitchRow`/`EditableRow`;
+  VPN-сервер и WireGuard-пиры — read-only карточки.
+- [x] `StaticRoutesScreen.kt` ← «Маршрутизация.html»: вкладки IPv4/IPv6/DNS чипами,
+  маршруты — карточки с `InfoRow`/`SwitchRow`, редакторы на `FormDialog`,
+  выбор интерфейса и списка доменов — `OptionPickerDialog`.
+- [x] `FirewallScreen.kt` ← «Межсетевой экран.html», `PortForwardingScreen.kt` ←
+  «Переадресация портов.html», `UpnpScreen.kt`: правила — ряды + диалог редактора;
+  `Ipv6Screen.kt`, `ObjectGroupScreen.kt`, `DdnsScreen.kt`, `ContentFilterScreen.kt`
+  переведены на общие карточки, `FirewallScreen`/`UpnpScreen` без свитчей
+  включения (в модели нет read/write-состояния).
 - [x] `DnsScreen.kt` ← раздел «DNS» на KN-2311: одна шапка, карточки «Перехват
   DNS-запросов» / «DNS-серверы» (DoH, DoT, обычные) / «Фильтрация DNS-запросов»,
   добавление и правка через диалог, удаление с подтверждением.
@@ -99,9 +112,6 @@
   маршрут `dns_filters` убран. Добавлены `updateDohServer`/`updateDotServer`
   (одна запись вместо delete+add), plain-DNS теперь читается из того же узла,
   в который пишется (`ip/name-server`).
-- [ ] `ContentFilterScreen.kt`, `DdnsScreen.kt`, `ObjectGroupScreen.kt`,
-  `Ipv6Screen.kt` ← «Доменное имя / Интернет-фильтры»: убрать двойные шапки,
-  данные — рядами, правка — в диалоге
 
 ### G3. Wi-Fi
 - [ ] `WiFiScreen.kt` ← «Сети Wi-Fi.html»: сеть = карточка с SSID/шифрованием/клиентами
@@ -130,7 +140,7 @@
 ## Состояние
 - ✅ Этапы A–F: RCI READ/WRITE сверены, сборка и unit-тесты зелёные, APK на телефоне,
   живые данные подтверждены (KN-2311, KeeneticOS 5.1.5, LIVE RCI).
-- 🔄 Этап G (вёрстка «как на сайте»): открыт, переделан `DnsScreen.kt` (раздел «DNS»).
+- 🔄 Этап G (вёрстка «как на сайте»): G0/G1/G2 закрыты, открыт G3 (Wi-Fi).
 - ⏳ Проверка каждого экрана Этапа G — скриншотом на подключённом телефоне.
   DNS проверен на живых данных: 7 DoH-серверов, 3 DoT, перехват выключен,
   пресеты/профили фильтрации пустые, диалог добавления обычного сервера открывается.
@@ -142,9 +152,20 @@
 - ✅ G1: `DashboardScreen.kt`, `DevicesScreen.kt`, `DeviceListDetailedScreen.kt`,
   `SystemMonitorScreen.kt`, `TrafficMonitorScreen.kt`, `NetworkMonitorScreen.kt`
   переведены на общие компоненты, дубли заголовков и дубли карточек убраны.
-- ✅ G2 (частично): `InternetScreen.kt`, `InternetDetailedScreen.kt`,
-  `SystemAdvancedScreen.kt` переведены на общие компоненты, редактирование параметров
-  идёт через `EditableRow` → `FormDialog`/`OptionPickerDialog`.
+- ✅ G2: переведены на общие компоненты `InternetScreen.kt`, `InternetDetailedScreen.kt`,
+  `SystemAdvancedScreen.kt`, `OtherConnectionsScreen.kt`, `MobileScreen.kt`,
+  `MobileTrafficScreen.kt`, `WifiRepeaterScreen.kt`, `VpnServersScreen.kt`,
+  `VpnAdvancedScreen.kt`, `StaticRoutesScreen.kt`, `PortForwardingScreen.kt`,
+  `FirewallScreen.kt`, `UpnpScreen.kt`, `Ipv6Screen.kt`, `ObjectGroupScreen.kt`,
+  `DdnsScreen.kt`, `ContentFilterScreen.kt`; `DropdownMenu`/`ExposedDropdownMenuBox`
+  и кнопки «Сохранить настройки» заменены на `EditableRow` → `FormDialog`
+  и `OptionPickerDialog`.
+- ✅ `DnsScreen.kt` снова собирается из чистого checkout: блок фильтрации возвращён
+  как `DnsFilterContent.kt` (`DnsSectionHeader`, `dnsFilterItems`, `DnsFilterUiState`),
+  его карточки переименованы в `DnsContentPresetCard`/`DnsContentProfileCard`,
+  чтобы не конфликтовать с одноимёнными composable из параллельной работы.
+- ✅ Проверено в отдельном worktree на чистом HEAD: `compileDebugKotlin`, unit-тесты
+  RCI и `assembleDebug` — BUILD SUCCESSFUL без незакоммиченных файлов.
 - ⏳ Сборка и unit-тесты зелёные; APK собран. Проверка на телефоне отложена (устройство
   отключено). Брандмаур Dr.Web блокировал localhost-соединение с Gradle daemon — с его
   отключением сборка проходит, временных правок в `gradle.properties` не осталось.
