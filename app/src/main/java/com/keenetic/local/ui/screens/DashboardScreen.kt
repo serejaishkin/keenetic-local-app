@@ -178,10 +178,11 @@ fun DashboardScreen(
                                 color = KeeneticColors.TextPrimary,
                                 fontWeight = FontWeight.Bold
                             )
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(8.dp)
-                            ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(10.dp),
+                            modifier = Modifier.weight(1f)
+                        ) {
                                 Text(
                                     sysInfo?.model ?: "KN-1811",
                                     style = MaterialTheme.typography.bodyMedium,
@@ -719,7 +720,7 @@ fun DashboardScreen(
                             ) {
                                 Icon(Icons.Default.ContentCopy, contentDescription = null, modifier = Modifier.size(14.dp), tint = KeeneticColors.Primary)
                                 Spacer(Modifier.width(4.dp))
-                                Text("Копировать", style = MaterialTheme.typography.labelSmall, color = KeeneticColors.Primary)
+                                Text("Копировать", style = MaterialTheme.typography.labelSmall, color = KeeneticColors.Primary, maxLines = 1)
                             }
                         }
                     }
