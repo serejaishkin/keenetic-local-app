@@ -536,11 +536,11 @@ fun DashboardScreen(
                             .padding(12.dp),
                         verticalArrangement = Arrangement.spacedBy(6.dp)
                     ) {
-                        Row(
+                        Column(
                             modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween
+                            verticalArrangement = Arrangement.spacedBy(2.dp)
                         ) {
-                            Text("История использования RAM (RCI show system)", style = MaterialTheme.typography.labelSmall, color = KeeneticColors.TextSecondary, modifier = Modifier.weight(1f))
+                            Text("История использования RAM (RCI show system)", style = MaterialTheme.typography.labelSmall, color = KeeneticColors.TextSecondary)
                             Text("Политика пула ОС", style = MaterialTheme.typography.labelSmall, color = KeeneticColors.TextSecondary)
                         }
 
