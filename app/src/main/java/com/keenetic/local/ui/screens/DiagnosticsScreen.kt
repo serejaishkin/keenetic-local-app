@@ -1,19 +1,39 @@
 package com.keenetic.local.ui.screens
 
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.BugReport
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
-import androidx.compose.ui.Alignment
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.keenetic.local.ui.RouterViewModel
+import com.keenetic.local.ui.components.SectionCard
+import com.keenetic.local.ui.components.SectionScaffold
 import com.keenetic.local.ui.theme.KeeneticColors
 
 @Composable
@@ -23,38 +43,25 @@ fun DiagnosticsScreen(viewModel: RouterViewModel, onBack: () -> Unit = {}) {
     val result by viewModel.diagnosticsResult.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
 
-    LazyColumn(
-        modifier = Modifier.fillMaxSize().padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
+    SectionScaffold(
+        title = "Диагностика сети",
+        subtitle = "Ping, Traceroute, DNS",
+        onBack = onBack
     ) {
-        item {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp)
-            ) {
-                IconButton(onClick = onBack) {
-                    Icon(Icons.Default.ArrowBack, contentDescription = "Назад", tint = KeeneticColors.TextPrimary)
-                }
-                Spacer(modifier = Modifier.width(8.dp))
-                Icon(Icons.Default.BugReport, contentDescription = null, tint = KeeneticColors.Primary)
-                Spacer(modifier = Modifier.width(8.dp))
-                Text(
-                    "Диагностика сети",
-                    style = MaterialTheme.typography.headlineSmall,
-                    fontWeight = FontWeight.Bold,
-                    color = KeeneticColors.TextPrimary
-                )
-            }
-        }
-
-        item {
-            Card(
-                shape = RoundedCornerShape(16.dp),
-                colors = CardDefaults.cardColors(containerColor = KeeneticColors.Surface)
-            ) {
-                Column(modifier = Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    Text("Инструменты диагностики Keenetic", style = MaterialTheme.typography.titleMedium, color = KeeneticColors.TextPrimary)
-                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        LazyColumn(
+            modifier = Modifier.fillMaxSize(),
+            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 24.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            item(key = "tools") {
+                SectionCard(
+                    title = "Инструменты диагностики Keenetic",
+                    icon = Icons.Default.BugReport
+                ) {
+                    androidx.compose.foundation.layout.Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
                         listOf("Ping", "Traceroute", "DNS").forEach { item ->
                             FilterChip(
                                 selected = tool == item,
@@ -74,7 +81,8 @@ fun DiagnosticsScreen(viewModel: RouterViewModel, onBack: () -> Unit = {}) {
                         onClick = { viewModel.runDiagnostics(tool, target) },
                         modifier = Modifier.fillMaxWidth(),
                         enabled = !isLoading,
-                        colors = ButtonDefaults.buttonColors(containerColor = KeeneticColors.Primary)
+                        colors = ButtonDefaults.buttonColors(containerColor = KeeneticColors.Primary),
+                        shape = RoundedCornerShape(12.dp)
                     ) {
                         if (isLoading) {
                             CircularProgressIndicator(
@@ -90,39 +98,42 @@ fun DiagnosticsScreen(viewModel: RouterViewModel, onBack: () -> Unit = {}) {
                     }
                 }
             }
-        }
 
-        result?.let { res ->
-            item {
-                Surface(
-                    shape = RoundedCornerShape(12.dp),
-                    color = KeeneticColors.TerminalBg,
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween
+            result?.let { res ->
+                item(key = "result") {
+                    Surface(
+                        shape = RoundedCornerShape(12.dp),
+                        color = KeeneticColors.TerminalBg,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        androidx.compose.foundation.layout.Column(
+                            modifier = Modifier.padding(16.dp),
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
+                            androidx.compose.foundation.layout.Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Text(
+                                    "${res.tool} -> ${res.target}",
+                                    color = KeeneticColors.Primary,
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    fontWeight = FontWeight.Bold
+                                )
+                                Text(
+                                    if (res.success) "УСПЕШНО" else "ОШИБКА",
+                                    color = if (res.success) KeeneticColors.Success else KeeneticColors.Error,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
                             Text(
-                                "${res.tool} -> ${res.target}",
-                                color = KeeneticColors.Primary,
-                                style = MaterialTheme.typography.bodyMedium,
-                                fontWeight = FontWeight.Bold
-                            )
-                            Text(
-                                if (res.success) "УСПЕШНО" else "ОШИБКА",
-                                color = if (res.success) KeeneticColors.Success else KeeneticColors.Error,
-                                style = MaterialTheme.typography.bodySmall,
-                                fontWeight = FontWeight.Bold
+                                res.output,
+                                color = KeeneticColors.TerminalText,
+                                fontSize = 12.sp,
+                                fontFamily = FontFamily.Monospace
                             )
                         }
-                        Text(
-                            res.output,
-                            color = KeeneticColors.TerminalText,
-                            fontSize = 12.sp,
-                            fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace
-                        )
                     }
                 }
             }
