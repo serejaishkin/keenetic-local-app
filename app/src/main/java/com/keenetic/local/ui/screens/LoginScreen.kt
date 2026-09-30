@@ -4,10 +4,20 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.filled.Bolt
+import androidx.compose.material.icons.filled.Dns
+import androidx.compose.material.icons.filled.ExpandLess
+import androidx.compose.material.icons.filled.ExpandMore
+import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Router
+import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Visibility
+import androidx.compose.material.icons.filled.VisibilityOff
+import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -17,9 +27,14 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import com.keenetic.local.ui.RouterViewModel
+import com.keenetic.local.ui.components.InfoRow
+import com.keenetic.local.ui.components.RowDivider
+import com.keenetic.local.ui.components.SectionCard
+import com.keenetic.local.ui.components.SectionScaffold
+import com.keenetic.local.ui.components.SubGroupHeader
+import com.keenetic.local.ui.components.SwitchRow
 import com.keenetic.local.ui.theme.KeeneticColors
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun LoginScreen(viewModel: RouterViewModel) {
     val detectedGateway by viewModel.detectedGatewayIp.collectAsState()
@@ -71,97 +86,47 @@ fun LoginScreen(viewModel: RouterViewModel) {
         if (useHttps && port == "80") port = "443"
     }
 
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(16.dp),
-        contentAlignment = Alignment.Center
-    ) {
-        Card(
-            shape = RoundedCornerShape(24.dp),
-            colors = CardDefaults.cardColors(containerColor = KeeneticColors.Surface),
+    SectionScaffold(
+        title = "Keenetic Local",
+        subtitle = "Прямое подключение в локальной сети",
+        onBack = null
+    ) { padding ->
+        Column(
             modifier = Modifier
-                .fillMaxWidth()
-                .wrapContentHeight()
+                .fillMaxSize()
+                .padding(padding)
+                .verticalScroll(rememberScrollState())
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .verticalScroll(rememberScrollState())
-                    .padding(24.dp),
-                verticalArrangement = Arrangement.spacedBy(16.dp),
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-                // Header
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text(
-                        "Keenetic Local",
-                        style = MaterialTheme.typography.headlineMedium,
-                        color = KeeneticColors.TextPrimary,
-                        fontWeight = FontWeight.Bold
-                    )
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Text(
-                        "Прямое подключение в локальной сети",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = KeeneticColors.TextSecondary
-                    )
-                }
-
-                // Gateway detection banner if available
-                detectedGateway?.let { gwIp ->
-                    Surface(
-                        shape = RoundedCornerShape(12.dp),
-                        color = KeeneticColors.Primary.copy(alpha = 0.12f),
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(horizontal = 12.dp, vertical = 8.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.SpaceBetween
+            detectedGateway?.let { gwIp ->
+                SectionCard(
+                    title = "Шлюз сети",
+                    icon = Icons.Default.Router,
+                    subtitle = gwIp,
+                    trailing = {
+                        FilledTonalButton(
+                            onClick = { host = gwIp },
+                            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp),
+                            colors = ButtonDefaults.filledTonalButtonColors(
+                                containerColor = KeeneticColors.Primary,
+                                contentColor = KeeneticColors.Background
+                            )
                         ) {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                modifier = Modifier.weight(1f)
-                            ) {
-                                Icon(
-                                    Icons.Default.Router,
-                                    contentDescription = null,
-                                    tint = KeeneticColors.Primary,
-                                    modifier = Modifier.size(20.dp)
-                                )
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Column {
-                                    Text(
-                                        "Шлюз сети:",
-                                        style = MaterialTheme.typography.labelSmall,
-                                        color = KeeneticColors.TextSecondary
-                                    )
-                                    Text(
-                                        gwIp,
-                                        style = MaterialTheme.typography.bodyMedium,
-                                        fontWeight = FontWeight.Bold,
-                                        color = KeeneticColors.TextPrimary
-                                    )
-                                }
-                            }
-                            FilledTonalButton(
-                                onClick = { host = gwIp },
-                                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp),
-                                colors = ButtonDefaults.filledTonalButtonColors(
-                                    containerColor = KeeneticColors.Primary,
-                                    contentColor = KeeneticColors.Background
-                                )
-                            ) {
-                                Text("Подставить", style = MaterialTheme.typography.labelMedium)
-                            }
+                            Text("Подставить", style = MaterialTheme.typography.labelMedium)
                         }
                     }
+                ) {
+                    InfoRow(label = "Адрес шлюза", value = gwIp, monospace = true)
                 }
+            }
 
-                // IP Address input field
+            SectionCard(
+                title = "Подключение",
+                icon = Icons.Default.Dns,
+                subtitle = "IP адрес роутера"
+            ) {
                 OutlinedTextField(
                     value = host,
                     onValueChange = { host = it },
@@ -190,87 +155,73 @@ fun LoginScreen(viewModel: RouterViewModel) {
                     modifier = Modifier.fillMaxWidth()
                 )
 
-                // Quick IP Substitution Chips
-                Column(modifier = Modifier.fillMaxWidth()) {
-                    Text(
-                        "Быстрая подстановка IP:",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = KeeneticColors.TextSecondary,
-                        modifier = Modifier.padding(bottom = 6.dp)
-                    )
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .horizontalScroll(rememberScrollState()),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        suggestedIps.forEach { ip ->
-                            val isSelected = host.trim() == ip
-                            FilterChip(
-                                selected = isSelected,
-                                onClick = { host = ip },
-                                label = {
-                                    Text(
-                                        if (ip == detectedGateway) "★ $ip (шлюз)" else ip,
-                                        style = MaterialTheme.typography.labelSmall
-                                    )
-                                },
-                                leadingIcon = if (ip == detectedGateway) {
-                                    { Icon(Icons.Default.Bolt, contentDescription = null, modifier = Modifier.size(14.dp)) }
-                                } else null
-                            )
-                        }
+                SubGroupHeader(title = "Быстрая подстановка IP", count = suggestedIps.size)
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .horizontalScroll(rememberScrollState()),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    suggestedIps.forEach { ip ->
+                        val isSelected = host.trim() == ip
+                        FilterChip(
+                            selected = isSelected,
+                            onClick = { host = ip },
+                            label = {
+                                Text(
+                                    if (ip == detectedGateway) "★ $ip (шлюз)" else ip,
+                                    style = MaterialTheme.typography.labelSmall
+                                )
+                            },
+                            leadingIcon = if (ip == detectedGateway) {
+                                { Icon(Icons.Default.Bolt, contentDescription = null, modifier = Modifier.size(14.dp)) }
+                            } else null
+                        )
                     }
                 }
 
-                // Discovered Routers List (if any discovered via scan)
                 AnimatedVisibility(visible = discoveredRouters.isNotEmpty()) {
                     Column(
                         modifier = Modifier.fillMaxWidth(),
                         verticalArrangement = Arrangement.spacedBy(6.dp)
                     ) {
-                        Text(
-                            "Найденные роутеры Keenetic:",
-                            style = MaterialTheme.typography.labelMedium,
-                            fontWeight = FontWeight.Bold,
-                            color = KeeneticColors.Success
-                        )
+                        RowDivider()
+                        SubGroupHeader(title = "Найденные роутеры Keenetic", count = discoveredRouters.size)
                         discoveredRouters.forEach { router ->
-                            Surface(
-                                shape = RoundedCornerShape(8.dp),
-                                color = KeeneticColors.CardBorder.copy(alpha = 0.3f),
-                                modifier = Modifier.fillMaxWidth()
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(vertical = 4.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.SpaceBetween
                             ) {
-                                Row(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(horizontal = 12.dp, vertical = 6.dp),
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.SpaceBetween
-                                ) {
-                                    Column {
-                                        Text(
-                                            router.hostname ?: "Keenetic",
-                                            style = MaterialTheme.typography.bodySmall,
-                                            fontWeight = FontWeight.Bold,
-                                            color = KeeneticColors.TextPrimary
-                                        )
-                                        Text(
-                                            router.ip,
-                                            style = MaterialTheme.typography.labelSmall,
-                                            color = KeeneticColors.TextSecondary
-                                        )
-                                    }
-                                    TextButton(onClick = { host = router.ip }) {
-                                        Text("Выбрать")
-                                    }
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        router.hostname ?: "Keenetic",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        fontWeight = FontWeight.Bold,
+                                        color = KeeneticColors.TextPrimary
+                                    )
+                                    Text(
+                                        router.ip,
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = KeeneticColors.TextSecondary
+                                    )
+                                }
+                                TextButton(onClick = { host = router.ip }) {
+                                    Text("Выбрать")
                                 }
                             }
                         }
                     }
                 }
+            }
 
-                // Username input
+            SectionCard(
+                title = "Учётные данные",
+                icon = Icons.Default.Person,
+                subtitle = "Логин и пароль администратора"
+            ) {
                 OutlinedTextField(
                     value = username,
                     onValueChange = { username = it },
@@ -281,8 +232,6 @@ fun LoginScreen(viewModel: RouterViewModel) {
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth()
                 )
-
-                // Password input with visibility toggle
                 OutlinedTextField(
                     value = password,
                     onValueChange = { password = it },
@@ -302,43 +251,28 @@ fun LoginScreen(viewModel: RouterViewModel) {
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth()
                 )
+            }
 
-                // Advanced connection settings (HTTPS / Port)
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
+            SectionCard(
+                title = "Дополнительно",
+                icon = if (showAdvanced) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
+                subtitle = "Порт и протокол (HTTPS)",
+                trailing = {
                     TextButton(onClick = { showAdvanced = !showAdvanced }) {
-                        Icon(
-                            if (showAdvanced) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
-                            contentDescription = null,
-                            modifier = Modifier.size(18.dp)
-                        )
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text(if (showAdvanced) "Скрыть доп. настройки" else "Порт и протокол (HTTPS)")
+                        Text(if (showAdvanced) "Скрыть" else "Показать")
                     }
                 }
-
+            ) {
                 AnimatedVisibility(visible = showAdvanced) {
-                    Column(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.SpaceBetween
-                        ) {
-                            Text("HTTPS соединение", style = MaterialTheme.typography.bodyMedium)
-                            Switch(
-                                checked = useHttps,
-                                onCheckedChange = {
-                                    useHttps = it
-                                    port = if (it) "443" else "80"
-                                }
-                            )
-                        }
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        SwitchRow(
+                            label = "HTTPS соединение",
+                            checked = useHttps,
+                            onCheckedChange = {
+                                useHttps = it
+                                port = if (it) "443" else "80"
+                            }
+                        )
                         OutlinedTextField(
                             value = port,
                             onValueChange = { port = it },
@@ -348,81 +282,65 @@ fun LoginScreen(viewModel: RouterViewModel) {
                         )
                     }
                 }
-
-                // Error Message Card
-                error?.let {
-                    Card(
-                        colors = CardDefaults.cardColors(containerColor = KeeneticColors.Error.copy(alpha = 0.15f)),
-                        shape = RoundedCornerShape(12.dp),
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Row(
-                            modifier = Modifier.padding(12.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Icon(
-                                Icons.Default.Warning,
-                                contentDescription = null,
-                                tint = KeeneticColors.Error,
-                                modifier = Modifier.size(20.dp)
-                            )
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text(
-                                it,
-                                color = KeeneticColors.Error,
-                                style = MaterialTheme.typography.bodySmall
-                            )
-                        }
-                    }
+                if (!showAdvanced) {
+                    InfoRow(label = "Протокол", value = if (useHttps) "HTTPS : $port" else "HTTP : $port")
                 }
+            }
 
-                // Connect Button
-                Button(
-                    onClick = {
-                        viewModel.login(
-                            host = host,
-                            port = port,
-                            user = username,
-                            pass = password,
-                            useHttps = useHttps
-                        )
-                    },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(50.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = KeeneticColors.Primary),
-                    enabled = !isLoading && host.isNotBlank() && username.isNotBlank()
-                ) {
-                    if (isLoading) {
-                        CircularProgressIndicator(
-                            modifier = Modifier.size(22.dp),
-                            color = KeeneticColors.Background,
-                            strokeWidth = 2.5.dp
-                        )
-                    } else {
-                        Text(
-                            "Подключиться к роутеру",
-                            color = KeeneticColors.Background,
-                            fontWeight = FontWeight.Bold,
-                            style = MaterialTheme.typography.titleMedium
-                        )
-                    }
-                }
-
-                // Demo Mode Button
-                OutlinedButton(
-                    onClick = { viewModel.loadDemoData() },
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Icon(
-                        Icons.Default.PlayArrow,
-                        contentDescription = null,
-                        tint = KeeneticColors.Primary,
-                        modifier = Modifier.size(18.dp)
+            error?.let {
+                SectionCard(title = "Ошибка входа", icon = Icons.Default.Warning) {
+                    Text(
+                        it,
+                        color = KeeneticColors.Error,
+                        style = MaterialTheme.typography.bodySmall
                     )
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text("Открыть Демо-режим", color = KeeneticColors.Primary)
                 }
+            }
+
+            Button(
+                onClick = {
+                    viewModel.login(
+                        host = host,
+                        port = port,
+                        user = username,
+                        pass = password,
+                        useHttps = useHttps
+                    )
+                },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(50.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = KeeneticColors.Primary),
+                enabled = !isLoading && host.isNotBlank() && username.isNotBlank()
+            ) {
+                if (isLoading) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(22.dp),
+                        color = KeeneticColors.Background,
+                        strokeWidth = 2.5.dp
+                    )
+                } else {
+                    Text(
+                        "Подключиться к роутеру",
+                        color = KeeneticColors.Background,
+                        fontWeight = FontWeight.Bold,
+                        style = MaterialTheme.typography.titleMedium
+                    )
+                }
+            }
+
+            OutlinedButton(
+                onClick = { viewModel.loadDemoData() },
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Icon(
+                    Icons.Default.PlayArrow,
+                    contentDescription = null,
+                    tint = KeeneticColors.Primary,
+                    modifier = Modifier.size(18.dp)
+                )
+                Spacer(modifier = Modifier.width(6.dp))
+                Text("Открыть Демо-режим", color = KeeneticColors.Primary)
             }
         }
     }

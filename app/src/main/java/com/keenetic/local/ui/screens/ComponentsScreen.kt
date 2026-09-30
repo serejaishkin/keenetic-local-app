@@ -1,222 +1,209 @@
 package com.keenetic.local.ui.screens
 
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Download
+import androidx.compose.material.icons.filled.Extension
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Snackbar
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.keenetic.local.api.ComponentInfo
 import com.keenetic.local.ui.RouterViewModel
+import com.keenetic.local.ui.components.ConfirmDialog
+import com.keenetic.local.ui.components.EmptyHint
+import com.keenetic.local.ui.components.FormDialog
+import com.keenetic.local.ui.components.InfoRow
+import com.keenetic.local.ui.components.RowDivider
+import com.keenetic.local.ui.components.SectionCard
+import com.keenetic.local.ui.components.SectionScaffold
+import com.keenetic.local.ui.components.SubGroupHeader
 import com.keenetic.local.ui.theme.KeeneticColors
-
-import androidx.compose.foundation.clickable
 
 @Composable
 fun ComponentsScreen(viewModel: RouterViewModel, onBack: () -> Unit = {}) {
     val componentList by viewModel.componentList.collectAsState()
     var selectedComponent by remember { mutableStateOf<ComponentInfo?>(null) }
+    var pendingDelete by remember { mutableStateOf<ComponentInfo?>(null) }
     var feedbackMessage by remember { mutableStateOf<String?>(null) }
 
     LaunchedEffect(Unit) {
         viewModel.loadComponents()
     }
 
-    LazyColumn(
-        modifier = Modifier.fillMaxSize().padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
-    ) {
-        item {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp)
-            ) {
-                IconButton(onClick = onBack) {
-                    Icon(Icons.Default.ArrowBack, contentDescription = "Назад", tint = KeeneticColors.TextPrimary)
-                }
-                Spacer(modifier = Modifier.width(8.dp))
-                Icon(Icons.Default.Extension, contentDescription = null, tint = KeeneticColors.Primary)
-                Spacer(modifier = Modifier.width(8.dp))
-                Text(
-                    "Компоненты системы",
-                    style = MaterialTheme.typography.headlineSmall,
-                    fontWeight = FontWeight.Bold,
-                    color = KeeneticColors.TextPrimary
-                )
-                Spacer(modifier = Modifier.weight(1f))
-                IconButton(onClick = { viewModel.loadComponents() }) {
-                    Icon(Icons.Default.Refresh, contentDescription = "Обновить", tint = KeeneticColors.Primary)
-                }
-            }
-        }
-
-        if (feedbackMessage != null) {
-            item {
-                Snackbar(
-                    action = {
-                        TextButton(onClick = { feedbackMessage = null }) {
-                            Text("OK", color = KeeneticColors.Primary)
+    SectionScaffold(
+        title = "Компоненты системы",
+        subtitle = "Пакеты KeeneticOS",
+        onBack = onBack,
+        onRefresh = { viewModel.loadComponents() }
+    ) { _ ->
+        LazyColumn(
+            modifier = Modifier.fillMaxSize(),
+            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 24.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            if (feedbackMessage != null) {
+                item(key = "feedback") {
+                    Snackbar(
+                        action = {
+                            TextButton(onClick = { feedbackMessage = null }) {
+                                Text("OK", color = KeeneticColors.Primary)
+                            }
                         }
-                    }
-                ) {
-                    Text(feedbackMessage ?: "")
-                }
-            }
-        }
-
-        if (componentList.isEmpty()) {
-            item {
-                Card(shape = RoundedCornerShape(16.dp), colors = CardDefaults.cardColors(containerColor = KeeneticColors.Surface)) {
-                    Box(modifier = Modifier.fillMaxWidth().padding(32.dp), contentAlignment = Alignment.Center) {
-                        Text("Нет данных", color = KeeneticColors.TextSecondary)
+                    ) {
+                        Text(feedbackMessage ?: "")
                     }
                 }
             }
-        }
 
-        items(componentList) { component ->
-            ComponentCard(component = component, onClick = { selectedComponent = component })
+            item(key = "list-header") {
+                SubGroupHeader("Компоненты", componentList.size)
+            }
+
+            if (componentList.isEmpty()) {
+                item(key = "empty") {
+                    SectionCard {
+                        EmptyHint("Нет данных")
+                    }
+                }
+            } else {
+                items(componentList, key = { it.name.ifBlank { it.title } }) { component ->
+                    ComponentCard(component = component, onClick = { selectedComponent = component })
+                }
+            }
         }
     }
 
-    // Component Action & Detail Modal Dialog
     selectedComponent?.let { comp ->
-        AlertDialog(
-            onDismissRequest = { selectedComponent = null },
-            title = {
-                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Icon(Icons.Default.Extension, contentDescription = null, tint = KeeneticColors.Primary)
-                    Text(comp.title.ifBlank { comp.name }, fontWeight = FontWeight.Bold, color = KeeneticColors.TextPrimary)
+        FormDialog(
+            title = comp.title.ifBlank { comp.name },
+            confirmLabel = "Закрыть",
+            onDismiss = { selectedComponent = null },
+            onConfirm = { selectedComponent = null }
+        ) {
+            Text(
+                comp.description.ifBlank { "Системный компонент KeeneticOS" },
+                style = MaterialTheme.typography.bodyMedium,
+                color = KeeneticColors.TextSecondary
+            )
+            RowDivider()
+            InfoRow("Имя пакета", comp.name, monospace = true)
+            InfoRow("Версия ПО", comp.version.ifBlank { "Н/Д" })
+            InfoRow(
+                "Статус установки",
+                if (comp.installed) "Установлен" else if (comp.available) "Доступен к установке" else "Недоступен",
+                valueColor = when {
+                    comp.installed -> KeeneticColors.Success
+                    comp.available -> KeeneticColors.Warning
+                    else -> KeeneticColors.TextSecondary
                 }
-            },
-            text = {
-                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    Text(comp.description.ifBlank { "Системный компонент KeeneticOS" }, style = MaterialTheme.typography.bodyMedium, color = KeeneticColors.TextSecondary)
-                    HorizontalDivider(color = KeeneticColors.Divider)
-                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                        Text("Имя пакета", style = MaterialTheme.typography.bodySmall, color = KeeneticColors.TextSecondary)
-                        Text(comp.name, style = MaterialTheme.typography.bodySmall, color = KeeneticColors.TextPrimary, fontWeight = FontWeight.Bold)
-                    }
-                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                        Text("Версия ПО", style = MaterialTheme.typography.bodySmall, color = KeeneticColors.TextSecondary)
-                        Text(comp.version.ifBlank { "Н/Д" }, style = MaterialTheme.typography.bodySmall, color = KeeneticColors.TextPrimary)
-                    }
-                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                        Text("Статус установки", style = MaterialTheme.typography.bodySmall, color = KeeneticColors.TextSecondary)
-                        Text(
-                            if (comp.installed) "Установлен" else if (comp.available) "Доступен к установке" else "Недоступен",
-                            style = MaterialTheme.typography.bodySmall,
-                            fontWeight = FontWeight.Bold,
-                            color = when {
-                                comp.installed -> KeeneticColors.Success
-                                comp.available -> KeeneticColors.Warning
-                                else -> KeeneticColors.TextSecondary
-                            }
-                        )
-                    }
-
-                    HorizontalDivider(color = KeeneticColors.Divider)
-
-                    if (comp.installed) {
-                        Button(
-                            onClick = {
-                                viewModel.removeComponent(comp.name)
-                                feedbackMessage = "Отправлена команда на удаление компонента «${comp.name}»"
-                                selectedComponent = null
-                            },
-                            colors = ButtonDefaults.buttonColors(containerColor = KeeneticColors.Error),
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Icon(Icons.Default.Delete, contentDescription = null, modifier = Modifier.size(16.dp))
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text("Удалить компонент")
-                        }
-                    } else if (comp.available) {
-                        Button(
-                            onClick = {
-                                viewModel.installComponent(comp.name)
-                                feedbackMessage = "Отправлена команда на установку компонента «${comp.name}»"
-                                selectedComponent = null
-                            },
-                            colors = ButtonDefaults.buttonColors(containerColor = KeeneticColors.Primary),
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Icon(Icons.Default.Download, contentDescription = null, modifier = Modifier.size(16.dp))
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text("Установить компонент")
-                        }
-                    }
+            )
+            RowDivider()
+            if (comp.installed) {
+                Button(
+                    onClick = { pendingDelete = comp },
+                    colors = ButtonDefaults.buttonColors(containerColor = KeeneticColors.Error),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Icon(Icons.Default.Delete, contentDescription = null, modifier = Modifier.size(16.dp))
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text("Удалить компонент")
                 }
-            },
-            confirmButton = {
-                TextButton(onClick = { selectedComponent = null }) {
-                    Text("Закрыть", color = KeeneticColors.TextPrimary)
+            } else if (comp.available) {
+                Button(
+                    onClick = {
+                        viewModel.installComponent(comp.name)
+                        feedbackMessage = "Отправлена команда на установку компонента «${comp.name}»"
+                        selectedComponent = null
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = KeeneticColors.Primary),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Icon(Icons.Default.Download, contentDescription = null, modifier = Modifier.size(16.dp))
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text("Установить компонент")
                 }
             }
+        }
+    }
+
+    pendingDelete?.let { comp ->
+        ConfirmDialog(
+            title = "Удалить компонент?",
+            message = "Компонент «${comp.name}» будет удалён с роутера. Отменить это действие нельзя.",
+            onConfirm = {
+                viewModel.removeComponent(comp.name)
+                feedbackMessage = "Отправлена команда на удаление компонента «${comp.name}»"
+                pendingDelete = null
+                selectedComponent = null
+            },
+            onDismiss = { pendingDelete = null }
         )
     }
 }
 
 @Composable
 private fun ComponentCard(component: ComponentInfo, onClick: () -> Unit = {}) {
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable { onClick() },
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = KeeneticColors.Surface)
+    SectionCard(
+        title = component.title.ifEmpty { component.name },
+        subtitle = component.description.ifBlank { null },
+        icon = Icons.Default.Extension
     ) {
-        Column(
-            modifier = Modifier.fillMaxWidth().padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable { onClick() },
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        component.title.ifEmpty { component.name },
-                        style = MaterialTheme.typography.bodyLarge,
-                        color = KeeneticColors.TextPrimary,
-                        fontWeight = FontWeight.Bold
-                    )
-                    Text(
-                        component.description,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = KeeneticColors.TextSecondary
-                    )
-                }
-                Icon(
-                    if (component.installed) Icons.Default.CheckCircle else Icons.Default.Close,
-                    contentDescription = null,
-                    tint = if (component.installed) KeeneticColors.Primary else KeeneticColors.TextSecondary
-                )
-            }
-            HorizontalDivider(color = KeeneticColors.Divider)
-            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                Text("Версия", style = MaterialTheme.typography.bodySmall, color = KeeneticColors.TextSecondary)
-                Text(component.version, style = MaterialTheme.typography.bodySmall, color = KeeneticColors.TextPrimary)
-            }
-            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                Text("Статус", style = MaterialTheme.typography.bodySmall, color = KeeneticColors.TextSecondary)
-                Text(
-                    if (component.installed) "Установлен" else if (component.available) "Доступен" else "Недоступен",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = when {
-                        component.installed -> KeeneticColors.Primary
-                        component.available -> KeeneticColors.Warning
-                        else -> KeeneticColors.TextSecondary
-                    }
-                )
-            }
+            Text(
+                "Подробнее",
+                style = MaterialTheme.typography.bodySmall,
+                color = KeeneticColors.Primary,
+                modifier = Modifier.weight(1f)
+            )
+            Icon(
+                if (component.installed) Icons.Default.CheckCircle else Icons.Default.Close,
+                contentDescription = null,
+                tint = if (component.installed) KeeneticColors.Primary else KeeneticColors.TextSecondary
+            )
         }
+        RowDivider()
+        InfoRow("Версия", component.version.ifBlank { "Н/Д" })
+        InfoRow(
+            "Статус",
+            if (component.installed) "Установлен" else if (component.available) "Доступен" else "Недоступен",
+            valueColor = when {
+                component.installed -> KeeneticColors.Primary
+                component.available -> KeeneticColors.Warning
+                else -> KeeneticColors.TextSecondary
+            }
+        )
     }
 }

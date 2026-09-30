@@ -127,24 +127,36 @@
 
 ### G4. Система и сервисы
 - [x] `SystemAdvancedScreen.kt` ← «Настройки системы.html» (сделано в G2, отмечено здесь)
-- [ ] `FirmwareScreen.kt` ← «Настройки системы.html» (обновление прошивки)
-- [ ] `DiagnosticsScreen.kt` + `CableDiagnosticsScreen.kt` + `SystemLogsScreen.kt` ←
-  «Диагностика.html»
-- [ ] `SshSnmpScreen.kt`, `UserAccountsScreen.kt` ← «Пользователи и доступ.html»
-- [ ] `UsbStorageScreen.kt` + `FileBrowserScreen.kt` + `SmbScreen.kt` +
-  `MediaServerScreen.kt` ← «Накопители и устройства.html»
-- [ ] `TorrentDetailScreen.kt` + `ComponentsScreen.kt` + `OpkgScreen.kt` +
-  `CloudScreen.kt` ← «Приложения.html»
-- [ ] `PrioritiesScreen.kt` + `IntelliQosScreen.kt` ← «Приоритеты подключений.html» +
-  «IntelliQoS.html»
-- [ ] `LanSegmentsScreen.kt` ← «Сегменты локальной сети.html»
-- [ ] `LoginScreen.kt`, `AllSectionsScreen.kt`, `ConfigurationScreen.kt`,
-  `SshTerminalScreen.kt` — служебные, причесать последними
+- [x] `FirmwareScreen.kt` ← «Настройки системы.html»: статус прошивки и перезагрузка
+  (RCI/SSH) на `SectionScaffold`/`SectionCard`; кнопки установки прошивки нет
+  осознанно — загрузка файла не является командой RCI
+- [x] `DiagnosticsScreen.kt` + `CableDiagnosticsScreen.kt` + `SystemLogsScreen.kt` ←
+  «Диагностика.html»: формы и пустые состояния на кита, вывод ping/traceroute и
+  лента логов оставлены терминальными окнами
+- [x] `SshSnmpScreen.kt`, `UserAccountsScreen.kt` ← «Пользователи и доступ.html»:
+  службы — `SectionCard`/`SwitchRow`/`EditableRow`+`FormDialog`, права юзеров строго
+  из `user.tags` (`permissions` — только human-readable рендер)
+- [x] `UsbStorageScreen.kt` + `FileBrowserScreen.kt` + `SmbScreen.kt` +
+  `MediaServerScreen.kt` ← «Накопители и устройства.html»: свитчи служб только из
+  `usbServiceFlags` (без состояния — заблокированы), извлечение/форматирование/
+  удаление через `ConfirmDialog`, ФС и ACL через `OptionPickerDialog`
+- [x] `TorrentDetailScreen.kt` + `ComponentsScreen.kt` + `OpkgScreen.kt` +
+  `CloudScreen.kt` ← «Приложения.html»: карточки/строки кита, все поля и текст про
+  недоступность списка раздач сохранены, скоростей из неподтверждённых узлов нет
+- [x] `PrioritiesScreen.kt` + `IntelliQosScreen.kt` ← «Приоритеты подключений.html» +
+  «IntelliQoS.html»: приоритеты через `OptionPickerDialog`; категории IntelliQoS —
+  строки, модель не менялась
+- [x] `LanSegmentsScreen.kt` ← «Сегменты локальной сети.html»: правка и добавление
+  только с id существующих интерфейсов, свободного ввода имени и create-bridge нет
+- [x] `LoginScreen.kt`, `AllSectionsScreen.kt`, `ConfigurationScreen.kt`,
+  `SshTerminalScreen.kt` — служебные: вход и все 48 пунктов каталога сохранены,
+  терминалы оставлены тёмными моноширинными окнами в `SectionScaffold`
 
 ## Состояние
 - ✅ Этапы A–F: RCI READ/WRITE сверены, сборка и unit-тесты зелёные, APK на телефоне,
   живые данные подтверждены (KN-2311, KeeneticOS 5.1.5, LIVE RCI).
-- 🔄 Этап G (вёрстка «как на сайте»): G0/G1/G2/G3 закрыты, открыт G4 (система и сервисы).
+- 🔄 Этап G (вёрстка «как на сайте»): G0/G1/G2/G3/G4 закрыты. Осталась проверка
+  каждого экрана скриншотом на подключённом телефоне.
 - ⏳ Проверка каждого экрана Этапа G — скриншотом на подключённом телефоне.
   DNS проверен на живых данных: 7 DoH-серверов, 3 DoT, перехват выключен,
   пресеты/профили фильтрации пустые, диалог добавления обычного сервера открывается.

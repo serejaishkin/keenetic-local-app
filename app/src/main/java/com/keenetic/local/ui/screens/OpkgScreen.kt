@@ -1,19 +1,41 @@
 package com.keenetic.local.ui.screens
 
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
-import androidx.compose.ui.Alignment
+import androidx.compose.material.icons.filled.Save
+import androidx.compose.material.icons.filled.SdCard
+import androidx.compose.material.icons.filled.Storage
+import androidx.compose.material3.Button
+import androidx.compose.material3.Icon
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.keenetic.local.api.MediaPartition
 import com.keenetic.local.api.MediaStorage
 import com.keenetic.local.ui.RouterViewModel
+import com.keenetic.local.ui.components.EditableRow
+import com.keenetic.local.ui.components.EmptyHint
+import com.keenetic.local.ui.components.FormDialog
+import com.keenetic.local.ui.components.InfoRow
+import com.keenetic.local.ui.components.OptionPickerDialog
+import com.keenetic.local.ui.components.SectionCard
+import com.keenetic.local.ui.components.SectionScaffold
+import com.keenetic.local.ui.components.SwitchRow
 import com.keenetic.local.ui.theme.KeeneticColors
 
 private data class OpkgDiskOption(val id: String, val label: String)
@@ -22,7 +44,6 @@ private data class OpkgDiskOption(val id: String, val label: String)
  * Web UI «Менеджер пакетов OPKG»: выбор диска для пакетов и файла конфигурации (initrc).
  * Paths: read show/sc/opkg, write {"opkg":{"disk":{"disk","no"},"initrc":{"path","no"}}}.
  */
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun OpkgScreen(viewModel: RouterViewModel, onBack: () -> Unit = {}) {
     val config by viewModel.opkgConfig.collectAsState()
@@ -32,6 +53,9 @@ fun OpkgScreen(viewModel: RouterViewModel, onBack: () -> Unit = {}) {
     var initrcEnabled by remember { mutableStateOf(true) }
     var initrcPath by remember { mutableStateOf("") }
     var saved by remember { mutableStateOf(false) }
+    var showDiskPicker by remember { mutableStateOf(false) }
+    var showInitrcDialog by remember { mutableStateOf(false) }
+    var draftInitrcPath by remember { mutableStateOf("") }
 
     val diskOptions = remember(media) { buildDiskOptions(media) }
 
@@ -47,123 +71,69 @@ fun OpkgScreen(viewModel: RouterViewModel, onBack: () -> Unit = {}) {
         viewModel.loadMediaStorage()
     }
 
-    LazyColumn(
-        modifier = Modifier.fillMaxSize().padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
-    ) {
-        item {
-            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp)) {
-                IconButton(onClick = onBack) {
-                    Icon(Icons.Default.ArrowBack, contentDescription = "Назад", tint = KeeneticColors.TextPrimary)
-                }
-                Spacer(modifier = Modifier.width(8.dp))
-                Icon(Icons.Default.SdCard, contentDescription = null, tint = KeeneticColors.Primary)
-                Spacer(modifier = Modifier.width(8.dp))
-                Text(
-                    "Менеджер пакетов OPKG",
-                    style = MaterialTheme.typography.headlineSmall,
-                    fontWeight = FontWeight.Bold,
-                    color = KeeneticColors.TextPrimary
-                )
-            }
+    val currentLabel = diskOptions.firstOrNull { it.id == selectedDiskId }?.label
+        ?: config.diskId.ifBlank { "Диск не выбран" }
+
+    SectionScaffold(
+        title = "Менеджер пакетов OPKG",
+        subtitle = "Накопитель и initrc",
+        onBack = onBack,
+        onRefresh = {
+            viewModel.loadOpkgConfig()
+            viewModel.loadMediaStorage()
         }
-
-        item {
-            Card(shape = RoundedCornerShape(16.dp), colors = CardDefaults.cardColors(containerColor = KeeneticColors.Surface)) {
-                Column(modifier = Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Icon(Icons.Default.SdCard, contentDescription = null, tint = KeeneticColors.Primary)
-                        Text("Накопитель для пакетов", style = MaterialTheme.typography.titleMedium, color = KeeneticColors.TextPrimary, fontWeight = FontWeight.Bold)
-                    }
-                    HorizontalDivider(color = KeeneticColors.Divider)
-
-                    var expanded by remember { mutableStateOf(false) }
-                    val current = diskOptions.firstOrNull { it.id == selectedDiskId } ?: diskOptions[0]
+    ) { _ ->
+        LazyColumn(
+            modifier = Modifier.fillMaxSize(),
+            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 24.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            item(key = "disk") {
+                SectionCard(
+                    title = "Накопитель для пакетов",
+                    icon = Icons.Default.SdCard
+                ) {
                     if (diskOptions.size > 1) {
-                        ExposedDropdownMenuBox(expanded = expanded, onExpandedChange = { expanded = it }) {
-                            OutlinedTextField(
-                                value = current.label,
-                                onValueChange = {},
-                                readOnly = true,
-                                label = { Text("Диск") },
-                                trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
-                                modifier = Modifier.fillMaxWidth().menuAnchor()
-                            )
-                            ExposedDropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
-                                diskOptions.forEach { option ->
-                                    DropdownMenuItem(
-                                        text = { Text(option.label, color = KeeneticColors.TextPrimary) },
-                                        onClick = {
-                                            selectedDiskId = option.id
-                                            saved = false
-                                            expanded = false
-                                        }
-                                    )
-                                }
-                            }
-                        }
-                    } else {
-                        Text(
-                            "Доступные диски не найдены. Подключите USB-накопитель.",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = KeeneticColors.TextSecondary
+                        EditableRow(
+                            label = "Диск",
+                            value = currentLabel,
+                            onClick = { showDiskPicker = true },
+                            monospaceValue = true
                         )
+                    } else {
+                        EmptyHint("Доступные диски не найдены. Подключите USB-накопитель.")
                     }
-                    Text(
-                        config.diskId.ifBlank { "Диск не выбран" },
-                        style = MaterialTheme.typography.bodySmall,
-                        color = KeeneticColors.TextSecondary
-                    )
+                    InfoRow("Текущий диск", config.diskId.ifBlank { "Диск не выбран" }, monospace = true)
                 }
             }
-        }
 
-        item {
-            Card(shape = RoundedCornerShape(16.dp), colors = CardDefaults.cardColors(containerColor = KeeneticColors.Surface)) {
-                Column(modifier = Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Icon(Icons.Default.Storage, contentDescription = null, tint = KeeneticColors.Primary)
-                        Text("Файл конфигурации (initrc)", style = MaterialTheme.typography.titleMedium, color = KeeneticColors.TextPrimary, fontWeight = FontWeight.Bold)
-                    }
-                    HorizontalDivider(color = KeeneticColors.Divider)
-
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text("Включить", color = KeeneticColors.TextPrimary)
-                            Text(
-                                "Скрипт выполняется при загрузке системы",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = KeeneticColors.TextSecondary
-                            )
+            item(key = "initrc") {
+                SectionCard(
+                    title = "Файл конфигурации (initrc)",
+                    subtitle = "Скрипт выполняется при загрузке системы",
+                    icon = Icons.Default.Storage
+                ) {
+                    SwitchRow(
+                        label = "Включить",
+                        checked = initrcEnabled,
+                        onCheckedChange = {
+                            initrcEnabled = it
+                            if (it && initrcPath.isBlank()) initrcPath = "/kmod.rc"
+                            if (!it) initrcPath = ""
+                            saved = false
                         }
-                        Switch(
-                            checked = initrcEnabled,
-                            onCheckedChange = {
-                                initrcEnabled = it
-                                if (it && initrcPath.isBlank()) initrcPath = "/kmod.rc"
-                                if (!it) initrcPath = ""
-                                saved = false
-                            }
-                        )
-                    }
-
+                    )
                     if (initrcEnabled) {
-                        OutlinedTextField(
-                            value = initrcPath,
-                            onValueChange = {
-                                initrcPath = it
-                                saved = false
+                        EditableRow(
+                            label = "Путь к файлу",
+                            value = initrcPath.ifBlank { "Не задан" },
+                            onClick = {
+                                draftInitrcPath = initrcPath
+                                showInitrcDialog = true
                             },
-                            label = { Text("Путь к файлу") },
-                            singleLine = true,
-                            modifier = Modifier.fillMaxWidth()
+                            monospaceValue = true
                         )
                     }
-
                     Button(
                         onClick = {
                             viewModel.saveOpkgConfig(selectedDiskId, if (initrcEnabled) initrcPath else "")
@@ -178,6 +148,40 @@ fun OpkgScreen(viewModel: RouterViewModel, onBack: () -> Unit = {}) {
                     }
                 }
             }
+        }
+    }
+
+    if (showDiskPicker) {
+        OptionPickerDialog(
+            title = "Диск для пакетов",
+            options = diskOptions.map { it.id to it.label },
+            selectedKey = selectedDiskId,
+            onSelect = {
+                selectedDiskId = it
+                saved = false
+            },
+            onDismiss = { showDiskPicker = false }
+        )
+    }
+
+    if (showInitrcDialog) {
+        FormDialog(
+            title = "Путь к файлу initrc",
+            onDismiss = { showInitrcDialog = false },
+            onConfirm = {
+                initrcPath = draftInitrcPath
+                saved = false
+                showInitrcDialog = false
+            }
+        ) {
+            OutlinedTextField(
+                value = draftInitrcPath,
+                onValueChange = { draftInitrcPath = it },
+                label = { Text("Путь к файлу") },
+                supportingText = { Text("Например /kmod.rc", color = KeeneticColors.TextSecondary) },
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth()
+            )
         }
     }
 }

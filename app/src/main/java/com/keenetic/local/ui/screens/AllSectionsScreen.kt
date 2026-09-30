@@ -4,7 +4,6 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.*
@@ -15,6 +14,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
 import com.keenetic.local.ui.Screen
+import com.keenetic.local.ui.components.RowDivider
+import com.keenetic.local.ui.components.SectionCard
+import com.keenetic.local.ui.components.SectionScaffold
+import com.keenetic.local.ui.components.SectionUi
+import com.keenetic.local.ui.components.SubGroupHeader
 import com.keenetic.local.ui.theme.KeeneticColors
 
 data class SectionItem(
@@ -100,7 +104,7 @@ fun AllSectionsScreen(
                 SectionItem("Диагностика кабеля", Screen.CableDiagnostics.route, "Длина и состояние кабелей")
             )
         ),
-SectionCategory(
+        SectionCategory(
             title = "Мониторинг",
             icon = Icons.Default.Monitor,
             items = listOf(
@@ -113,50 +117,33 @@ SectionCategory(
         )
     )
 
-    LazyColumn(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
-    ) {
-        items(categories) { category ->
-            Card(
-                shape = RoundedCornerShape(16.dp),
-                colors = CardDefaults.cardColors(containerColor = KeeneticColors.Surface),
-                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
-            ) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(16.dp)
+    SectionScaffold(
+        title = "Все разделы",
+        subtitle = "Каталог настроек роутера",
+        onBack = null
+    ) { padding ->
+        LazyColumn(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(padding)
+                .padding(horizontal = 16.dp, vertical = 12.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            items(categories) { category ->
+                SectionCard(
+                    title = category.title,
+                    icon = category.icon,
+                    subtitle = "${category.items.size} пунктов"
                 ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(12.dp)
-                    ) {
-                        Icon(
-                            category.icon,
-                            contentDescription = null,
-                            tint = KeeneticColors.Primary,
-                            modifier = Modifier.size(24.dp)
-                        )
-                        Text(
-                            category.title,
-                            style = MaterialTheme.typography.titleMedium,
-                            color = KeeneticColors.TextPrimary,
-                            fontWeight = androidx.compose.ui.text.font.FontWeight.Bold
-                        )
-                    }
-
-                    Spacer(modifier = Modifier.height(12.dp))
-                    HorizontalDivider(color = KeeneticColors.Divider)
-
-                    category.items.forEach { item ->
+                    SubGroupHeader(title = "Пункты раздела", count = category.items.size)
+                    RowDivider()
+                    category.items.forEachIndexed { index, item ->
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
+                                .heightIn(min = SectionUi.MinTapTarget.dp)
                                 .clickable { onNavigate(item.route) }
-                                .padding(vertical = 12.dp),
+                                .padding(vertical = 6.dp),
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.SpaceBetween
                         ) {
@@ -179,6 +166,7 @@ SectionCategory(
                                 modifier = Modifier.size(20.dp)
                             )
                         }
+                        if (index < category.items.lastIndex) RowDivider()
                     }
                 }
             }
