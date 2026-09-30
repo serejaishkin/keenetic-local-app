@@ -1,19 +1,37 @@
 package com.keenetic.local.ui.screens
 
-import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.*
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.Security
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.keenetic.local.ui.RouterViewModel
+import com.keenetic.local.ui.components.EditableRow
+import com.keenetic.local.ui.components.EmptyHint
+import com.keenetic.local.ui.components.OptionPickerDialog
+import com.keenetic.local.ui.components.SectionCard
+import com.keenetic.local.ui.components.SectionScaffold
 import com.keenetic.local.ui.theme.KeeneticColors
 
 private val ACL_MODES = listOf(
@@ -33,65 +51,60 @@ fun WifiAclScreen(viewModel: RouterViewModel, onBack: () -> Unit = {}) {
         viewModel.loadInterfaces()
     }
 
-    Column(
-        modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp)
+    SectionScaffold(
+        title = "Контроль доступа Wi-Fi",
+        subtitle = "Черные и белые списки для сегментов",
+        onBack = onBack,
+        onRefresh = { viewModel.loadInterfaces() }
     ) {
-        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().padding(bottom = 4.dp)) {
-            IconButton(onClick = onBack) {
-                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Назад", tint = KeeneticColors.TextPrimary)
-            }
-            Spacer(modifier = Modifier.width(8.dp))
-            Icon(Icons.Default.Security, contentDescription = null, tint = KeeneticColors.Primary)
-            Spacer(modifier = Modifier.width(8.dp))
-            Column {
-                Text(
-                    "Контроль доступа Wi-Fi",
-                    style = MaterialTheme.typography.headlineSmall,
-                    fontWeight = FontWeight.Bold,
-                    color = KeeneticColors.TextPrimary
-                )
-                Text(
-                    "Черные и белые списки для сегментов",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = KeeneticColors.TextSecondary
-                )
-            }
-            Spacer(modifier = Modifier.weight(1f))
-            IconButton(onClick = { viewModel.loadInterfaces() }) {
-                Icon(Icons.Default.Refresh, contentDescription = "Обновить", tint = KeeneticColors.Primary)
-            }
-        }
-
-        if (unsupported.contains("wifi_acl")) {
-            UnsupportedNotice(
-                "Контроль доступа Wi-Fi",
-                "RCI-путь show/sc/interface/mac.access-list не поддерживается на данной прошивке KN-2311 (fw 5.01.C.4.0-1). " +
-                    "MAC-фильтрация управляется через веб-интерфейс, но не через REST API."
-            )
-        }
-
-        if (segments.isEmpty()) {
-            Text("Сегменты сети не найдены", color = KeeneticColors.TextSecondary)
-        }
-
-        segments.forEach { seg ->
-            AclSegmentCard(seg.id, seg.name, seg.macAccessMode) { mode ->
-                viewModel.setWifiAclMode(seg.id, mode)
-            }
-        }
-        
-        Card(
-            shape = RoundedCornerShape(16.dp),
-            colors = CardDefaults.cardColors(containerColor = KeeneticColors.Surface.copy(alpha = 0.5f))
+        LazyColumn(
+            modifier = Modifier.fillMaxSize(),
+            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 24.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                Icon(Icons.Default.Info, contentDescription = null, tint = KeeneticColors.TextSecondary)
-                Text(
-                    "Для добавления устройств в списки используйте веб-интерфейс. В данном приложении доступно только переключение режимов.",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = KeeneticColors.TextSecondary
-                )
+            if (unsupported.contains("wifi_acl")) {
+                item(key = "unsupported") {
+                    UnsupportedNotice(
+                        "Контроль доступа Wi-Fi",
+                        "RCI-путь show/sc/interface/mac.access-list не поддерживается на данной " +
+                            "прошивке KN-2311 (fw 5.01.C.4.0-1). MAC-фильтрация управляется через " +
+                            "веб-интерфейс, но не через REST API."
+                    )
+                }
+            }
+
+            if (segments.isEmpty()) {
+                item(key = "empty") {
+                    SectionCard {
+                        EmptyHint("Сегменты сети не найдены")
+                    }
+                }
+            } else {
+                items(segments, key = { it.id }) { seg ->
+                    AclSegmentCard(seg.id, seg.name, seg.macAccessMode) { mode ->
+                        viewModel.setWifiAclMode(seg.id, mode)
+                    }
+                }
+            }
+
+            item(key = "note") {
+                SectionCard {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            Icons.Default.Info,
+                            contentDescription = null,
+                            tint = KeeneticColors.TextSecondary,
+                            modifier = Modifier.size(20.dp)
+                        )
+                        Spacer(modifier = Modifier.width(10.dp))
+                        Text(
+                            "Для добавления устройств в списки используйте веб-интерфейс. " +
+                                "В данном приложении доступно только переключение режимов.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = KeeneticColors.TextSecondary
+                        )
+                    }
+                }
             }
         }
     }
@@ -99,41 +112,28 @@ fun WifiAclScreen(viewModel: RouterViewModel, onBack: () -> Unit = {}) {
 
 @Composable
 private fun AclSegmentCard(id: String, name: String, currentMode: String, onModeChange: (String) -> Unit) {
-    var expanded by remember { mutableStateOf(false) }
-    
-    Card(
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = KeeneticColors.Surface)
+    var picker by remember { mutableStateOf(false) }
+    val modeText = ACL_MODES.find { it.first == currentMode }?.second ?: currentMode
+
+    SectionCard(
+        title = name,
+        subtitle = "Сегмент",
+        icon = Icons.Default.Security
     ) {
-        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            Text(name, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = KeeneticColors.TextPrimary)
-            
-            Box {
-                OutlinedButton(
-                    onClick = { expanded = true },
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    val modeText = ACL_MODES.find { it.first == currentMode }?.second ?: currentMode
-                    Text(modeText, color = KeeneticColors.TextPrimary)
-                    Spacer(modifier = Modifier.weight(1f))
-                    Icon(Icons.Default.ArrowDropDown, contentDescription = null, tint = KeeneticColors.TextSecondary)
-                }
-                DropdownMenu(
-                    expanded = expanded,
-                    onDismissRequest = { expanded = false },
-                    modifier = Modifier.fillMaxWidth(0.8f)
-                ) {
-                    ACL_MODES.forEach { (mode, label) ->
-                        DropdownMenuItem(
-                            text = { Text(label) },
-                            onClick = {
-                                expanded = false
-                                onModeChange(mode)
-                            }
-                        )
-                    }
-                }
-            }
-        }
+        EditableRow(
+            label = "Режим доступа",
+            value = modeText,
+            onClick = { picker = true }
+        )
+    }
+
+    if (picker) {
+        OptionPickerDialog(
+            title = "Режим доступа: $name",
+            options = ACL_MODES,
+            selectedKey = currentMode,
+            onSelect = onModeChange,
+            onDismiss = { picker = false }
+        )
     }
 }
