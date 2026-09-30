@@ -751,10 +751,50 @@ fun DashboardScreen(
                             text = { Text("GET /rci/show/system", maxLines = 1) }
                         )
                         Tab(
+                            selected = selectedRciTab == 1,
+                            onClick = { selectedRciTab = 1 },
+                            text = { Text("GET /rci/show/system", maxLines = 1) }
+                        )
+                        Tab(
                             selected = selectedRciTab == 2,
                             onClick = { selectedRciTab = 2 },
-                            text = { Text("Свой запрос", maxLines = 1) }
+                            text = { Text("Зонд", maxLines = 1) }
                         )
+                    }
+
+                    // Probe input (read-only GET /rci/show/<path>)
+                    if (selectedRciTab == 2) {
+                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                OutlinedTextField(
+                                    value = rciProbePath,
+                                    onValueChange = viewModel::setRciProbePath,
+                                    label = { Text("Путь show, напр. interface") },
+                                    singleLine = true,
+                                    textStyle = MaterialTheme.typography.bodyMedium,
+                                    modifier = Modifier.weight(1f)
+                                )
+                                FilledTonalButton(
+                                    onClick = { viewModel.probeRci() },
+                                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp)
+                                ) {
+                                    Icon(Icons.Default.Search, contentDescription = null, modifier = Modifier.size(16.dp))
+                                    Spacer(Modifier.width(4.dp))
+                                    Text("Запросить", maxLines = 1)
+                                }
+                            }
+                            if (rciProbeMessage.isNotBlank()) {
+                                Text(
+                                    rciProbeMessage,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = KeeneticColors.TextSecondary
+                                )
+                            }
+                        }
                     }
 
                     // Произвольный show-запрос: пресеты + путь + кнопки + статус
