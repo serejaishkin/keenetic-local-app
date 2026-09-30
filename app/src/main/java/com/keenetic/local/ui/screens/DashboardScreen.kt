@@ -751,11 +751,6 @@ fun DashboardScreen(
                             text = { Text("GET /rci/show/system", maxLines = 1) }
                         )
                         Tab(
-                            selected = selectedRciTab == 1,
-                            onClick = { selectedRciTab = 1 },
-                            text = { Text("GET /rci/show/system", maxLines = 1) }
-                        )
-                        Tab(
                             selected = selectedRciTab == 2,
                             onClick = { selectedRciTab = 2 },
                             text = { Text("Зонд", maxLines = 1) }
