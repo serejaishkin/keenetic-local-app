@@ -651,6 +651,10 @@ fun DashboardScreen(
                 InfoRow("Модель", sysInfo?.model ?: "Keenetic")
                 InfoRow("KeeneticOS", sysInfo?.osVersion ?: "—")
                 InfoRow("Имя хоста", "${sysInfo?.hostname ?: "Keenetic"}.${sysInfo?.domainName?.ifBlank { "local" }}")
+                InfoRow("Ядро Linux (kernel)", sysInfo?.kernel ?: "—")
+                InfoRow("Архитектура CPU", sysInfo?.arch ?: "—")
+                InfoRow("Ревизия платы (hw)", sysInfo?.hwVersion ?: "—")
+                InfoRow("Производитель", sysInfo?.manufacturer ?: "—")
                 RowDivider()
                 EditableRow(
                     label = "Системный монитор",

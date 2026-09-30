@@ -40,9 +40,11 @@ import com.keenetic.local.ui.theme.KeeneticColors
 fun WpsScreen(viewModel: RouterViewModel, onBack: () -> Unit = {}) {
     val wpsStatus by viewModel.wpsStatus.collectAsState()
     val wlanList by viewModel.mwsWlanList.collectAsState()
-    val autoPinMode = remember(wlanList) {
-        wlanList.any { wlan -> wlan.bands.any { b -> b.accessPointId.contains("AccessPoint0") && b.wpsAutoSelfPin } }
+    val autoPinBand = remember(wlanList) {
+        wlanList.flatMap { it.bands }.firstOrNull { it.accessPointId.contains("AccessPoint0") }
     }
+    val autoPinMode = autoPinBand?.wpsAutoSelfPin == true
+    val autoPinApId = autoPinBand?.accessPointId.orEmpty()
 
     LaunchedEffect(Unit) { viewModel.loadWpsStatus() }
 
@@ -70,7 +72,8 @@ fun WpsScreen(viewModel: RouterViewModel, onBack: () -> Unit = {}) {
                         label = "Авто-PIN (auto-self-pin)",
                         description = "Роутер сам сообщает PIN клиенту",
                         checked = autoPinMode,
-                        onCheckedChange = { viewModel.setWpsAutoSelfPin(it) }
+                        enabled = autoPinApId.isNotBlank(),
+                        onCheckedChange = { viewModel.setWpsAutoSelfPin(autoPinApId, it) }
                     )
                     RowDivider()
                     InfoRow(label = "PIN роутера", value = wpsStatus.pin, monospace = true)
