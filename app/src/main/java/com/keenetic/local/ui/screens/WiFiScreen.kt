@@ -35,6 +35,12 @@ import com.keenetic.local.api.WifiNetworkInfo
 import com.keenetic.local.api.WifiSiteSurveyEntry
 import com.keenetic.local.api.WirelessClient
 import com.keenetic.local.ui.RouterViewModel
+import com.keenetic.local.ui.components.EmptyHint
+import com.keenetic.local.ui.components.FormDialog
+import com.keenetic.local.ui.components.InfoRow
+import com.keenetic.local.ui.components.SectionCard
+import com.keenetic.local.ui.components.SectionScaffold
+import com.keenetic.local.ui.components.SubGroupHeader
 import com.keenetic.local.ui.theme.KeeneticColors
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -46,7 +52,6 @@ fun WiFiScreen(
     val networks by viewModel.wifiNetworks.collectAsState()
     val wirelessClients by viewModel.wirelessClients.collectAsState()
     val wifiStation by viewModel.wifiStationStatus.collectAsState()
-    val isWifiLoading by viewModel.isWifiLoading.collectAsState()
     val isWifiScanning by viewModel.isWifiScanning.collectAsState()
     val scanResults by viewModel.wifiScanResults.collectAsState()
     val actionMessage by viewModel.wifiActionMessage.collectAsState()
@@ -84,100 +89,22 @@ fun WiFiScreen(
         }
     }
 
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = {
-                    Column {
-                        Text(
-                            "Управление Wi-Fi",
-                            style = MaterialTheme.typography.titleLarge,
-                            fontWeight = FontWeight.Bold,
-                            color = KeeneticColors.TextPrimary
-                        )
-                        Text(
-                            "2.4 & 5 ГГц • Клиенты • WifiStation",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = KeeneticColors.TextSecondary
-                        )
-                    }
-                },
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Назад",
-                            tint = KeeneticColors.TextPrimary
-                        )
-                    }
-                },
-                actions = {
-                    IconButton(
-                        onClick = { viewModel.loadWifiData() },
-                        enabled = !isWifiLoading
-                    ) {
-                        if (isWifiLoading) {
-                            CircularProgressIndicator(
-                                modifier = Modifier.size(20.dp),
-                                strokeWidth = 2.dp,
-                                color = KeeneticColors.Primary
-                            )
-                        } else {
-                            Icon(
-                                imageVector = Icons.Default.Refresh,
-                                contentDescription = "Обновить",
-                                tint = KeeneticColors.Primary
-                            )
-                        }
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = KeeneticColors.Background
-                )
-            )
-        },
-        containerColor = KeeneticColors.Background
-    ) { innerPadding ->
+    SectionScaffold(
+        title = "Управление Wi-Fi",
+        subtitle = "2.4 и 5 ГГц • Клиенты • WifiStation",
+        onBack = onBack,
+        onRefresh = { viewModel.loadWifiData() }
+    ) {
         LazyColumn(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(innerPadding)
-                .padding(horizontal = 16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp),
-            contentPadding = PaddingValues(vertical = 12.dp)
+            modifier = Modifier.fillMaxSize(),
+            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 24.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             // Action feedback banner
             if (actionMessage != null) {
                 item {
-                    Card(
-                        shape = RoundedCornerShape(12.dp),
-                        colors = CardDefaults.cardColors(containerColor = KeeneticColors.Primary.copy(alpha = 0.15f)),
-                        border = CardDefaults.outlinedCardBorder().copy(brush = androidx.compose.ui.graphics.SolidColor(KeeneticColors.Primary))
-                    ) {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(horizontal = 16.dp, vertical = 10.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.SpaceBetween
-                        ) {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                modifier = Modifier.weight(1f)
-                            ) {
-                                Icon(
-                                    Icons.Default.Info,
-                                    contentDescription = null,
-                                    tint = KeeneticColors.Primary,
-                                    modifier = Modifier.size(18.dp)
-                                )
-                                Text(
-                                    actionMessage ?: "",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = KeeneticColors.TextPrimary
-                                )
-                            }
+                    SectionCard(
+                        trailing = {
                             IconButton(
                                 onClick = { viewModel.clearWifiMessage() },
                                 modifier = Modifier.size(24.dp)
@@ -190,18 +117,30 @@ fun WiFiScreen(
                                 )
                             }
                         }
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Icon(
+                                Icons.Default.Info,
+                                contentDescription = null,
+                                tint = KeeneticColors.Primary,
+                                modifier = Modifier.size(18.dp)
+                            )
+                            Text(
+                                actionMessage ?: "",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = KeeneticColors.TextPrimary
+                            )
+                        }
                     }
                 }
             }
 
             // 1. Band Control Section (2.4 GHz & 5 GHz)
             item {
-                Text(
-                    text = "Диапазоны Wi-Fi сети",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.SemiBold,
-                    color = KeeneticColors.TextPrimary
-                )
+                SubGroupHeader("Диапазоны Wi-Fi сети")
             }
 
             item {
@@ -246,43 +185,16 @@ fun WiFiScreen(
 
             // 2. Connected Wireless Clients Section (RCI 'show wifi' & 'show associations')
             item {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        Text(
-                            text = "Беспроводные клиенты",
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.SemiBold,
-                            color = KeeneticColors.TextPrimary
-                        )
-                        Box(
-                            modifier = Modifier
-                                .clip(RoundedCornerShape(12.dp))
-                                .background(KeeneticColors.SurfaceElevated)
-                                .padding(horizontal = 8.dp, vertical = 2.dp)
-                        ) {
-                            Text(
-                                text = "${wirelessClients.size}",
-                                style = MaterialTheme.typography.labelSmall,
-                                fontWeight = FontWeight.Bold,
-                                color = KeeneticColors.Primary
-                            )
-                        }
-                    }
+                SubGroupHeader("Беспроводные клиенты", wirelessClients.size)
+            }
 
-                    Text(
-                        text = "RCI: show wifi",
-                        style = MaterialTheme.typography.labelSmall,
-                        fontFamily = FontFamily.Monospace,
-                        color = KeeneticColors.TextSecondary
-                    )
-                }
+            item {
+                Text(
+                    text = "RCI: show wifi",
+                    style = MaterialTheme.typography.labelSmall,
+                    fontFamily = FontFamily.Monospace,
+                    color = KeeneticColors.TextSecondary
+                )
             }
 
             // Filter Chips: Все / 2.4 ГГц / 5 ГГц
@@ -330,35 +242,11 @@ fun WiFiScreen(
             // Wireless Clients List
             if (filteredClients.isEmpty()) {
                 item {
-                    Card(
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(16.dp),
-                        colors = CardDefaults.cardColors(containerColor = KeeneticColors.Surface)
-                    ) {
-                        Column(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(24.dp),
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                            verticalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            Icon(
-                                Icons.Default.Devices,
-                                contentDescription = null,
-                                tint = KeeneticColors.TextSecondary,
-                                modifier = Modifier.size(36.dp)
-                            )
-                            Text(
-                                "Нет подключённых беспроводных устройств",
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = KeeneticColors.TextSecondary
-                            )
-                            Text(
-                                "Подключите телефон или ноутбук к сети Wi-Fi",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = KeeneticColors.TextSecondary.copy(alpha = 0.7f)
-                            )
-                        }
+                    SectionCard {
+                        EmptyHint(
+                            "Нет подключённых беспроводных устройств. " +
+                                "Подключите телефон или ноутбук к сети Wi-Fi"
+                        )
                     }
                 }
             } else {
@@ -372,31 +260,16 @@ fun WiFiScreen(
 
             // 3. WifiStation Section (RCI 'interface WifiStation')
             item {
-                Spacer(modifier = Modifier.height(8.dp))
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        Text(
-                            text = "Клиентский режим (WifiStation)",
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.SemiBold,
-                            color = KeeneticColors.TextPrimary
-                        )
-                    }
+                SubGroupHeader("Клиентский режим (WifiStation)")
+            }
 
-                    Text(
-                        text = "RCI: interface WifiStation",
-                        style = MaterialTheme.typography.labelSmall,
-                        fontFamily = FontFamily.Monospace,
-                        color = KeeneticColors.TextSecondary
-                    )
-                }
+            item {
+                Text(
+                    text = "RCI: interface WifiStation",
+                    style = MaterialTheme.typography.labelSmall,
+                    fontFamily = FontFamily.Monospace,
+                    color = KeeneticColors.TextSecondary
+                )
             }
 
             item {
@@ -435,74 +308,41 @@ fun WiFiScreen(
     // Client Details Modal Dialog
     if (selectedClientForDetails != null) {
         val client = selectedClientForDetails!!
-        AlertDialog(
-            onDismissRequest = { selectedClientForDetails = null },
-            title = {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    Icon(
-                        getDeviceIcon(client.displayName, client.hostname),
-                        contentDescription = null,
-                        tint = if (client.band.contains("5")) KeeneticColors.Primary else Color(0xFFF59E0B)
-                    )
-                    Text(
-                        client.displayName.ifBlank { client.hostname },
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold,
-                        color = KeeneticColors.TextPrimary
-                    )
-                }
-            },
-            text = {
-                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    DetailRow(label = "IP-адрес", value = client.ip ?: "—")
-                    DetailRow(label = "MAC-адрес", value = client.mac, isMonospace = true)
-                    DetailRow(label = "Диапазон", value = client.band)
-                    DetailRow(
-                        label = "Уровень сигнала",
-                        value = "${client.rssi ?: "—"} dBm (${getRssiLabel(client.rssi)})"
-                    )
-                    DetailRow(
-                        label = "Скорость передачи (Tx)",
-                        value = formatRate(client.txRateKbps)
-                    )
-                    DetailRow(
-                        label = "Скорость приёма (Rx)",
-                        value = formatRate(client.rxRateKbps)
-                    )
-                    DetailRow(label = "Точка доступа", value = client.ap.ifBlank { "Home" })
-                    DetailRow(label = "Сеть SSID", value = client.ssid)
-                    DetailRow(label = "Стандарт", value = client.mode.ifBlank { "802.11" })
-                    DetailRow(
-                        label = "Статус доступа",
-                        value = if (client.isBlocked) "Заблокирован" else "Разрешён",
-                        valueColor = if (client.isBlocked) KeeneticColors.Error else KeeneticColors.Success
-                    )
-                }
-            },
-            confirmButton = {
-                Button(
-                    onClick = {
-                        viewModel.wakeOnLan(client.mac)
-                        selectedClientForDetails = null
-                    },
-                    colors = ButtonDefaults.buttonColors(containerColor = KeeneticColors.Primary)
-                ) {
-                    Icon(Icons.Default.PowerSettingsNew, contentDescription = null, modifier = Modifier.size(16.dp))
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text("Wake-on-LAN")
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { selectedClientForDetails = null }) {
-                    Text("Закрыть", color = KeeneticColors.TextSecondary)
-                }
-            },
-            containerColor = KeeneticColors.Surface,
-            shape = RoundedCornerShape(16.dp)
-        )
+        FormDialog(
+            title = client.displayName.ifBlank { client.hostname },
+            confirmLabel = "Wake-on-LAN",
+            onDismiss = { selectedClientForDetails = null },
+            onConfirm = {
+                viewModel.wakeOnLan(client.mac)
+                selectedClientForDetails = null
+            }
+        ) {
+            InfoRow(label = "IP-адрес", value = client.ip ?: "—", monospace = true)
+            InfoRow(label = "MAC-адрес", value = client.mac, monospace = true)
+            InfoRow(label = "Диапазон", value = client.band)
+            InfoRow(
+                label = "Уровень сигнала",
+                value = "${client.rssi ?: "—"} dBm (${getRssiLabel(client.rssi)})"
+            )
+            InfoRow(
+                label = "Скорость передачи (Tx)",
+                value = formatRate(client.txRateKbps),
+                monospace = true
+            )
+            InfoRow(
+                label = "Скорость приёма (Rx)",
+                value = formatRate(client.rxRateKbps),
+                monospace = true
+            )
+            InfoRow(label = "Точка доступа", value = client.ap.ifBlank { "Home" })
+            InfoRow(label = "Сеть SSID", value = client.ssid)
+            InfoRow(label = "Стандарт", value = client.mode.ifBlank { "802.11" })
+            InfoRow(
+                label = "Статус доступа",
+                value = if (client.isBlocked) "Заблокирован" else "Разрешён",
+                valueColor = if (client.isBlocked) KeeneticColors.Error else KeeneticColors.Success
+            )
+        }
     }
 
     // WiFi Band Configuration Dialog
@@ -527,20 +367,24 @@ fun WiFiScreen(
         )
         val bridgeOptions = listOf("keep" to "Не менять", "Bridge0" to "Домашняя сеть (Bridge0)", "Bridge1" to "Гостевая сеть (Bridge1)")
 
-        AlertDialog(
-            onDismissRequest = { editingNetwork = null },
-            title = {
-                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Icon(Icons.Default.Wifi, contentDescription = null, tint = if (is24) Color(0xFFF59E0B) else KeeneticColors.Primary)
-                    Text(
-                        if (is24) "Настройки Wi-Fi 2.4 ГГц" else "Настройки Wi-Fi 5 ГГц",
-                        fontWeight = FontWeight.Bold,
-                        color = KeeneticColors.TextPrimary
-                    )
-                }
-            },
-            text = {
-                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        FormDialog(
+            title = if (is24) "Настройки Wi-Fi 2.4 ГГц" else "Настройки Wi-Fi 5 ГГц",
+            onDismiss = { editingNetwork = null },
+            onConfirm = {
+                val chInt = if (selectedChannel == "auto") null else selectedChannel.toIntOrNull()
+                val pwrInt = txPower.toIntOrNull()
+                viewModel.updateWifiNetworkConfig(
+                    band = net.band,
+                    newSsid = newSsid,
+                    newPassword = newPassword,
+                    channel = chInt,
+                    txPowerPercent = pwrInt,
+                    security = selectedSecurity,
+                    bridge = selectedBridge
+                )
+                editingNetwork = null
+            }
+        ) {
                     OutlinedTextField(
                         value = newSsid,
                         onValueChange = { newSsid = it },
@@ -633,35 +477,7 @@ fun WiFiScreen(
                             color = MaterialTheme.colorScheme.error
                         )
                     }
-                }
-            },
-            confirmButton = {
-                Button(
-                    onClick = {
-                        val chInt = if (selectedChannel == "auto") null else selectedChannel.toIntOrNull()
-                        val pwrInt = txPower.toIntOrNull()
-                        viewModel.updateWifiNetworkConfig(
-                            band = net.band,
-                            newSsid = newSsid,
-                            newPassword = newPassword,
-                            channel = chInt,
-                            txPowerPercent = pwrInt,
-                            security = selectedSecurity,
-                            bridge = selectedBridge
-                        )
-                        editingNetwork = null
-                    },
-                    colors = ButtonDefaults.buttonColors(containerColor = KeeneticColors.Primary)
-                ) {
-                    Text("Сохранить")
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { editingNetwork = null }) {
-                    Text("Отмена", color = KeeneticColors.TextSecondary)
-                }
-            }
-        )
+        }
     }
 }
 
@@ -1289,33 +1105,6 @@ private fun WifiStationCard(
                 }
             }
         }
-    }
-}
-
-@Composable
-private fun DetailRow(
-    label: String,
-    value: String,
-    isMonospace: Boolean = false,
-    valueColor: Color = KeeneticColors.TextPrimary
-) {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Text(
-            text = label,
-            style = MaterialTheme.typography.bodySmall,
-            color = KeeneticColors.TextSecondary
-        )
-        Text(
-            text = value,
-            style = MaterialTheme.typography.bodySmall,
-            fontFamily = if (isMonospace) FontFamily.Monospace else FontFamily.Default,
-            fontWeight = FontWeight.Medium,
-            color = valueColor
-        )
     }
 }
 
