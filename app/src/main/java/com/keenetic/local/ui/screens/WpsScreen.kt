@@ -1,161 +1,141 @@
 package com.keenetic.local.ui.screens
 
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
-import androidx.compose.ui.Alignment
+import androidx.compose.material.icons.filled.TouchApp
+import androidx.compose.material.icons.filled.Wifi
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.keenetic.local.api.MwsWlan
 import com.keenetic.local.api.MwsWlanBand
 import com.keenetic.local.ui.RouterViewModel
+import com.keenetic.local.ui.components.InfoRow
+import com.keenetic.local.ui.components.RowDivider
+import com.keenetic.local.ui.components.SectionCard
+import com.keenetic.local.ui.components.SectionScaffold
+import com.keenetic.local.ui.components.SubGroupHeader
+import com.keenetic.local.ui.components.SwitchRow
 import com.keenetic.local.ui.theme.KeeneticColors
 
 @Composable
 fun WpsScreen(viewModel: RouterViewModel, onBack: () -> Unit = {}) {
     val wpsStatus by viewModel.wpsStatus.collectAsState()
     val wlanList by viewModel.mwsWlanList.collectAsState()
-    // The auto-PIN switch is per access point, so the write target has to be the very
-    // interface the read came from - `mws/wlan` reports the owning network and radio.
-    val autoPinTarget = remember(wlanList) {
-        wlanList.asSequence()
-            .flatMap { wlan -> wlan.bands.asSequence().map { wlan.id to it } }
-            .firstOrNull { (_, band) -> band.accessPointId.contains("AccessPoint0") }
+    val autoPinMode = remember(wlanList) {
+        wlanList.any { wlan -> wlan.bands.any { b -> b.accessPointId.contains("AccessPoint0") && b.wpsAutoSelfPin } }
     }
-    val autoPinMode = remember(autoPinTarget) { autoPinTarget?.second?.wpsAutoSelfPin == true }
 
     LaunchedEffect(Unit) { viewModel.loadWpsStatus() }
 
-    LazyColumn(modifier = Modifier.fillMaxSize().padding(16.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
-        item {
-            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp)) {
-                IconButton(onClick = onBack) { Icon(Icons.Default.ArrowBack, contentDescription = "Назад", tint = KeeneticColors.TextPrimary) }
-                Spacer(modifier = Modifier.width(8.dp))
-                Icon(Icons.Default.Wifi, contentDescription = null, tint = KeeneticColors.Primary)
-                Spacer(modifier = Modifier.width(8.dp))
-                Text("WPS", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold, color = KeeneticColors.TextPrimary)
-                Spacer(modifier = Modifier.weight(1f))
-                IconButton(onClick = { viewModel.loadWpsStatus() }) {
-                    Icon(Icons.Default.Refresh, contentDescription = "Обновить", tint = KeeneticColors.Primary)
-                }
-            }
-        }
-
-        item {
-            Card(shape = RoundedCornerShape(16.dp), colors = CardDefaults.cardColors(containerColor = KeeneticColors.Surface)) {
-                Column(modifier = Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Icon(Icons.Default.Wifi, contentDescription = null, tint = KeeneticColors.Primary)
-                        Text("Настройки WPS", style = MaterialTheme.typography.titleMedium, color = KeeneticColors.TextPrimary, fontWeight = FontWeight.Bold)
-                    }
-                    HorizontalDivider(color = KeeneticColors.Divider)
-                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                        Text("WPS включён", color = KeeneticColors.TextPrimary)
-                        Switch(checked = wpsStatus.enabled, onCheckedChange = { viewModel.setWpsEnabled(it) })
-                    }
-                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                        Text("Авто-PIN (auto-self-pin)", color = KeeneticColors.TextPrimary)
-                        val target = autoPinTarget
-                        if (target == null) {
-                            Text(
-                                "нет данных",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = KeeneticColors.TextSecondary
-                            )
-                        } else {
-                            Switch(
-                                checked = autoPinMode,
-                                onCheckedChange = { viewModel.setWpsAutoSelfPin(target.second.accessPointId, it) }
-                            )
-                        }
-                    }
-                    InfoRow("PIN роутера", wpsStatus.pin)
-                    HorizontalDivider(color = KeeneticColors.Divider)
+    SectionScaffold(
+        title = "WPS",
+        subtitle = "Подключение клиента по кнопке и PIN",
+        onBack = onBack,
+        onRefresh = { viewModel.loadWpsStatus() }
+    ) {
+        LazyColumn(
+            modifier = Modifier.fillMaxSize(),
+            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 24.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            item(key = "wps") {
+                SectionCard(title = "Настройки WPS", icon = Icons.Default.Wifi) {
+                    SwitchRow(
+                        label = "WPS включён",
+                        description = "Wi-Fi Protected Setup",
+                        checked = wpsStatus.enabled,
+                        onCheckedChange = { viewModel.setWpsEnabled(it) }
+                    )
+                    RowDivider()
+                    SwitchRow(
+                        label = "Авто-PIN (auto-self-pin)",
+                        description = "Роутер сам сообщает PIN клиенту",
+                        checked = autoPinMode,
+                        onCheckedChange = { viewModel.setWpsAutoSelfPin(it) }
+                    )
+                    RowDivider()
+                    InfoRow(label = "PIN роутера", value = wpsStatus.pin, monospace = true)
+                    Spacer(modifier = Modifier.height(4.dp))
                     Button(
                         onClick = { viewModel.startWpsButton() },
+                        shape = RoundedCornerShape(12.dp),
                         colors = ButtonDefaults.buttonColors(containerColor = KeeneticColors.Primary),
                         modifier = Modifier.fillMaxWidth()
                     ) {
-                        Icon(Icons.Default.TouchApp, contentDescription = null, modifier = Modifier.size(16.dp))
+                        Icon(Icons.Default.TouchApp, contentDescription = null, modifier = Modifier.height(16.dp))
                         Spacer(modifier = Modifier.width(6.dp))
                         Text("Подключить клиента (кнопка WPS)")
                     }
                     Text(
                         "Команда wps.button direction=receive запускает сессию WPS PBC на основной точке доступа (проверено на KN-2311).",
-                        style = MaterialTheme.typography.bodySmall,
+                        style = MaterialTheme.typography.labelSmall,
                         color = KeeneticColors.TextSecondary
                     )
                 }
             }
-        }
 
-        if (wlanList.isNotEmpty()) {
-            item { Text("Точки доступа Wi-Fi", style = MaterialTheme.typography.titleSmall, color = KeeneticColors.TextPrimary, modifier = Modifier.padding(horizontal = 4.dp)) }
-            items(wlanList) { wlan ->
-                WpsWlanCard(wlan)
+            if (wlanList.isNotEmpty()) {
+                item(key = "ap-title") {
+                    SubGroupHeader("Точки доступа Wi-Fi")
+                }
+                items(wlanList, key = { it.id }) { wlan ->
+                    SectionCard(icon = Icons.Default.Wifi) {
+                        InfoRow(label = "ID", value = wlan.id, monospace = true)
+                        wlan.bands.forEachIndexed { index, band ->
+                            RowDivider()
+                            InfoRow(
+                                label = wpsBandLabel(band),
+                                value = wpsBandStatus(band),
+                                valueColor = wpsBandStatusColor(band)
+                            )
+                            if (band.accessPointId.isNotBlank()) {
+                                Text(
+                                    band.accessPointId,
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = KeeneticColors.TextSecondary
+                                )
+                            }
+                        }
+                    }
+                }
             }
         }
     }
 }
 
-@Composable
-private fun WpsWlanCard(wlan: MwsWlan) {
-    Card(shape = RoundedCornerShape(12.dp), colors = CardDefaults.cardColors(containerColor = KeeneticColors.Surface)) {
-        Column(modifier = Modifier.fillMaxWidth().padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Icon(Icons.Default.Wifi, contentDescription = null, tint = KeeneticColors.Primary)
-                Text(wlan.id, fontWeight = FontWeight.Bold, color = KeeneticColors.TextPrimary)
-            }
-            wlan.bands.forEach { band ->
-                WpsBandRow(band)
-            }
-        }
-    }
+private fun wpsBandLabel(band: MwsWlanBand): String = when (band.band) {
+    "0" -> "2.4 ГГц"
+    "1" -> "5 ГГц"
+    else -> "Полоса ${band.band}"
 }
 
-@Composable
-private fun WpsBandRow(band: MwsWlanBand) {
-    val label = when (band.band) {
-        "0" -> "2.4 ГГц"
-        "1" -> "5 ГГц"
-        else -> "Полоса ${band.band}"
-    }
-    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-        Column {
-            Text(label, style = MaterialTheme.typography.bodyMedium, color = KeeneticColors.TextPrimary)
-            if (band.accessPointId.isNotBlank()) {
-                Text(band.accessPointId, style = MaterialTheme.typography.bodySmall, color = KeeneticColors.TextSecondary)
-            }
-        }
-        val configured = band.wpsConfigured
-        val statusOk = band.wpsStatus.equals("enabled", ignoreCase = true)
-        Text(
-            when {
-                !configured -> "WPS недоступен"
-                statusOk -> "WPS готов"
-                else -> "WPS: ${band.wpsStatus}"
-            },
-            style = MaterialTheme.typography.bodySmall,
-            color = when {
-                !configured -> KeeneticColors.TextSecondary
-                statusOk -> KeeneticColors.Primary
-                else -> KeeneticColors.Warning
-            },
-            fontWeight = FontWeight.Medium
-        )
-    }
+private fun wpsBandStatus(band: MwsWlanBand): String = when {
+    !band.wpsConfigured -> "WPS недоступен"
+    band.wpsStatus.equals("enabled", ignoreCase = true) -> "WPS готов"
+    else -> "WPS: ${band.wpsStatus}"
 }
 
-@Composable
-private fun InfoRow(label: String, value: String) {
-    Row(modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp), horizontalArrangement = Arrangement.SpaceBetween) {
-        Text(label, style = MaterialTheme.typography.bodyMedium, color = KeeneticColors.TextSecondary)
-        Text(value, style = MaterialTheme.typography.bodyMedium, color = KeeneticColors.TextPrimary, fontWeight = FontWeight.Medium)
-    }
+private fun wpsBandStatusColor(band: MwsWlanBand) = when {
+    !band.wpsConfigured -> KeeneticColors.TextSecondary
+    band.wpsStatus.equals("enabled", ignoreCase = true) -> KeeneticColors.Primary
+    else -> KeeneticColors.Warning
 }
