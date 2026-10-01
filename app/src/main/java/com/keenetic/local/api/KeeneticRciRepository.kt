@@ -650,8 +650,29 @@ open class KeeneticRciRepository(
     }
 
     fun isRciError(element: JsonElement?): Boolean {
-        if (element == null || !element.isJsonObject) return false
+        if (element == null) return false
+        // Форма-список: [{"status":"error","code":...}] — так отвечает POST /rci/
+        // на несуществующий путь (например show/interface/X/Y через GET).
+        if (element.isJsonArray) {
+            val arr = element.asJsonArray
+            if (arr.size() == 0) return false
+            val first = arr.get(0)
+            if (first.isJsonObject) {
+                val s = first.asJsonObject.get("status")
+                if (s != null && s.isJsonPrimitive && s.asString.equals("error", ignoreCase = true)) {
+                    return true
+                }
+                // Вложенная форма внутри элемента списка
+                if (isRciError(first)) return true
+            }
+            return false
+        }
+        if (!element.isJsonObject) return false
         val obj = element.asJsonObject
+        // Плоская форма: {"status":"error",...}
+        obj.get("status")?.takeIf { it.isJsonPrimitive }?.let {
+            if (it.asString.equals("error", ignoreCase = true)) return true
+        }
         if (obj.has("status") && obj.get("status").isJsonArray) {
             val arr = obj.getAsJsonArray("status")
             if (arr.size() > 0 && arr.get(0).isJsonObject) {
