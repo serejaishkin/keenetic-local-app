@@ -857,6 +857,16 @@ fun DashboardScreen(
                                 Text("Сохранить JSON в загрузки", style = MaterialTheme.typography.labelSmall, color = KeeneticColors.Primary, maxLines = 1)
                             }
                         }
+                        FilledTonalButton(
+                            onClick = { viewModel.saveRunningConfig(context) },
+                            shape = RoundedCornerShape(8.dp),
+                            contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
+                            colors = ButtonDefaults.filledTonalButtonColors(containerColor = KeeneticColors.SurfaceElevated)
+                        ) {
+                            Icon(Icons.Default.Save, contentDescription = null, modifier = Modifier.size(14.dp), tint = KeeneticColors.Primary)
+                            Spacer(Modifier.width(4.dp))
+                            Text("Сохранить running-config", style = MaterialTheme.typography.labelSmall, color = KeeneticColors.Primary, maxLines = 1)
+                        }
                         if (rciProbeMessage.isNotBlank()) {
                             Text(
                                 rciProbeMessage,

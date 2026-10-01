@@ -6598,6 +6598,40 @@ private val _intelliQos = MutableStateFlow(IntelliQosConfig())
         }
     }
 
+    // ---- running-config: выгрузка текста в Download/Keenetic (только чтение) ----
+    fun saveRunningConfig(context: android.content.Context) {
+        viewModelScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+            try {
+                _rciProbeMessage.value = "Запрос running-config…"
+                val response = repository.getRestApi().getRunningConfig()
+                if (!response.isSuccessful || response.body() == null) {
+                    _rciProbeMessage.value = "HTTP ${response.code()}"
+                    return@launch
+                }
+                val text = response.body()!!.string()
+                val name = "running-config.txt"
+                val resolver = context.contentResolver
+                val values = android.content.ContentValues().apply {
+                    put(android.provider.MediaStore.Downloads.DISPLAY_NAME, name)
+                    put(android.provider.MediaStore.Downloads.MIME_TYPE, "text/plain")
+                    put(android.provider.MediaStore.Downloads.RELATIVE_PATH, "Download/Keenetic")
+                }
+                val uri = resolver.insert(
+                    android.provider.MediaStore.Downloads.EXTERNAL_CONTENT_URI, values
+                )
+                if (uri == null) {
+                    _rciProbeMessage.value = "Нет доступа к загрузкам"
+                    return@launch
+                }
+                resolver.openOutputStream(uri)?.use { it.write(text.toByteArray(Charsets.UTF_8)) }
+                _rciProbeMessage.value = "Сохранено в Download/Keenetic/$name (${text.length} симв.)"
+            } catch (e: Exception) {
+                AppLogger.logError("saveRunningConfig", e)
+                _rciProbeMessage.value = "Ошибка: ${e.message}"
+            }
+        }
+    }
+
     fun saveRciProbe(context: android.content.Context) {
         val text = _rciProbeResult.value
         if (text.isBlank()) {
