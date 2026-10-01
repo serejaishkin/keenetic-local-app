@@ -66,6 +66,8 @@ class WanConnectionParserTest {
         assertEquals("wan", c.macScope)
         assertEquals("default", c.pingCheckProfile)
         assertEquals("public", c.securityLevel)
+        assertTrue(c.isGlobal)
+        assertEquals(65470, c.globalPriority)
         assertTrue(c.defaultGw)
         assertFalse(c.ipv6Up)
     }

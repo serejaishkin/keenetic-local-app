@@ -37,7 +37,8 @@ data class WanConnection(
     val stateMac: String = "",
     val authType: String = "none",
     val securityLevel: String = "",
-    val globalPriority: Int = 0,
+    val isGlobal: Boolean = false, // state `global: true` — интерфейс глобальный
+    val globalPriority: Int = 0, // config `ip global N` — метрика политик
     val defaultGw: Boolean = false,
     val ipv6Up: Boolean = false,
     // --- config (running-config) ---
@@ -151,7 +152,7 @@ object WanConnectionParser {
                 stateMac = str(state, "mac") ?: "",
                 authType = str(state, "auth-type") ?: "none",
                 securityLevel = str(state, "security-level") ?: "",
-                globalPriority = state.get("global")?.takeIf { it.isJsonPrimitive }?.asInt ?: 0,
+                isGlobal = state.get("global")?.takeIf { it.isJsonPrimitive }?.asBoolean ?: false,
                 defaultGw = state.get("defaultgw")?.takeIf { it.isJsonPrimitive }?.asBoolean ?: false,
                 ipv6Up = state.getAsJsonObject("summary")
                     ?.getAsJsonObject("layer")?.get("ipv6")?.takeIf { it.isJsonPrimitive }
@@ -175,6 +176,7 @@ object WanConnectionParser {
         var pingProfile = ""
         var dyndns = ""
         var igmp = false
+        var globalPrio = 0
         var pendingConnType = "ALWAYS_ON"
         var pendingTimeout = 0
         var pendingIpv6 = "off"
@@ -234,6 +236,8 @@ object WanConnectionParser {
                     pingProfile = line.substringAfter("ping-check profile ").trim()
                 line.startsWith("dyndns ") -> dyndns = line.substringAfter("dyndns ").trim()
                 line == "igmp upstream" -> igmp = true
+                line.startsWith("ip global ") ->
+                    globalPrio = line.substringAfter("ip global ").trim().toIntOrNull() ?: 0
                 line.startsWith("ip gateway ") ->
                     staticGw = line.substringAfter("ip gateway ").trim()
                 line == "connection always-on" -> {
@@ -265,6 +269,7 @@ object WanConnectionParser {
             hostname = hostname, dhcpDnsRoutes = dnsRoutes, useNameServers = nameServers,
             cfgMtu = cfgMtu, macMode = macMode, macScope = macScope, macManual = macManual,
             pingCheckProfile = pingProfile, dyndns = dyndns, igmpUpstream = igmp,
+            globalPriority = globalPrio,
             connType = pendingConnType, onDemandTimeout = pendingTimeout,
             ipv6Mode = pendingIpv6, ipv6Address = pendingIpv6Addr,
             ipv6Prefix = pendingIpv6Prefix, ipv6Gateway = pendingIpv6Gw,
