@@ -439,6 +439,48 @@ open class KeeneticRciRepository(
     }
 
     /**
+     * Execute batch RCI commands WITHOUT saving, validating every per-command
+     * result. Returns (allOk, firstErrorText?). Use before sending the explicit
+     * `system configuration save` so a rejected command never gets persisted
+     * together with half-applied siblings.
+     */
+    suspend fun executeRciChecked(commands: List<Map<String, Any>>): Pair<Boolean, String?> {
+        return try {
+            val response = getService().executeRci(commands)
+            if (!response.isSuccessful) {
+                return Pair(false, "HTTP ${response.code()}")
+            }
+            val body = response.body() ?: return Pair(true, null)
+            if (!body.isJsonArray) {
+                return if (isRciError(body)) Pair(false, body.toString().take(300))
+                else Pair(true, null)
+            }
+            val arr = body.asJsonArray
+            for (i in 0 until arr.size()) {
+                val el = arr.get(i)
+                if (isRciError(el)) {
+                    return Pair(false, "Команда ${i + 1}/${arr.size()}: ${el.toString().take(300)}")
+                }
+                if (el.isJsonObject) {
+                    val s = el.toString()
+                    if (s.contains("\"status\":\"error\"", ignoreCase = true)) {
+                        return Pair(false, "Команда ${i + 1}/${arr.size()}: ${s.take(300)}")
+                    }
+                }
+            }
+            Pair(true, null)
+        } catch (e: Exception) {
+            AppLogger.logError("executeRciChecked", e)
+            Pair(false, e.message)
+        }
+    }
+
+    suspend fun saveConfiguration(): Pair<Boolean, String?> =
+        executeRciChecked(
+            listOf(mapOf("system" to mapOf("configuration" to mapOf("save" to emptyMap<String, Any>()))))
+        )
+
+    /**
      * Execute batch RCI commands with automatic non-volatile configuration save
      * {"system": {"configuration": {"save": {}}}}
      */
