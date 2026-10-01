@@ -1,6 +1,8 @@
 package com.keenetic.local.ui
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
@@ -60,6 +62,7 @@ sealed class Screen(val route: String, val title: String) {
     data object TrafficMonitor : Screen("traffic_monitor", "Монитор трафика")
     data object FileBrowser : Screen("file_browser", "Файлы")
     data object SshTerminal : Screen("ssh_terminal", "SSH-терминал")
+    data object WanConnection : Screen("wan_connection", "Подключение")
 }
 
 @Composable
@@ -83,7 +86,7 @@ fun KeeneticNavHost(
             DevicesScreen(viewModel = viewModel)
         }
         composable(Screen.Internet.route) {
-            InternetScreen(viewModel = viewModel, onBack = { navController.popBackStack() })
+            InternetScreen(viewModel = viewModel, onBack = { navController.popBackStack() }, onNavigate = { navController.navigate(it) })
         }
         composable(Screen.WiFi.route) {
             WiFiScreen(viewModel = viewModel, onBack = { navController.popBackStack() })
@@ -232,6 +235,14 @@ fun KeeneticNavHost(
         }
         composable(Screen.SshTerminal.route) {
             SshTerminalScreen(viewModel = viewModel, onBack = { navController.popBackStack() })
+        }
+        composable(Screen.WanConnection.route) {
+            val wanId by viewModel.wanId.collectAsState()
+            WanConnectionScreen(
+                viewModel = viewModel,
+                ifaceId = wanId,
+                onBack = { navController.popBackStack() }
+            )
         }
     }
 }

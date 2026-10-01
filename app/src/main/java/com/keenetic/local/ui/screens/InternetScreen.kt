@@ -24,6 +24,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import com.keenetic.local.ui.Screen
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.keenetic.local.api.RouterInterface
@@ -41,7 +42,7 @@ import com.keenetic.local.ui.components.SubGroupHeader
 import com.keenetic.local.ui.theme.KeeneticColors
 
 @Composable
-fun InternetScreen(viewModel: RouterViewModel, onBack: () -> Unit = {}) {
+fun InternetScreen(viewModel: RouterViewModel, onBack: () -> Unit = {}, onNavigate: (String) -> Unit = {}) {
     val interfaces by viewModel.interfaces.collectAsState()
 
     fun refresh() = viewModel.loadInterfaces()
@@ -78,19 +79,19 @@ fun InternetScreen(viewModel: RouterViewModel, onBack: () -> Unit = {}) {
 
             if (wired.isNotEmpty()) {
                 item(key = "wired-h") { SubGroupHeader("Проводные подключения", wired.size) }
-                items(wired, key = { "w-${it.id}" }) { iface -> ConnectionCard(viewModel, iface) }
+                items(wired, key = { "w-${it.id}" }) { iface -> ConnectionCard(viewModel, iface, onNavigate) }
             }
             if (modem.isNotEmpty()) {
                 item(key = "modem-h") { SubGroupHeader("Сотовая сеть", modem.size) }
-                items(modem, key = { "m-${it.id}" }) { iface -> ConnectionCard(viewModel, iface) }
+                items(modem, key = { "m-${it.id}" }) { iface -> ConnectionCard(viewModel, iface, onNavigate) }
             }
             if (wisp.isNotEmpty()) {
                 item(key = "wisp-h") { SubGroupHeader("Публичные сети Wi-Fi", wisp.size) }
-                items(wisp, key = { "wi-${it.id}" }) { iface -> ConnectionCard(viewModel, iface) }
+                items(wisp, key = { "wi-${it.id}" }) { iface -> ConnectionCard(viewModel, iface, onNavigate) }
             }
             if (other.isNotEmpty()) {
                 item(key = "other-h") { SubGroupHeader("Прочие интерфейсы", other.size) }
-                items(other, key = { "o-${it.id}" }) { iface -> ConnectionCard(viewModel, iface) }
+                items(other, key = { "o-${it.id}" }) { iface -> ConnectionCard(viewModel, iface, onNavigate) }
             }
         }
     }
@@ -98,7 +99,7 @@ fun InternetScreen(viewModel: RouterViewModel, onBack: () -> Unit = {}) {
 
 /** Карточка подключения = строка таблицы сайта: имя, тип, адрес, действия. */
 @Composable
-private fun ConnectionCard(viewModel: RouterViewModel, iface: RouterInterface) {
+private fun ConnectionCard(viewModel: RouterViewModel, iface: RouterInterface, onNavigate: (String) -> Unit = {}) {
     var showIpDialog by remember(iface.id) { mutableStateOf(false) }
     var showMainDialog by remember(iface.id) { mutableStateOf(false) }
     var showPppoeDialog by remember(iface.id) { mutableStateOf(false) }
@@ -137,6 +138,14 @@ private fun ConnectionCard(viewModel: RouterViewModel, iface: RouterInterface) {
             label = "Параметры подключения",
             value = "описание, MTU, MAC",
             onClick = { showMainDialog = true }
+        )
+        EditableRow(
+            label = "Настройки подключения",
+            value = "как в веб-интерфейсе",
+            onClick = {
+                viewModel.openWanConnection(iface.id)
+                onNavigate(Screen.WanConnection.route)
+            }
         )
         if (isWired) {
             EditableRow(label = "PPPoE", value = "логин и пароль", onClick = { showPppoeDialog = true })

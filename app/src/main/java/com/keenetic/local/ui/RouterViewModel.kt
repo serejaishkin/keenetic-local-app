@@ -6223,6 +6223,185 @@ private val _intelliQos = MutableStateFlow(IntelliQosConfig())
         }
     }
 
+    // ---- WAN-подключение: полный экран как в веб (read + validate-then-save) ----
+    private val _wanId = MutableStateFlow("")
+    val wanId: StateFlow<String> = _wanId.asStateFlow()
+    fun openWanConnection(id: String) {
+        _wanId.value = id
+        _wanConnection.value = null
+        loadWanConnection(id)
+    }
+    private val _wanConnection = MutableStateFlow<WanConnection?>(null)
+    val wanConnection: StateFlow<WanConnection?> = _wanConnection.asStateFlow()
+    private val _wanSchedules = MutableStateFlow<List<ScheduleInfo>>(emptyList())
+    val wanSchedules: StateFlow<List<ScheduleInfo>> = _wanSchedules.asStateFlow()
+    private val _wanSaveMessage = MutableStateFlow("")
+    val wanSaveMessage: StateFlow<String> = _wanSaveMessage.asStateFlow()
+    private val _wanSaving = MutableStateFlow(false)
+    val wanSaving: StateFlow<Boolean> = _wanSaving.asStateFlow()
+
+    fun loadWanConnection(id: String) {
+        viewModelScope.launch {
+            try {
+                val ifaceRes = repository.queryShow("interface")
+                var state: com.google.gson.JsonObject? = null
+                var parent: com.google.gson.JsonObject? = null
+                ifaceRes?.takeIf { it.isJsonObject }?.asJsonObject?.let { root ->
+                    state = root.get(id)?.takeIf { it.isJsonObject }?.asJsonObject
+                    val slash = id.lastIndexOf('/')
+                    if (slash > 0) {
+                        parent = root.get(id.substring(0, slash))
+                            ?.takeIf { it.isJsonObject }?.asJsonObject
+                    }
+                }
+                val cfgResp = repository.getRestApi().getRunningConfig()
+                val cfgText = if (cfgResp.isSuccessful) cfgResp.body()?.string() ?: "" else ""
+                val stanza = WanConnectionParser.extractStanza(cfgText, id)
+                var conn = WanConnectionParser.parse(id, state, stanza)
+                conn = conn.copy(switchPorts = WanConnectionParser.parseSwitchPorts(parent))
+                _wanConnection.value = conn
+                val scRes = repository.queryShow("sc/schedule")
+                _wanSchedules.value = DnsAndScheduleParser.parseSchedules(scRes)
+            } catch (e: Exception) {
+                AppLogger.logError("loadWanConnection", e)
+            }
+        }
+    }
+
+    /**
+     * Сохранение WAN-подключения в два этапа: сначала прогон команд БЕЗ save
+     * через executeRciChecked (роутер отвергнет неизвестные ключи), и только
+     * если всё принято — явный system configuration save. Ничего не пишется
+     * при первой же ошибке; текст ошибки возвращается в UI.
+     */
+    fun saveWanConnection(w: WanConnection, onDone: (Boolean, String) -> Unit = { _, _ -> }) {
+        viewModelScope.launch {
+            _wanSaving.value = true
+            try {
+                val cmds = buildWanSaveCmds(w)
+                if (cmds.isEmpty()) {
+                    onDone(false, "Нет изменений для сохранения")
+                    return@launch
+                }
+                val (ok, err) = repository.executeRciChecked(cmds)
+                if (!ok) {
+                    val msg = "Роутер отклонил команды: $err"
+                    _wanSaveMessage.value = msg
+                    onDone(false, msg)
+                    return@launch
+                }
+                val (saved, saveErr) = repository.saveConfiguration()
+                if (!saved) {
+                    val msg = "Команды приняты, но save не удался: $saveErr"
+                    _wanSaveMessage.value = msg
+                    onDone(false, msg)
+                    return@launch
+                }
+                _wanSaveMessage.value = "Сохранено"
+                loadWanConnection(w.id)
+                loadInterfaces()
+                onDone(true, "Сохранено")
+            } catch (e: Exception) {
+                AppLogger.logError("saveWanConnection", e)
+                onDone(false, "Ошибка: ${e.message}")
+            } finally {
+                _wanSaving.value = false
+            }
+        }
+    }
+
+    fun deleteWanConnection(id: String, onDone: (Boolean, String) -> Unit = { _, _ -> }) {
+        viewModelScope.launch {
+            _wanSaving.value = true
+            try {
+                // NDM `no interface <id>` в RCI-мапформе; guarded тем же checked-прогоном.
+                val cmds = listOf(mapOf("interface" to mapOf(id to mapOf("no" to true))))
+                val (ok, err) = repository.executeRciChecked(cmds)
+                if (!ok) {
+                    onDone(false, "Роутер отклонил удаление: $err")
+                    return@launch
+                }
+                val (saved, saveErr) = repository.saveConfiguration()
+                if (!saved) {
+                    onDone(false, "Удалено, но save не удался: $saveErr")
+                    return@launch
+                }
+                loadInterfaces()
+                onDone(true, "Подключение удалено")
+            } catch (e: Exception) {
+                AppLogger.logError("deleteWanConnection", e)
+                onDone(false, "Ошибка: ${e.message}")
+            } finally {
+                _wanSaving.value = false
+            }
+        }
+    }
+
+    /**
+     * Маппинг полей экрана в RCI-команды `interface <id> {...}`.
+     * Проверенные ключи (уже используются приложением на живом роутере):
+     * description, hostname, order, schedule, up, mac-config-mode/mac,
+     * ip.address (dhcp/static), ip.mtu, pppoe{identity,password,service,type}.
+     * Остальное — best-effort по токенам running-config, под guard'ом
+     * executeRciChecked (неизвестное роутер отвергнет, save не будет).
+     */
+    private fun buildWanSaveCmds(w: WanConnection): List<Map<String, Any>> {
+        val id = w.id
+        val cmds = mutableListOf<Map<String, Any>>()
+        val top = linkedMapOf<String, Any>()
+        top["description"] = w.description
+        top["up"] = w.adminUp
+        top["order"] = w.order
+        if (w.schedule.isBlank()) top["schedule"] = mapOf("no" to true)
+        else top["schedule"] = w.schedule
+        top["hostname"] = w.hostname
+        when (w.macMode) {
+            "manual" -> {
+                top["mac-config-mode"] = "STATIC"
+                if (w.macManual.isNotBlank()) top["mac"] = w.macManual
+            }
+            "random" -> top["mac-config-mode"] = "RANDOM"
+            else -> {
+                top["mac-config-mode"] = "DEFAULT"
+                if (w.macScope.isNotBlank()) top["mac"] = w.macScope
+            }
+        }
+        cmds.add(mapOf("interface" to mapOf(id to top)))
+
+        val ip = linkedMapOf<String, Any>()
+        when (w.ipMode) {
+            "dhcp" -> ip["address"] = "dhcp"
+            "static" -> {
+                if (w.staticIp.isNotBlank()) ip["address"] = w.staticIp
+                if (w.staticMask.isNotBlank()) ip["mask"] = w.staticMask
+                if (w.staticGateway.isNotBlank()) ip["gateway"] = w.staticGateway
+            }
+            else -> ip["address"] = mapOf("no" to true)
+        }
+        if (w.cfgMtu > 0) ip["mtu"] = w.cfgMtu.toString()
+        val dhcpClient = linkedMapOf<String, Any>()
+        if (w.dhcpDnsRoutes) dhcpClient["dns-routes"] = emptyMap<String, Any>()
+        else dhcpClient["dns-routes"] = mapOf("no" to true)
+        if (w.hostname.isNotBlank()) dhcpClient["hostname"] = w.hostname
+        ip["dhcp"] = mapOf("client" to dhcpClient)
+        cmds.add(mapOf("interface" to mapOf(id to mapOf("ip" to ip))))
+
+        if (w.pingCheckProfile.isNotBlank()) {
+            cmds.add(mapOf("interface" to mapOf(id to mapOf("ping-check" to mapOf("profile" to w.pingCheckProfile)))))
+        }
+        if (w.authType.equals("pppoe", ignoreCase = true)) {
+            val pppoe = linkedMapOf<String, Any>()
+            if (w.authLogin.isNotBlank()) pppoe["identity"] = w.authLogin
+            if (w.authPassword.isNotBlank()) pppoe["password"] = w.authPassword
+            if (w.authServer.isNotBlank()) pppoe["service"] = w.authServer
+            pppoe["type"] = w.authMethod.ifBlank { "auto" }
+            cmds.add(mapOf("interface" to mapOf(id to mapOf("pppoe" to pppoe))))
+        } else if (w.authType.equals("none", ignoreCase = true)) {
+            cmds.add(mapOf("interface" to mapOf(id to mapOf("pppoe" to mapOf("no" to true)))))
+        }
+        return cmds
+    }
+
     fun setSshPort(port: Int) {
         viewModelScope.launch {
             try {
