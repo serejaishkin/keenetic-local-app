@@ -28,6 +28,7 @@ sealed class Screen(val route: String, val title: String) {
     data object DnsSettings : Screen("dns_settings", "DNS")
     data object VpnAdvanced : Screen("vpn_advanced", "VPN-сервер")
     data object Configuration : Screen("configuration", "Конфигурация (RCI / CLI)")
+    data object RciCapture : Screen("rci_capture", "Снимок ответов RCI")
 
     // Phase 5: Новые разделы
     data object SystemAdvanced : Screen("system_advanced", "Системные настройки")
@@ -139,6 +140,9 @@ fun KeeneticNavHost(
         }
         composable(Screen.VpnAdvanced.route) {
             VpnAdvancedScreen(viewModel = viewModel, onBack = { navController.popBackStack() })
+        }
+        composable(Screen.RciCapture.route) {
+            RciCaptureScreen(viewModel = viewModel, onBack = { navController.popBackStack() })
         }
         composable(Screen.Configuration.route) {
             ConfigurationScreen(viewModel = viewModel, onBack = { navController.popBackStack() })

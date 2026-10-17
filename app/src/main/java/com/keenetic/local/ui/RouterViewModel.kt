@@ -6843,4 +6843,64 @@ private val _intelliQos = MutableStateFlow(IntelliQosConfig())
             }
         }
     }
+
+    // ---- Снимок ответов RCI: пакетный сбор read-only show-путей в один JSON ----
+    private val _rciCaptureProgress = MutableStateFlow("")
+    val rciCaptureProgress: StateFlow<String> = _rciCaptureProgress.asStateFlow()
+    private val _rciCaptureItems = MutableStateFlow<List<RciCapture.Item>>(emptyList())
+    val rciCaptureItems: StateFlow<List<RciCapture.Item>> = _rciCaptureItems.asStateFlow()
+    private val _rciCaptureRunning = MutableStateFlow(false)
+    val rciCaptureRunning: StateFlow<Boolean> = _rciCaptureRunning.asStateFlow()
+    private var rciCaptureReport: String = ""
+
+    fun runRciCapture(paths: List<String>, maskSecrets: Boolean) {
+        if (paths.isEmpty() || _rciCaptureRunning.value) return
+        viewModelScope.launch {
+            _rciCaptureRunning.value = true
+            _rciCaptureItems.value = emptyList()
+            rciCaptureReport = ""
+            val out = mutableListOf<RciCapture.Item>()
+            for ((i, raw) in paths.withIndex()) {
+                val path = RciCapture.normalizePath(raw)
+                _rciCaptureProgress.value = "${i + 1}/${paths.size}: show/$path"
+                val el = try { repository.queryShow(path) } catch (e: Exception) { null }
+                out += RciCapture.Item(path, el != null, el?.toString()?.length ?: 0, el)
+            }
+            _rciCaptureItems.value = out
+            val info = _systemInfo.value?.let { "${it.hostname ?: ""} ${it.version ?: ""}".trim() } ?: ""
+            rciCaptureReport = RciCapture.buildReport(out, maskSecrets, info)
+            _rciCaptureProgress.value = "Готово: ${out.count { it.ok }} из ${out.size} путей дали ответ"
+            _rciCaptureRunning.value = false
+        }
+    }
+
+    /** Сохраняет собранный снимок в Download/Keenetic (как и saveRciProbe). */
+    fun saveRciCapture(context: android.content.Context) {
+        val text = rciCaptureReport
+        if (text.isBlank()) {
+            _rciCaptureProgress.value = "Нечего сохранять: сначала соберите снимок"
+            return
+        }
+        viewModelScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+            try {
+                val name = "rci_capture_${System.currentTimeMillis() / 1000}.json"
+                val resolver = context.contentResolver
+                val values = android.content.ContentValues().apply {
+                    put(android.provider.MediaStore.Downloads.DISPLAY_NAME, name)
+                    put(android.provider.MediaStore.Downloads.MIME_TYPE, "application/json")
+                    put(android.provider.MediaStore.Downloads.RELATIVE_PATH, "Download/Keenetic")
+                }
+                val uri = resolver.insert(android.provider.MediaStore.Downloads.EXTERNAL_CONTENT_URI, values)
+                if (uri == null) {
+                    _rciCaptureProgress.value = "Нет доступа к загрузкам"
+                    return@launch
+                }
+                resolver.openOutputStream(uri)?.use { it.write(text.toByteArray(Charsets.UTF_8)) }
+                _rciCaptureProgress.value = "Сохранено в Download/Keenetic/$name (${text.length / 1024} КБ)"
+            } catch (e: Exception) {
+                AppLogger.logError("saveRciCapture", e)
+                _rciCaptureProgress.value = "Ошибка сохранения: ${e.message}"
+            }
+        }
+    }
 }

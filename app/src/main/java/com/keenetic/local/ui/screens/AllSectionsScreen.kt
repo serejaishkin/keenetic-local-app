@@ -98,6 +98,7 @@ fun AllSectionsScreen(
                 SectionItem("KeeneticOS и обновление", Screen.Firmware.route, "Версия прошивки и компоненты"),
                 SectionItem("Пользователи и доступ", Screen.UserAccounts.route, "Учетные записи и права"),
                 SectionItem("Конфигурация (RCI / CLI)", Screen.Configuration.route, "Running-config, инспектор и команды NDM"),
+                SectionItem("Снимок ответов RCI", Screen.RciCapture.route, "Собрать ответы роутера в файл"),
                 SectionItem("SSH-терминал", Screen.SshTerminal.route, "Выполнение команд CLI по SSH"),
                 SectionItem("Журнал событий (Логи)", Screen.SystemLogs.route, "Системные события ndm"),
                 SectionItem("Диагностика сети", Screen.Diagnostics.route, "Ping, Traceroute, DNS"),
