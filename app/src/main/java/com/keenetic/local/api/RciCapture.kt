@@ -30,7 +30,7 @@ object RciCapture {
         "skydns/profiles/profiles", "safedns/profiles/profiles", "nextdns/profiles/profiles",
         "ndss", "ndns", "acme", "crypto",
         "vpn-server", "sstp-server", "oc-server",
-        "ntce/summary", "ntce/status", "tags",
+        "ntce/summary", "ntce/status", "tags", "authentication/token", "rc/ntce/upstream/rate-limit",
         "usb", "media", "torrent", "cifs", "afp", "ntp/status", "eula", "dpn"
     )
 
