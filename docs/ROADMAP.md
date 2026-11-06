@@ -43,6 +43,8 @@ Dashboard ✅ · Wi-Fi ✅ · Devices ✅ · DNS-фильтры 🟡 · Firewall
 - M6.2 ⬜ пароль пользователя (`user/password`), `whoami`, `erase`, `system/configuration` (save/reset) с подтверждениями.
 - M6.3 🟡 компоненты: `components/list|check-update|install|remove|commit`. Список показывать можно; установка в порте идёт через NDSS (см. отдельный разбор) — отметить в UI как «требует сервера Keenetic».
 
+- M6.4 ⬜ Токены доступа (5.2): `authentication token generate|delete`, `show authentication token`; см. docs/FIRMWARE-5.2-beta.md.
+
 ## M7. Качество
 - M7.1 ⬜ тесты парсеров на HAR-фикстурах; M7.2 ⬜ WebView-обёртка / мобильная вёрстка веб-панели (по необходимости); M7.3 ⬜ демо-режим для новых экранов.
 
