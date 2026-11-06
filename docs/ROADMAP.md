@@ -30,6 +30,7 @@ Dashboard ✅ · Wi-Fi ✅ · Devices ✅ · DNS-фильтры 🟡 · Firewall
 - M3.3 ⬜ политики/теги (`show tags`), расписания устройств (`ScheduleManager`, `show schedule`).
 
 ## M4. Сеть
+- M4.0 ⬜ IntelliQoS upstream rate-limit (новое в оригинале 7.1): `show rc ntce upstream rate-limit`, запись `ntce upstream rate-limit`. См. docs/apk/VERSION-DIFF-70-71.md.
 - M4.1 ⬜ IPv6 (`show ipv6 …`), PPPoE/IPoE (`/rci/pppoe`, `interface/ipoe`), DSL/USB-DSL.
 - M4.2 ⬜ Wi-Fi: site-survey (парсер есть), настройка каналов/VHT, гостевая сеть, ping-check.
 - M4.3 ⬜ mesh (MWS): `show mws`, `mws/acquire|member|revisit|zone`. Проверить, есть ли на KN-2311/Netis.
