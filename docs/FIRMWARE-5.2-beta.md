@@ -10,7 +10,12 @@
 - HTTP: заголовок `X-NDM-TOKEN` (был и в 5.1.3), в 5.2 добавлены `X-Ndm-Cloned-Session-Token`/`auth_x_session_token` для прокси.
 - Предупреждение в логе: «obsoleted unauthenticated loopback RCI access will be removed soon, consider switching to access tokens» — доступ к RCI с localhost без авторизации будет убран. Тем, кто ходит на 127.0.0.1 без пароля (скрипты на роутере/Entware), нужно переходить на токены.
 - Методы аутентификации (теги): mobile-app, browser-cloud, browser-direct, rmm-cloud, ndmp, one-time-token, vpn-oc, ipsec-*.
-- Формат запроса генерации и ответа неизвестен → снять через «Снимок ответов RCI» / сетевую вкладку веб-интерфейса при нажатии кнопки генерации.
+- **Подтверждено декомпиляцией Ghidra** (`libndmCorePack.so`, `docs/firmware/ghidra-auth-token-decompile.txt`):
+  - Команды CLI: `authentication token generate [<user-data>] [one-time]`, `authentication token delete <id>`, `show authentication token`.
+  - Генерация работает от имени текущего пользователя сессии: нужен уровень «пользователь» (иначе статус-ошибка, код 0x80e101f4) и тег `http` у пользователя (иначе 0x80e10258). Значение токена — случайная ASCII-строка 56 символов; тип TOKEN или ONE_TIME_TOKEN (флаг `one-time`). Токен возвращается в ответе команды (узел ответа).
+  - Хранится как NdmaToken: id, соль, дайджест (токен целиком в роутере не хранится — показывается один раз), владелец, сервис, user-data, срок (`Expires`), `last-access`.
+  - Допустимая длина значения при добавлении — 32…64 печатных ASCII-символа.
+- Формат ответа (имена полей JSON в RCI) всё ещё неизвестен → снять через «Снимок ответов RCI» / сетевую вкладку веб-интерфейса при нажатии кнопки генерации.
 
 ## Прочее новое
 - WPA3-SAE extended key: `mws wlan wpa sae ext-key` (+ enable/disable), в `libndmWifiMtk`.

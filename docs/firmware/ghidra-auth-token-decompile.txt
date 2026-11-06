@@ -1,0 +1,449 @@
+74 functions
+00276818 Core::Security::Authenticator::TrustToken
+002769f8 Core::Security::Authenticator::TrustToken
+00276c1c Core::Security::Authenticator::AddOneTimeNdmaToken
+00276f64 Core::Security::Authenticator::UntrustToken
+002770d0 Core::Security::Authenticator::GenerateUserToken
+00277720 Core::Security::Authenticator::UntrustUserToken
+00277cb8 Core::Security::Authenticator::CheckToken
+00277d58 Core::Security::Authenticator::CheckMwsToken
+00278110 Core::Security::Authenticator::CheckScgiTokenSession
+00278870 Core::Security::Authenticator::AttachTokensTo
+00288ddc Event::Delegate<Core::Security::Credentials::TokensHolder>::Handle
+00288e20 Timer<Core::Security::Credentials::TokensHolder>::Run
+0028902c Timer<Core::Security::Credentials::TokensHolder>::~Timer
+00289064 Timer<Core::Security::Credentials::TokensHolder>::~Timer
+002890c8 Event::Delegate<Core::Security::Credentials::TokensHolder>::~Delegate
+00289100 Event::Delegate<Core::Security::Credentials::TokensHolder>::~Delegate
+00289200 Core::Security::Credentials::TokensHolder::OnMwsLock_
+002892e4 Event::Delegate<Core::Security::Credentials::TokensHolder>::Clone
+002897f0 Core::Security::Credentials::NdmaToken::Initialized
+00289810 Core::Security::Credentials::NdmaToken::Id
+00289834 Core::Security::Credentials::NdmaToken::TruncatedValue
+00289854 Core::Security::Credentials::NdmaToken::Salt
+00289874 Core::Security::Credentials::NdmaToken::Digest
+00289894 Core::Security::Credentials::NdmaToken::Service
+002898b4 Core::Security::Credentials::NdmaToken::UserName
+002898d4 Core::Security::Credentials::NdmaToken::UserData
+002898f4 Core::Security::Credentials::NdmaToken::Check
+002899b8 Core::Security::Credentials::NdmaToken::Credential
+002899d8 Core::Security::Credentials::NdmaToken::Owner
+002899f8 Core::Security::Credentials::NdmaToken::CredentialFingerprint
+00289a18 Core::Security::Credentials::NdmaToken::Refresh
+00289ab4 Core::Security::Credentials::NdmaToken::RefreshAccess
+00289b20 Core::Security::Credentials::NdmaToken::Expires
+00289b40 Core::Security::Credentials::NdmaToken::Find
+0028ad04 Core::Security::Credentials::TokensHolder::TokensHolder
+0028afa8 Core::Security::Credentials::TokensHolder::Initialized
+0028afc8 Core::Security::Credentials::TokensHolder::SetMwsCid
+0028b06c Core::Security::Credentials::TokensHolder::CheckMwsToken
+0028b1ec Core::Security::Credentials::TokensHolder::GenerateToken
+0028b378 Core::Security::Credentials::TokensHolder::SaveCredentials
+0028eb38 Core::Security::Credentials::NdmaToken::NdmaToken
+0028f0a4 Core::Security::Credentials::NdmaToken::NdmaToken
+0028f470 Core::Security::Credentials::NdmaToken::UserHasTag
+0028f4ac Core::Security::Credentials::NdmaToken::HasActiveSso
+0028f4e4 Core::Security::Credentials::NdmaToken::FindCleanup
+0028f728 Core::Security::Credentials::TokensHolder::~TokensHolder
+0028f93c Core::Security::Credentials::TokensHolder::AddNdmaToken
+0028ffc0 Core::Security::Credentials::TokensHolder::DelNdmaToken
+002901bc Core::Security::Credentials::TokensHolder::DelNdmaToken
+0029041c Core::Security::Credentials::TokensHolder::DelByUserName
+00290670 Core::Security::Credentials::TokensHolder::CheckToken
+00290860 Core::Security::Credentials::TokensHolder::OnTimer_
+00290a64 Core::Security::Credentials::TokensHolder::ReadCredentials
+002913e8 Core::Security::Credentials::TokensHolder::Check
+00295464 Core::Security::Credentials::NdmaToken::AttachTo
+0029592c Core::Security::Credentials::TokensHolder::AttachTo
+00309bd4 Command::Filter::ParseTokens
+0030a14c Command::Filter::Tokenizer::Tokenizer
+0030a178 Command::Filter::Tokenizer::ParseToken_
+0030a49c Command::Filter::Tokenizer::Parse
+00339d8c Core::Command::(anonymous_namespace)::AuthenticationTokenDelete::Execute
+00339df8 Core::Command::(anonymous_namespace)::AuthenticationTokenGenerate::Execute
+0033c04c Core::Command::(anonymous_namespace)::ShowAuthenticationToken::Execute
+00341b30 Core::Command::(anonymous_namespace)::AuthenticationTokenDelete::GetArgumentParser
+00342a54 Core::Command::(anonymous_namespace)::AuthenticationTokenGenerate::GetArgumentParser
+003528bc Core::Module::Object::Register<Core::Command::(anonymous_namespace)::AuthenticationToken>
+0035da00 Core::Command::(anonymous_namespace)::AuthenticationToken::~AuthenticationToken
+0035f0f0 Core::Command::(anonymous_namespace)::ShowAuthenticationToken::~ShowAuthenticationToken
+0035fd0c Core::Command::(anonymous_namespace)::AuthenticationTokenGenerate::~AuthenticationTokenGenerate
+0035fd70 Core::Command::(anonymous_namespace)::AuthenticationTokenDelete::~AuthenticationTokenDelete
+00362030 Core::Command::(anonymous_namespace)::ShowAuthenticationToken::~ShowAuthenticationToken
+00362b58 Core::Command::(anonymous_namespace)::AuthenticationToken::~AuthenticationToken
+00362b90 Core::Command::(anonymous_namespace)::AuthenticationTokenGenerate::~AuthenticationTokenGenerate
+00362bc8 Core::Command::(anonymous_namespace)::AuthenticationTokenDelete::~AuthenticationTokenDelete
+
+==== Core::Security::Authenticator::AddOneTimeNdmaToken @00276c1c
+
+/* Core::Security::Authenticator::AddOneTimeNdmaToken(CString const&, CString const&) */
+
+void Core::Security::Authenticator::AddOneTimeNdmaToken(CString *param_1,CString *param_2)
+
+{
+  int iVar1;
+  int in_a3;
+  undefined1 auStack_58 [20];
+  undefined4 local_44 [7];
+  
+  (*(code *)PTR_Lock_0089ef64)(param_2 + 0x110);
+  iVar1 = (*(code *)PTR_UserHasTag__008a0a98)(param_2,in_a3,PTR_HTTP_008969cc);
+  if (iVar1 == 0) {
+    local_44[0] = 0x80e100fb;
+    (*(code *)PTR_StatusLog_008a0240)
+              (auStack_58,local_44,3,PTR_s_version__2__3___4_00893b94 + 0x6144,0,
+               PTR_s_version__2__3___4_00893b94 + 0x7084,0);
+    return;
+  }
+  if (*(int *)(in_a3 + 8) != 0) {
+    (*(code *)PTR_CString_0089e90c)(local_44);
+    return;
+  }
+  (*(code *)PTR_CString_0089e90c)(local_44,PTR_s_version__2__3___4_00893b94 + 0x6144);
+  return;
+}
+
+
+==== Core::Security::Authenticator::GenerateUserToken @002770d0
+
+/* Core::Security::Authenticator::GenerateUserToken(CString const&,
+   Core::Security::Credentials::Type const&, Xml::Node&) */
+
+void Core::Security::Authenticator::GenerateUserToken(CString *param_1,Type *param_2,Node *param_3)
+
+{
+  undefined4 uVar1;
+  undefined4 uVar2;
+  int iVar3;
+  undefined1 auStack_88 [20];
+  undefined4 local_74;
+  int *local_70;
+  undefined4 local_6c;
+  undefined1 auStack_68 [12];
+  undefined4 local_5c [5];
+  undefined4 local_48;
+  undefined4 local_44;
+  undefined4 *local_3c;
+  undefined *puStack_30;
+  
+  (*(code *)PTR_Lock_0089ef64)(param_2 + 0x110);
+  (*(code *)PTR_String_0089ea34)(auStack_68);
+  local_3c = &local_74;
+  local_74 = 0;
+  local_70 = (int *)0x0;
+  local_6c = 0;
+  (*(code *)PTR_GetSession_0089997c)(local_3c);
+  uVar1 = local_6c;
+  uVar2 = (*(code *)PTR_Access_0089bb4c)(local_6c);
+  iVar3 = (*(code *)PTR_IsUserLevel_0089b958)(uVar2);
+  if (iVar3 == 0) {
+    local_5c[0] = 0x80e101f4;
+    (*(code *)PTR_StatusLog_008a0240)
+              (auStack_88,local_5c,3,PTR_s_version__2__3___4_00893b94 + 0x6144,0,
+               PTR_s_version__2__3___4_00893b94 + 0x70a8,0);
+    return;
+  }
+  iVar3 = (*(code *)PTR_UserName_0089b14c)(uVar1);
+  iVar3 = (*(code *)PTR_Assign_00899f84)
+                    (auStack_68,*(undefined4 *)(iVar3 + 4),*(undefined4 *)(iVar3 + 8));
+  if (iVar3 == 0) {
+    local_5c[0] = 0xcffe144e;
+    (*(code *)PTR_StatusLog_008a0240)
+              (auStack_88,local_5c,4,PTR_s_version__2__3___4_00893b94 + 0x6144,0,0,0);
+    return;
+  }
+  if ((char)local_74 != '\0') {
+    (**(code **)(*local_70 + 0xc))();
+  }
+  iVar3 = (*(code *)PTR_UserHasTag__008a0a98)(param_2,auStack_68,PTR_HTTP_008969cc);
+  if (iVar3 != 0) {
+    (*(code *)PTR_String_0089ea34)(local_5c);
+    local_48 = 0;
+    local_44 = 0;
+    iVar3 = (*(code *)PTR_GenerateToken_0089ad38)(local_5c);
+    if (iVar3 == 0) {
+      local_74 = 0xcffe145f;
+      (*(code *)PTR_StatusLog_008a0240)
+                (auStack_88,local_3c,4,PTR_s_version__2__3___4_00893b94 + 0x6144,0,0,0);
+      return;
+    }
+    puStack_30 = PTR_s_version__2__3___4_00893b94;
+    (*(code *)PTR_CString_0089e90c)(local_3c,PTR_s_version__2__3___4_00893b94 + 0x6144);
+    return;
+  }
+  local_74 = 0x80e10258;
+  (*(code *)PTR_StatusLog_008a0240)
+            (auStack_88,local_3c,3,PTR_s_version__2__3___4_00893b94 + 0x6144,0,
+             PTR_s_version__2__3___4_00893b94 + 0x7084,0);
+  return;
+}
+
+
+==== Core::Security::Credentials::TokensHolder::GenerateToken @0028b1ec
+
+/* Core::Security::Credentials::TokensHolder::GenerateToken(String&) */
+
+void Core::Security::Credentials::TokensHolder::GenerateToken(String *param_1)
+
+{
+                    /* WARNING: Could not recover jumptable at 0x0028b218. Too many branches */
+                    /* WARNING: Treating indirect jump as call */
+  (*(code *)PTR_GetAsciiString_00896810)(0x38,param_1);
+  return;
+}
+
+
+==== Core::Security::Credentials::TokensHolder::AddNdmaToken @0028f93c
+
+/* Core::Security::Credentials::TokensHolder::AddNdmaToken(Core::Security::Credentials::NdmaToken::OwnerT,
+   CString const&, CString const&, CString const&, CString const&, Core::Security::Credentials::Type
+   const&, Core::Security::Credentials::Fingerprint const&, unsigned long long*) */
+
+void Core::Security::Credentials::TokensHolder::AddNdmaToken
+               (undefined4 param_1,int param_2,undefined4 param_3,undefined4 param_4,int param_5)
+
+{
+  int iVar1;
+  uint uVar2;
+  undefined1 auStack_68 [24];
+  undefined4 auStack_50 [5];
+  undefined4 uStack_3c;
+  undefined4 uStack_38;
+  
+  (*(code *)PTR_Lock_0089ef64)(param_2 + 8);
+  if (0x20 < *(int *)(param_5 + 8) - 0x20U) {
+LAB_0028f9fc:
+    auStack_50[0] = 0x80e100f2;
+    (*(code *)PTR_StatusLog_008a0240)
+              (auStack_68,auStack_50,3,PTR_s_version__2__3___4_00893b94 + 0x7aa0,0,
+               PTR_s_version__2__3___4_00893b94 + 0x7d94,0);
+    return;
+  }
+  uVar2 = 0;
+  do {
+    iVar1 = (*(code *)PTR_isprint_008a0378)((int)*(char *)(*(int *)(param_5 + 4) + uVar2));
+    if (iVar1 == 0) {
+      if (uVar2 < *(uint *)(param_5 + 8)) goto LAB_0028f9fc;
+      break;
+    }
+    uVar2 = uVar2 + 1;
+  } while (uVar2 < *(uint *)(param_5 + 8));
+  uStack_3c = 0;
+  uStack_38 = (*(code *)PTR_FindCleanup_0089aae0)(param_5,param_2 + 0x9c,&uStack_3c);
+  (*(code *)PTR_Size_0089ad8c)(param_2 + 0x9c);
+  return;
+}
+
+
+==== Core::Command::(anonymous_namespace)::AuthenticationTokenDelete::Execute @00339d8c
+
+/* Core::Command::(anonymous namespace)::AuthenticationTokenDelete::Execute(Command::Request const&,
+   Command::Response&) const [clone .lto_priv.0] */
+
+void Core::Command::(anonymous_namespace)::AuthenticationTokenDelete::Execute
+               (Request *param_1,Response *param_2)
+
+{
+  undefined4 uVar1;
+  undefined4 uVar2;
+  undefined1 auStack_18 [12];
+  
+  uVar2 = *(undefined4 *)(param_1 + 100);
+  uVar1 = (*(code *)PTR_Get_008979c8)
+                    (param_2,
+                     PTR__ZN4Core7Command12_GLOBAL__N_125AuthenticationTokenDelete7ARG_ID_E_lto_priv_0_008940e8
+                    );
+  (*(code *)PTR_UntrustUserToken_0089a3ac)(auStack_18,uVar2,uVar1);
+  return;
+}
+
+
+==== Core::Command::(anonymous_namespace)::AuthenticationTokenGenerate::Execute @00339df8
+
+/* Core::Command::(anonymous namespace)::AuthenticationTokenGenerate::Execute(Command::Request
+   const&, Command::Response&) const [clone .lto_priv.0] */
+
+void __thiscall
+Core::Command::(anonymous_namespace)::AuthenticationTokenGenerate::Execute
+          (AuthenticationTokenGenerate *this,Request *param_1,Response *param_2)
+
+{
+  undefined4 uVar1;
+  int iVar2;
+  undefined4 uVar3;
+  undefined4 uVar4;
+  undefined *puVar5;
+  undefined1 auStack_20 [8];
+  
+  uVar4 = *(undefined4 *)(this + 100);
+  uVar1 = (*(code *)PTR_Get_008979c8)
+                    (param_1,
+                     PTR__ZN4Core7Command12_GLOBAL__N_127AuthenticationTokenGenerate14ARG_USER_DATA_E_lto_priv_0_008940ec
+                    );
+  iVar2 = (*(code *)PTR_Has_0089df7c)
+                    (param_1,
+                     PTR__ZN4Core7Command12_GLOBAL__N_127AuthenticationTokenGenerate13ARG_ONE_TIME_E_lto_priv_0_008940f0
+                    );
+  puVar5 = PTR_TOKEN_0089ed7c;
+  if (iVar2 != 0) {
+    puVar5 = PTR_ONE_TIME_TOKEN_008967f4;
+  }
+  uVar3 = (**(code **)(*(int *)param_2 + 0x1c))(param_2);
+  (*(code *)PTR_GenerateUserToken_008a0f28)(auStack_20,uVar4,uVar1,puVar5,uVar3);
+  return;
+}
+
+
+==== Core::Command::(anonymous_namespace)::ShowAuthenticationToken::Execute @0033c04c
+
+/* Core::Command::(anonymous namespace)::ShowAuthenticationToken::Execute(Command::Request const&,
+   Command::Response&) const [clone .lto_priv.0] */
+
+void __thiscall
+Core::Command::(anonymous_namespace)::ShowAuthenticationToken::Execute
+          (ShowAuthenticationToken *this,Request *param_1,Response *param_2)
+
+{
+  undefined4 uVar1;
+  undefined4 uVar2;
+  
+  uVar2 = *(undefined4 *)(this + 100);
+  uVar1 = (**(code **)(*(int *)param_2 + 0x1c))(param_2);
+  (*(code *)PTR_AttachTokensTo_0089bb90)(uVar2,uVar1);
+  return;
+}
+
+
+==== Core::Command::(anonymous_namespace)::AuthenticationTokenDelete::GetArgumentParser @00341b30
+
+/* Core::Command::(anonymous
+   namespace)::AuthenticationTokenDelete::GetArgumentParser(Command::Request const&,
+   Command::Argument::Root&) const [clone .lto_priv.0] */
+
+undefined4 __thiscall
+Core::Command::(anonymous_namespace)::AuthenticationTokenDelete::GetArgumentParser
+          (AuthenticationTokenDelete *this,Request *param_1,Root *param_2)
+
+{
+  undefined4 uVar1;
+  undefined4 uVar2;
+  undefined1 auStack_50 [64];
+  
+  uVar2 = *(undefined4 *)
+           (
+           PTR__ZN4Core7Command12_GLOBAL__N_125AuthenticationTokenDelete7ARG_ID_E_lto_priv_0_008940e8
+           + 4);
+  uVar1 = (*(code *)PTR_Nil_0089921c)();
+  (*(code *)PTR_String_0089fb48)(auStack_50,uVar2,uVar1,0);
+  uVar1 = (*(code *)PTR_operator<<_00898e88)(param_2,auStack_50);
+  (*(code *)PTR__String_00898ec0)(auStack_50);
+  return uVar1;
+}
+
+
+==== Core::Command::(anonymous_namespace)::AuthenticationTokenGenerate::GetArgumentParser @00342a54
+
+/* Core::Command::(anonymous
+   namespace)::AuthenticationTokenGenerate::GetArgumentParser(Command::Request const&,
+   Command::Argument::Root&) const [clone .lto_priv.0] */
+
+undefined4 __thiscall
+Core::Command::(anonymous_namespace)::AuthenticationTokenGenerate::GetArgumentParser
+          (AuthenticationTokenGenerate *this,Request *param_1,Root *param_2)
+
+{
+  undefined4 uVar1;
+  undefined4 uVar2;
+  int in_t9;
+  undefined1 auStack_78 [60];
+  int local_3c [10];
+  
+  uVar2 = *(undefined4 *)(*(int *)(&UNK_00551698 + in_t9) + 4);
+  uVar1 = (**(code **)(in_t9 + 0x5567c8))();
+  (**(code **)(&UNK_0055d0f4 + in_t9))(auStack_78,uVar2,uVar1,0);
+  (**(code **)(in_t9 + 0x55a9a0))(local_3c,*(undefined4 *)(*(int *)(&UNK_0055169c + in_t9) + 4));
+  uVar1 = (**(code **)(Network::Ip6::Subnets::GetDelegateLength + in_t9 + 4))(auStack_78,local_3c);
+  uVar1 = (**(code **)(in_t9 + 0x556434))(param_2,uVar1);
+  local_3c[0] = *(int *)(in_t9 + 0x558140) + 8;
+  (**(code **)(FUN_0055da20 + in_t9 + 4))(local_3c);
+  (**(code **)(in_t9 + 0x55646c))(auStack_78);
+  return uVar1;
+}
+
+
+==== Core::Command::(anonymous_namespace)::AuthenticationTokenGenerate::~AuthenticationTokenGenerate @0035fd0c
+
+/* Core::Command::(anonymous namespace)::AuthenticationTokenGenerate::~AuthenticationTokenGenerate()
+   [clone .lto_priv.0] */
+
+void __thiscall
+Core::Command::(anonymous_namespace)::AuthenticationTokenGenerate::~AuthenticationTokenGenerate
+          (AuthenticationTokenGenerate *this)
+
+{
+  undefined *puVar1;
+  
+  puVar1 = PTR__Action_0089d1b0;
+  *(undefined **)this = PTR_vtable_00894034 + 8;
+  (*(code *)puVar1)();
+  (*(code *)PTR_operator_delete_00899d40)(this,0x68);
+  return;
+}
+
+
+==== Core::Command::(anonymous_namespace)::AuthenticationTokenDelete::~AuthenticationTokenDelete @0035fd70
+
+/* Core::Command::(anonymous namespace)::AuthenticationTokenDelete::~AuthenticationTokenDelete()
+   [clone .lto_priv.0] */
+
+void __thiscall
+Core::Command::(anonymous_namespace)::AuthenticationTokenDelete::~AuthenticationTokenDelete
+          (AuthenticationTokenDelete *this)
+
+{
+  undefined *puVar1;
+  
+  puVar1 = PTR__Action_0089d1b0;
+  *(undefined **)this = PTR_vtable_00894038 + 8;
+  (*(code *)puVar1)();
+  (*(code *)PTR_operator_delete_00899d40)(this,0x68);
+  return;
+}
+
+
+==== Core::Command::(anonymous_namespace)::AuthenticationTokenGenerate::~AuthenticationTokenGenerate @00362b90
+
+/* Core::Command::(anonymous namespace)::AuthenticationTokenGenerate::~AuthenticationTokenGenerate()
+   [clone .lto_priv.0] */
+
+void __thiscall
+Core::Command::(anonymous_namespace)::AuthenticationTokenGenerate::~AuthenticationTokenGenerate
+          (AuthenticationTokenGenerate *this)
+
+{
+  *(undefined **)this = PTR_vtable_00894034 + 8;
+                    /* WARNING: Could not recover jumptable at 0x00362bc0. Too many branches */
+                    /* WARNING: Treating indirect jump as call */
+  (*(code *)PTR__Action_0089d1b0)();
+  return;
+}
+
+
+==== Core::Command::(anonymous_namespace)::AuthenticationTokenDelete::~AuthenticationTokenDelete @00362bc8
+
+/* Core::Command::(anonymous namespace)::AuthenticationTokenDelete::~AuthenticationTokenDelete()
+   [clone .lto_priv.0] */
+
+void __thiscall
+Core::Command::(anonymous_namespace)::AuthenticationTokenDelete::~AuthenticationTokenDelete
+          (AuthenticationTokenDelete *this)
+
+{
+  *(undefined **)this = PTR_vtable_00894038 + 8;
+                    /* WARNING: Could not recover jumptable at 0x00362bf8. Too many branches */
+                    /* WARNING: Treating indirect jump as call */
+  (*(code *)PTR__Action_0089d1b0)();
+  return;
+}
+
+
