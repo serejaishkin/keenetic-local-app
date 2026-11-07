@@ -15,6 +15,9 @@ sealed class Screen(val route: String, val title: String) {
     data object Internet : Screen("internet", "Интернет")
     data object WiFi : Screen("wifi", "Wi-Fi Сеть")
     data object AllSections : Screen("all_sections", "Все разделы")
+    data object NetworkHub : Screen("hub_network", "Сеть")
+    data object ProtectHub : Screen("hub_protect", "Защита")
+    data object MoreHub : Screen("hub_more", "Ещё")
     data object PortForwarding : Screen("port_forwarding", "Переадресация портов")
     data object Firewall : Screen("firewall", "Межсетевой экран")
     data object StaticRoutes : Screen("static_routes", "Маршрутизация")
@@ -91,6 +94,15 @@ fun KeeneticNavHost(
         }
         composable(Screen.WiFi.route) {
             WiFiScreen(viewModel = viewModel, onBack = { navController.popBackStack() })
+        }
+        composable(Screen.NetworkHub.route) {
+            NetworkHubScreen(onNavigate = { route -> navController.navigate(route) })
+        }
+        composable(Screen.ProtectHub.route) {
+            ProtectHubScreen(onNavigate = { route -> navController.navigate(route) })
+        }
+        composable(Screen.MoreHub.route) {
+            MoreHubScreen(onNavigate = { route -> navController.navigate(route) })
         }
         composable(Screen.AllSections.route) {
             AllSectionsScreen(onNavigate = { route -> navController.navigate(route) })

@@ -52,9 +52,9 @@ fun MainAppContent() {
     val bottomItems = listOf(
         BottomNavItem(Screen.Dashboard, "Главная", Icons.Default.Dashboard),
         BottomNavItem(Screen.Devices, "Устройства", Icons.Default.Devices),
-        BottomNavItem(Screen.Internet, "Интернет", Icons.Default.Public),
-        BottomNavItem(Screen.WiFi, "Wi-Fi", Icons.Default.Wifi),
-        BottomNavItem(Screen.AllSections, "Разделы", Icons.Default.GridView)
+        BottomNavItem(Screen.NetworkHub, "Сеть", Icons.Default.Wifi),
+        BottomNavItem(Screen.ProtectHub, "Защита", Icons.Default.Shield),
+        BottomNavItem(Screen.MoreHub, "Ещё", Icons.Default.GridView)
     )
 
     val isRootTab = bottomItems.any { it.screen.route == currentRoute }
