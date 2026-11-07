@@ -6897,7 +6897,7 @@ private val _intelliQos = MutableStateFlow(IntelliQosConfig())
                 out += RciCapture.Item(path, el != null, el?.toString()?.length ?: 0, el)
             }
             _rciCaptureItems.value = out
-            val info = _systemInfo.value?.let { "${it.hostname ?: ""} ${it.version ?: ""}".trim() } ?: ""
+            val info = _systemInfo.value?.let { "${it.hostname} ${it.osVersion}".trim() } ?: ""
             rciCaptureReport = RciCapture.buildReport(out, maskSecrets, info)
             _rciCaptureProgress.value = "Готово: ${out.count { it.ok }} из ${out.size} путей дали ответ"
             _rciCaptureRunning.value = false
