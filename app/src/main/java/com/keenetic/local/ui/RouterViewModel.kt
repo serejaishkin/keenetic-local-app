@@ -1990,14 +1990,17 @@ class RouterViewModel : ViewModel() {
                 data["group"] = route.group
                 if (route.gateway.isNotBlank()) data["gateway"] = route.gateway
                 if (route.interfaceName.isNotBlank() && route.interfaceName != "Auto") data["interface"] = route.interfaceName
-                data["auto"] = false
-                data["reject"] = route.reject
+                data["auto"] = true
+                if (route.reject) data["reject"] = true
                 if (route.index.isNotBlank()) {
                     data["index"] = route.index
-                } else {
-                    data["disable"] = !route.enabled
+                } else if (!route.enabled) {
+                    data["disable"] = true
                 }
-                repository.executeRciWithSave(listOf(mapOf("dns-proxy.route" to data)))
+                val (ok, err) = repository.executeRciChecked(
+                    listOf(mapOf("dns-proxy" to mapOf("route" to listOf(data))))
+                )
+                if (ok) repository.saveConfiguration() else AppLogger.logError("saveDnsRoute", Exception(err ?: "error"))
                 loadDnsRoutes()
             } catch (e: Exception) {
                 AppLogger.logError("saveDnsRoute", e)
@@ -2010,7 +2013,10 @@ class RouterViewModel : ViewModel() {
         if (index.isNullOrBlank()) return
         viewModelScope.launch {
             try {
-                repository.executeRciWithSave(listOf(mapOf("dns-proxy.route" to mapOf("index" to index, "no" to true))))
+                val (ok, err) = repository.executeRciChecked(
+                    listOf(mapOf("dns-proxy" to mapOf("route" to listOf(mapOf("index" to index, "no" to true)))))
+                )
+                if (ok) repository.saveConfiguration() else AppLogger.logError("deleteDnsRoute", Exception(err ?: "error"))
                 loadDnsRoutes()
             } catch (e: Exception) {
                 AppLogger.logError("deleteDnsRoute", e)
@@ -2022,9 +2028,11 @@ class RouterViewModel : ViewModel() {
         if (route.index.isBlank()) return
         viewModelScope.launch {
             try {
-                repository.executeRciWithSave(
-                    listOf(mapOf("dns-proxy.route" to mapOf("disable" to mapOf("index" to route.index, "no" to enabled))))
+                // no:true снимает disable (маршрут включён), no:false отключает
+                val (ok, err) = repository.executeRciChecked(
+                    listOf(mapOf("dns-proxy" to mapOf("route" to mapOf("disable" to mapOf("index" to route.index, "no" to enabled)))))
                 )
+                if (ok) repository.saveConfiguration() else AppLogger.logError("toggleDnsRoute", Exception(err ?: "error"))
                 loadDnsRoutes()
             } catch (e: Exception) {
                 AppLogger.logError("toggleDnsRoute", e)
@@ -2035,7 +2043,7 @@ class RouterViewModel : ViewModel() {
     fun loadFqdnGroups() {
         viewModelScope.launch {
             try {
-                val res = repository.queryShow("sc/object-group/fqdn")
+                val res = repository.queryShow("rc/object-group/fqdn") ?: repository.queryShow("sc/object-group/fqdn")
                 if (res != null) {
                     val list = mutableListOf<FqdnGroup>()
                     if (res.isJsonObject) {
@@ -2080,14 +2088,33 @@ class RouterViewModel : ViewModel() {
         if (name.isBlank()) return
         viewModelScope.launch {
             try {
-                val include = domains.filter { it.isNotBlank() }.distinct().map { mapOf("address" to it) }
-                val groupData = mutableMapOf<String, Any>()
-                groupData["description"] = description.ifBlank { name }
-                groupData["include"] = include
-                repository.executeRciWithSave(listOf(mapOf("object-group.fqdn" to mapOf(name to groupData))))
-                loadFqdnGroups()
+                val include = domains.map { it.trim() }.filter { it.isNotBlank() }.distinct().map { mapOf("address" to it) }
+                val groupData = mapOf<String, Any>("include" to include)
+                val (ok, err) = repository.executeRciChecked(
+                    listOf(mapOf("object-group" to mapOf("fqdn" to mapOf(name to groupData))))
+                )
+                if (ok) repository.saveConfiguration() else AppLogger.logError("createFqdnGroup", Exception(err ?: "error"))
+                loadFqdnGroups(); loadObjectGroups()
             } catch (e: Exception) {
                 AppLogger.logError("createFqdnGroup", e)
+            }
+        }
+    }
+
+    /** Правка группы: сначала удаляются, потом добавляются домены (формат awg-manager). */
+    fun updateFqdnGroup(name: String, add: List<String>, remove: List<String>) {
+        if (name.isBlank() || (add.isEmpty() && remove.isEmpty())) return
+        viewModelScope.launch {
+            try {
+                val entries = remove.map { mapOf<String, Any>("address" to it.trim(), "no" to true) } +
+                    add.map { mapOf<String, Any>("address" to it.trim()) }
+                val (ok, err) = repository.executeRciChecked(
+                    listOf(mapOf("object-group" to mapOf("fqdn" to mapOf(name to mapOf("include" to entries)))))
+                )
+                if (ok) repository.saveConfiguration() else AppLogger.logError("updateFqdnGroup", Exception(err ?: "error"))
+                loadFqdnGroups(); loadObjectGroups()
+            } catch (e: Exception) {
+                AppLogger.logError("updateFqdnGroup", e)
             }
         }
     }
@@ -2096,8 +2123,11 @@ class RouterViewModel : ViewModel() {
         if (name.isBlank()) return
         viewModelScope.launch {
             try {
-                repository.executeRciWithSave(listOf(mapOf("object-group.fqdn" to mapOf("name" to name, "no" to true))))
-                loadFqdnGroups()
+                val (ok, err) = repository.executeRciChecked(
+                    listOf(mapOf("object-group" to mapOf("fqdn" to mapOf(name to mapOf("no" to true)))))
+                )
+                if (ok) repository.saveConfiguration() else AppLogger.logError("deleteFqdnGroup", Exception(err ?: "error"))
+                loadFqdnGroups(); loadObjectGroups()
             } catch (e: Exception) {
                 AppLogger.logError("deleteFqdnGroup", e)
             }
@@ -5975,7 +6005,7 @@ private val _intelliQos = MutableStateFlow(IntelliQosConfig())
     fun loadObjectGroups() {
         viewModelScope.launch {
             try {
-                val res = repository.queryShow("object-group/fqdn")
+                val res = repository.queryShow("rc/object-group/fqdn") ?: repository.queryShow("object-group/fqdn")
                 if (res != null) {
                     _objectGroups.value = DeviceListParser.parseObjectGroup(res)
                 }

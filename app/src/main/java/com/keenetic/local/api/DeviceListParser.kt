@@ -234,11 +234,14 @@ object DeviceListParser {
     fun parseObjectGroup(root: JsonElement?): List<ObjectGroupFqdn> {
         if (root == null || !root.isJsonObject) return emptyList()
         val list = mutableListOf<ObjectGroupFqdn>()
-        val groups = findKey(root, "object-group") ?: findKey(root, "fqdn") ?: return emptyList()
+        val groups = findKey(root, "object-group") ?: findKey(root, "fqdn") ?: root.asJsonObject
         for ((key, value) in groups.entrySet()) {
             if (value.isJsonObject) {
                 val o = value.asJsonObject
                 val members = mutableListOf<String>()
+                o.getAsJsonArray("include")?.forEach { m ->
+                    if (m.isJsonObject) m.asJsonObject.get("address")?.takeIf { it.isJsonPrimitive }?.asString?.let { members.add(it) }
+                }
                 o.getAsJsonArray("member")?.forEach { m ->
                     if (m.isJsonPrimitive) members.add(m.asString)
                     else if (m.isJsonObject) {
