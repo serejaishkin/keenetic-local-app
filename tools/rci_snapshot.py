@@ -34,12 +34,24 @@ def main():
     op = urllib.request.build_opener(urllib.request.HTTPCookieProcessor(http.cookiejar.CookieJar()))
     try: op.open(base + "/auth", timeout=10)
     except urllib.error.HTTPError as e:
-        if e.code != 401: raise
+        if e.code != 401:
+            print("GET /auth -> HTTP", e.code, dict(e.headers)); raise SystemExit(1)
         ch, realm = e.headers.get("X-NDM-Challenge", ""), e.headers.get("X-NDM-Realm", "")
+        print("GET /auth -> 401; realm=%r challenge=%s; Set-Cookie=%s" % (realm, "есть" if ch else "НЕТ", bool(e.headers.get("Set-Cookie"))))
         md5 = hashlib.md5(f"{a.user}:{realm}:{pw}".encode()).hexdigest()
-        sha = hashlib.sha256((ch + md5).encode()).hexdigest()
-        req = urllib.request.Request(base + "/auth", json.dumps({"login": a.user, "password": sha}).encode(), {"Content-Type": "application/json"})
-        op.open(req, timeout=10)
+        variants = [("sha256", hashlib.sha256((ch + md5).encode()).hexdigest()),
+                    ("md5", hashlib.md5((ch + md5).encode()).hexdigest()),
+                    ("plain", pw)]
+        ok = False
+        for name, val in variants:
+            req = urllib.request.Request(base + "/auth", json.dumps({"login": a.user, "password": val}).encode(), {"Content-Type": "application/json"})
+            try:
+                op.open(req, timeout=10); print("POST /auth", name, "-> OK"); ok = True; break
+            except urllib.error.HTTPError as e2:
+                print("POST /auth", name, "-> HTTP", e2.code, e2.headers.get("X-Detail", ""), e2.read()[:200])
+        if not ok:
+            print("Вход не удался. Проверьте тот же логин/пароль в браузере на http://%s и подождите 10 минут (блокировка)." % a.host)
+            raise SystemExit(1)
     paths = list(PATHS)
     if a.paths: paths += [l.strip().removeprefix("show ").strip("/").replace(" ", "/") for l in open(a.paths) if l.strip()]
     res = {}
