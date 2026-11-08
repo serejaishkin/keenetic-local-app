@@ -290,11 +290,32 @@ open class KeeneticRciRepository(
      * 3. Posts computed hash to POST /auth
      */
     suspend fun authenticate(username: String, password: String): AuthResult {
+        // Клавиатура телефона часто добавляет пробел в конце или заглавную букву: пробуем и как введено, и без пробелов.
+        val user = username.trim()
+        val candidates = listOf(password, password.trim()).distinct()
+        var last: AuthResult = AuthResult(false, "Ошибка авторизации")
+        for (pw in candidates) {
+            last = authenticateOnce(user, pw)
+            if (last.success) return last
+            if (last.errorMessage?.startsWith("Неверный логин") != true) return last
+        }
+        return last
+    }
+
+    private suspend fun authenticateOnce(username: String, password: String): AuthResult {
         return try {
+            rawCookies.clear() // свежая сессия: старый cookie даёт чужой challenge
             val service = getService()
             val initialAuth = service.checkAuth()
             if (initialAuth.code() == 200) {
                 return AuthResult(true)
+            }
+            if (initialAuth.code() != 401) {
+                return AuthResult(
+                    false,
+                    "Неожиданный ответ роутера на /auth: HTTP ${initialAuth.code()} ($currentHost:$currentPort). " +
+                        "Проверьте IP, порт и HTTP/HTTPS."
+                )
             }
 
             val realm = initialAuth.headers()["X-NDM-Realm"] ?: "Keenetic"
@@ -304,32 +325,20 @@ open class KeeneticRciRepository(
             val hash1 = md5("$username:$realm:$password")
 
             // Modern KeeneticOS (3.x, 4.x, 5.x) uses SHA256(challenge + hash1)
-            val sha256Response = sha256("$challenge$hash1")
-            val loginPayloadSha = mapOf(
-                "login" to username,
-                "password" to sha256Response
-            )
-
-            val loginResSha = service.login(loginPayloadSha)
+            val loginResSha = service.login(mapOf("login" to username, "password" to sha256("$challenge$hash1")))
             if (loginResSha.isSuccessful || loginResSha.code() == 200) {
                 return AuthResult(true)
             }
 
             // Fallback for legacy NDMS 2.x: MD5(challenge + hash1)
-            val md5Response = md5("$challenge$hash1")
-            val loginPayloadMd5 = mapOf(
-                "login" to username,
-                "password" to md5Response
-            )
-            val loginResMd5 = service.login(loginPayloadMd5)
+            val loginResMd5 = service.login(mapOf("login" to username, "password" to md5("$challenge$hash1")))
             if (loginResMd5.isSuccessful || loginResMd5.code() == 200) {
                 return AuthResult(true)
             }
 
             // Fallback if challenge was empty
             if (challenge.isEmpty()) {
-                val plainPayload = mapOf("login" to username, "password" to password)
-                val plainRes = service.login(plainPayload)
+                val plainRes = service.login(mapOf("login" to username, "password" to password))
                 if (plainRes.isSuccessful || plainRes.code() == 200) {
                     return AuthResult(true)
                 }
@@ -337,7 +346,12 @@ open class KeeneticRciRepository(
 
             val code = loginResSha.code()
             if (code == 401 || loginResMd5.code() == 401) {
-                AuthResult(false, "Неверный логин или пароль для $currentHost")
+                AuthResult(
+                    false,
+                    "Неверный логин или пароль для $currentHost (HTTP $code, realm=$realm, " +
+                        "challenge=${if (challenge.isEmpty()) "нет" else "есть"}). " +
+                        "Если данные точно верны — возможна временная блокировка входа, подождите 10 минут."
+                )
             } else {
                 AuthResult(false, "Ошибка сервера роутера (HTTP $code)")
             }
