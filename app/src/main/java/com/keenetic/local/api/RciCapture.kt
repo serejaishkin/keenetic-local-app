@@ -31,6 +31,17 @@ object RciCapture {
         "ndss", "ndns", "acme", "crypto",
         "vpn-server", "sstp-server", "oc-server",
         "ntce/summary", "ntce/status", "tags", "authentication/token", "rc/ntce/upstream/rate-limit",
+        // пути, которыми пользуется веб-интерфейс 5.2 (из HAR)
+        "whoami", "environment", "identification", "device-list", "device-list/details/internet-access",
+        "limits/known/host", "media", "usb", "printers", "torrent/status", "dlna", "dyndns", "user",
+        "system/mode", "system/country", "system/caption", "system/backup/status", "internet/status",
+        "sc/system", "sc/service", "sc/user", "sc/known/host", "sc/ip/hotspot/host", "sc/ip/hotspot/policy",
+        "sc/ip/dhcp/host", "sc/ip/traffic-shape/host", "sc/ip/policy", "sc/dns-proxy/filter/engine",
+        "sc/dns-proxy/filter/profile", "sc/dns-proxy/filter/assign", "sc/dns-proxy/intercept",
+        "sc/dns-proxy/tls/upstream", "sc/dns-proxy/https/upstream", "sc/ntp/server", "sc/ntp/master",
+        "sc/components/auto-update", "sc/vpn-server", "sc/crypto/ipsec/site-to-site", "sc/mws/wlan",
+        "sc/ppe", "sc/torrent", "sc/cifs", "sc/ip/ftp", "sc/dlna", "ls",
+        "button", "button/bindings", "led/controls", "led/bindings", "interface/stat",
         "usb", "media", "torrent", "cifs", "afp", "ntp/status", "eula", "dpn"
     )
 
