@@ -869,7 +869,8 @@ class RouterViewModel : ViewModel() {
                 var memTotal = 512L * 1024 * 1024
                 var memFree = 256L * 1024 * 1024
                 val memBuffers = sysObj?.get("membuffers")?.takeIf { it.isJsonPrimitive }?.runCatching { asLong * 1024 }?.getOrDefault(0L) ?: 0L
-                val memCached = sysObj?.get("memcached")?.takeIf { it.isJsonPrimitive }?.runCatching { asLong * 1024 }?.getOrDefault(0L) ?: 0L
+                val memCached = (sysObj?.get("memcache") ?: sysObj?.get("memcached"))
+                    ?.takeIf { it.isJsonPrimitive }?.runCatching { asLong * 1024 }?.getOrDefault(0L) ?: 0L
                 var memUsage = 40
 
                 val memRaw = sysObj?.get("memory")?.takeIf { it.isJsonPrimitive }?.asString
@@ -1176,9 +1177,18 @@ class RouterViewModel : ViewModel() {
                             val name = obj.get("name")?.takeIf { it.isJsonPrimitive }?.asString
                             val hostname = obj.get("hostname")?.takeIf { it.isJsonPrimitive }?.asString ?: (name ?: mac)
                             val displayName = if (!name.isNullOrBlank()) name else hostname
-                            val iface = obj.get("interface")?.takeIf { it.isJsonPrimitive }?.asString
-                                ?: obj.get("via")?.takeIf { it.isJsonPrimitive }?.asString
-                                ?: ""
+                            val iface = when {
+                                obj.has("interface") && obj.get("interface").isJsonPrimitive ->
+                                    obj.get("interface").asString
+                                obj.has("interface") && obj.get("interface").isJsonObject -> {
+                                    val io = obj.getAsJsonObject("interface")
+                                    io.get("id")?.takeIf { it.isJsonPrimitive }?.asString
+                                        ?: io.get("name")?.takeIf { it.isJsonPrimitive }?.asString
+                                        ?: ""
+                                }
+                                obj.has("via") && obj.get("via").isJsonPrimitive -> obj.get("via").asString
+                                else -> ""
+                            }
 
                             val activeRaw = obj.get("active")
                             val linkRaw = obj.get("link")?.takeIf { it.isJsonPrimitive }?.asString
@@ -1222,11 +1232,17 @@ class RouterViewModel : ViewModel() {
                             val txSpeed = obj.get("txspeed")?.takeIf { it.isJsonPrimitive }?.runCatching { asLong / 1000 }?.getOrDefault(0L) ?: 0L
 
                             val assocObj = assocMap[mac.lowercase()]
+                            val hostRssi = obj.get("rssi")?.takeIf { it.isJsonPrimitive }?.runCatching { asInt }?.getOrNull()
                             val wifiRssi = assocObj?.get("rssi")?.takeIf { it.isJsonPrimitive }?.runCatching { asInt }?.getOrNull()
+                                ?: hostRssi
+                            val hostSsid = obj.get("ssid")?.takeIf { it.isJsonPrimitive }?.asString
                             val wifiSsid = assocObj?.get("ssid")?.takeIf { it.isJsonPrimitive }?.asString
+                                ?: hostSsid
                                 ?: if (iface.contains("WifiMaster", ignoreCase = true)) "Wi-Fi" else null
-                            val wifiBand = if (iface.contains("WifiMaster1") || assocObj?.get("ap")?.asString?.contains("WifiMaster1") == true) "5 GHz"
-                                else if (iface.contains("WifiMaster0") || assocObj?.get("ap")?.asString?.contains("WifiMaster0") == true) "2.4 GHz"
+                            val apStr = assocObj?.get("ap")?.takeIf { it.isJsonPrimitive }?.asString
+                                ?: obj.get("ap")?.takeIf { it.isJsonPrimitive }?.asString ?: ""
+                            val wifiBand = if (iface.contains("WifiMaster1") || apStr.contains("WifiMaster1")) "5 GHz"
+                                else if (iface.contains("WifiMaster0") || apStr.contains("WifiMaster0")) "2.4 GHz"
                                 else null
 
                             if (mac.isNotBlank() || ip.isNotBlank()) {
