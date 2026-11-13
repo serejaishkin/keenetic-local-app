@@ -188,139 +188,182 @@ object Keccak {
 }
 
 /**
- * Minimal Argon2id implementation sufficient for Keenetic NDW4 params (p=1, small m,t).
- * Based on RFC 9106 / reference algorithm. Supports parallelism=1.
+ * Argon2id (RFC 9106) implementation for Keenetic NDW4 (p=1).
  */
 object Argon2id {
     private const val BLOCK_BYTES = 1024
     private const val QWORDS = BLOCK_BYTES / 8
     private const val VERSION = 0x13
+    private const val TYPE_ID = 2
+    private const val ARGON2_SYNC_POINTS = 4
 
     fun derive(password: ByteArray, salt: ByteArray, iterations: Int, memoryKiB: Int, parallelism: Int, hashLength: Int): ByteArray {
         require(parallelism == 1) { "Only parallelism=1 supported" }
         val mPrime = 4 * parallelism * (memoryKiB / (4 * parallelism)).coerceAtLeast(2)
         val laneLen = mPrime / parallelism
-        val segmentLen = laneLen / 4
-        // H0
+        val segmentLen = laneLen / ARGON2_SYNC_POINTS
         val h0 = hPrime(password, salt, iterations, mPrime, parallelism, hashLength)
-        // memory as blocks (qword arrays)
         val mem = Array(mPrime) { LongArray(QWORDS) }
-        // init first two blocks per lane
         for (lane in 0 until parallelism) {
             mem[lane * laneLen] = hBlock(h0, 0, lane)
             mem[lane * laneLen + 1] = hBlock(h0, 1, lane)
         }
-        // fill
+        var pseudoRands: LongArray? = null
         for (pass in 0 until iterations) {
-            for (slice in 0..3) {
+            for (slice in 0 until ARGON2_SYNC_POINTS) {
+                val dataIndependent = (TYPE_ID == 2 && pass == 0 && slice < 2)
                 for (lane in 0 until parallelism) {
+                    if (dataIndependent) {
+                        pseudoRands = generateAddresses(pass, lane, slice, mPrime, iterations, segmentLen)
+                    }
                     val start = if (pass == 0 && slice == 0) 2 else 0
                     for (idx in start until segmentLen) {
                         val cur = lane * laneLen + slice * segmentLen + idx
                         val prev = if (cur % laneLen == 0) lane * laneLen + laneLen - 1 else cur - 1
-                        val ref = indexAlpha(pass, slice, idx, lane, laneLen, segmentLen, parallelism, mem[prev][0], iterations)
-                        val refBlock = mem[ref]
-                        val prevBlock = mem[prev]
-                        val mixed = compress(prevBlock, refBlock)
+                        val rand = if (dataIndependent) pseudoRands!![idx] else mem[prev][0]
+                        val ref = indexAlpha(pass, slice, idx, lane, laneLen, segmentLen, parallelism, rand)
+                        val mixed = compress(mem[prev], mem[ref])
                         mem[cur] = if (pass == 0) mixed else xorBlock(mem[cur], mixed)
                     }
                 }
             }
         }
-        // finalize (p==1)
         var finalBlock = mem[laneLen - 1].copyOf()
         for (lane in 1 until parallelism) finalBlock = xorBlock(finalBlock, mem[(lane + 1) * laneLen - 1])
         return hOut(finalBlock, hashLength)
     }
 
+    private fun generateAddresses(pass: Int, lane: Int, slice: Int, mPrime: Int, t: Int, segmentLen: Int): LongArray {
+        val out = LongArray(segmentLen)
+        var zero = LongArray(QWORDS)
+        var input = LongArray(QWORDS)
+        var counter = 1
+        var generated = 0
+        fun set32(arr: LongArray, qwordIdx: Int, v: Int) { arr[qwordIdx] = (v.toLong() and 0xFFFFFFFFL) }
+        while (generated < segmentLen) {
+            if (generated % QWORDS == 0) {
+                zero = LongArray(QWORDS)
+                input = LongArray(QWORDS)
+                set32(input, 0, pass)
+                set32(input, 1, lane)
+                set32(input, 2, slice)
+                set32(input, 3, mPrime)
+                set32(input, 4, t)
+                set32(input, 5, TYPE_ID)
+                set32(input, 6, counter++)
+                zero = compress(zero, input)
+                zero = compress(zero, zero.copyOf())
+            }
+            out[generated] = zero[generated % QWORDS]
+            generated++
+        }
+        return out
+    }
+
+    private fun indexAlpha(pass: Int, slice: Int, idx: Int, lane: Int, laneLen: Int, segmentLen: Int, p: Int, pseudoRand: Long): Int {
+        val j1 = (pseudoRand and 0xFFFFFFFFL)
+        val refLane = if (pass == 0 && slice == 0) lane else (((pseudoRand ushr 32) and 0xFFFFFFFFL) % p.toLong()).toInt()
+        val sameLane = refLane == lane
+        val area: Int
+        val startPos: Int
+        if (pass == 0) {
+            startPos = 0
+            area = if (slice == 0 || sameLane) slice * segmentLen + idx - 1 else slice * segmentLen - if (idx == 0) 1 else 0
+        } else {
+            startPos = ((slice + 1) * segmentLen) % laneLen
+            area = if (sameLane) laneLen - segmentLen + idx - 1 else laneLen - segmentLen - if (idx == 0) 1 else 0
+        }
+        val rel = (j1 * j1) ushr 32
+        val relPos = area - 1 - ((area.toLong() * rel) ushr 32).toInt()
+        return refLane * laneLen + (startPos + relPos) % laneLen
+    }
+
     private fun hPrime(password: ByteArray, salt: ByteArray, t: Int, m: Int, p: Int, tagLen: Int): ByteArray {
-        val msg = le32(p) + le32(tagLen) + le32(m) + le32(t) + le32(VERSION) + le32(2) /*Argon2id*/ +
+        val msg = le32(p) + le32(tagLen) + le32(m) + le32(t) + le32(VERSION) + le32(TYPE_ID) +
             le32(password.size) + password + le32(salt.size) + salt + le32(0) + le32(0)
-        return variableHash(msg, 64)
+        return hVar(msg, 64)
     }
 
     private fun hBlock(h0: ByteArray, blockIndex: Int, lane: Int): LongArray {
-        val msg = le32(BLOCK_BYTES) + h0 + le32(blockIndex) + le32(lane)
-        val bytes = variableHash(msg, BLOCK_BYTES)
-        return bytesToBlock(bytes)
+        val msg = h0 + le32(blockIndex) + le32(lane)
+        return bytesToBlock(hVar(msg, BLOCK_BYTES))
     }
 
     private fun hOut(finalBlock: LongArray, tagLen: Int): ByteArray {
-        val msg = le32(tagLen) + blockToBytes(finalBlock)
-        return variableHash(msg, tagLen)
+        return hVar(blockToBytes(finalBlock), tagLen)
     }
 
-    private fun variableHash(msg: ByteArray, outLen: Int): ByteArray {
+    /** Argon2 variable-length hash H'^T(A) = Blake2b(LE32(T)||A) with output T. */
+    private fun hVar(msg: ByteArray, outLen: Int): ByteArray {
+        val a = le32(outLen) + msg
         if (outLen <= 64) {
-            val b = blake2b(msg, le32(outLen), outLen)
-            return b.copyOf(outLen)
+            return Blake2b.hash(a, byteArrayOf(), outLen).copyOf(outLen)
         }
-        var v = blake2b(msg, le32(outLen), 64)
+        var v = Blake2b.hash(a, byteArrayOf(), 64)
         val out = ByteArray(outLen)
         System.arraycopy(v, 0, out, 0, 32)
         var off = 32
         var remaining = outLen - 32
         while (remaining > 64) {
-            v = blake2b(v, byteArrayOf(), 64)
+            v = Blake2b.hash(v, byteArrayOf(), 64)
             System.arraycopy(v, 0, out, off, 32)
             off += 32
             remaining -= 32
         }
-        v = blake2b(v, byteArrayOf(), remaining)
+        v = Blake2b.hash(v, byteArrayOf(), remaining)
         System.arraycopy(v, 0, out, off, remaining)
         return out
-    }
-
-    // Minimal Blake2b for variable-length hash construction (Argon2 uses Blake2b)
-    private fun blake2b(msg: ByteArray, keyOrEmpty: ByteArray, outLen: Int): ByteArray {
-        return Blake2b.hash(msg, keyOrEmpty, outLen)
-    }
-
-    private fun indexAlpha(pass: Int, slice: Int, idx: Int, lane: Int, laneLen: Int, segmentLen: Int, p: Int, pseudoRand: Long, t: Int): Int {
-        val j1 = (pseudoRand and 0xFFFFFFFFL).toInt()
-        val refLane = if (pass == 0 && slice == 0) lane else ((pseudoRand ushr 32) and 0xFFFFFFFFL).toInt() % p
-        val sameLane = refLane == lane
-        val area: Int
-        val startPos: Int
-        if (pass == 0) {
-            if (slice == 0) { area = idx - 1; startPos = 0 }
-            else { area = if (sameLane) slice * segmentLen + idx - 1 else slice * segmentLen - (if (idx == 0) 1 else 0); startPos = 0 }
-        } else {
-            area = if (sameLane) laneLen - segmentLen + idx - 1 else laneLen - segmentLen - (if (idx == 0) 1 else 0)
-            startPos = ((slice + 1) * segmentLen) % laneLen
-        }
-        val rel = ((j1.toLong() and 0xFFFFFFFFL) * (j1.toLong() and 0xFFFFFFFFL) ushr 32)
-        val rel2 = area - 1 - ((area.toLong() * rel) ushr 32).toInt()
-        return refLane * laneLen + (startPos + rel2) % laneLen
     }
 
     private fun compress(x: LongArray, y: LongArray): LongArray {
         val r = LongArray(QWORDS)
         for (i in 0 until QWORDS) r[i] = x[i] xor y[i]
-        val q = r.copyOf()
-        // rows
-        for (row in 0..7) p(q, row*16, row*16+2, row*16+4, row*16+6, row*16+8, row*16+10, row*16+12, row*16+14)
-        // cols
-        for (col in 0..7) p(q, col*2, col*2+32, col*2+64, col*2+96, col*2+1, col*2+33, col*2+65, col*2+97)
-        for (i in 0 until QWORDS) q[i] = q[i] xor r[i]
-        return q
+        val z = r.copyOf()
+        for (i in 0 until 8) {
+            val b = i * 16
+            permute(z, b, b + 2, b + 4, b + 6, b + 8, b + 10, b + 12, b + 14)
+        }
+        for (i in 0 until 8) {
+            val b = i * 2
+            permute(z, b, b + 16, b + 32, b + 48, b + 64, b + 80, b + 96, b + 112)
+        }
+        for (i in 0 until QWORDS) z[i] = z[i] xor r[i]
+        return z
     }
 
-    private fun p(v: LongArray, a: Int, b: Int, c: Int, d: Int, e: Int, f: Int, g: Int, h: Int) {
-        fun g2(va: Int, vb: Int, vc: Int, vd: Int) {
-            var A = v[va]; var B = v[vb]; var C = v[vc]; var D = v[vd]
-            A += B + 2 * (A and 0xFFFFFFFFL) * (B and 0xFFFFFFFFL)
-            D = java.lang.Long.rotateRight(D xor A, 32)
-            C += D + 2 * (C and 0xFFFFFFFFL) * (D and 0xFFFFFFFFL)
-            B = java.lang.Long.rotateRight(B xor C, 24)
-            A += B + 2 * (A and 0xFFFFFFFFL) * (B and 0xFFFFFFFFL)
-            D = java.lang.Long.rotateRight(D xor A, 16)
-            C += D + 2 * (C and 0xFFFFFFFFL) * (D and 0xFFFFFFFFL)
-            B = java.lang.Long.rotateRight(B xor C, 63)
-            v[va]=A; v[vb]=B; v[vc]=C; v[vd]=D
+    private fun permute(v: LongArray, i0: Int, i1: Int, i2: Int, i3: Int, i4: Int, i5: Int, i6: Int, i7: Int) {
+        var v0 = v[i0]; var v1 = v[i0 + 1]
+        var v2 = v[i1]; var v3 = v[i1 + 1]
+        var v4 = v[i2]; var v5 = v[i2 + 1]
+        var v6 = v[i3]; var v7 = v[i3 + 1]
+        var v8 = v[i4]; var v9 = v[i4 + 1]
+        var v10 = v[i5]; var v11 = v[i5 + 1]
+        var v12 = v[i6]; var v13 = v[i6 + 1]
+        var v14 = v[i7]; var v15 = v[i7 + 1]
+
+        fun g(a0: Long, a1: Long, b0: Long, b1: Long, c0: Long, c1: Long, d0: Long, d1: Long): LongArray {
+            var A0 = a0; var A1 = a1; var B0 = b0; var B1 = b1; var C0 = c0; var C1 = c1; var D0 = d0; var D1 = d1
+            A0 = f(A0, B0); A1 = f(A1, B1)
+            D0 = rotr(D0 xor A0, 32); D1 = rotr(D1 xor A1, 32)
+            C0 = f(C0, D0); C1 = f(C1, D1)
+            B0 = rotr(B0 xor C0, 24); B1 = rotr(B1 xor C1, 24)
+            A0 = f(A0, B0); A1 = f(A1, B1)
+            D0 = rotr(D0 xor A0, 16); D1 = rotr(D1 xor A1, 16)
+            C0 = f(C0, D0); C1 = f(C1, D1)
+            B0 = rotr(B0 xor C0, 63); B1 = rotr(B1 xor C1, 63)
+            return longArrayOf(A0,A1,B0,B1,C0,C1,D0,D1)
         }
-        g2(a,b,c,d); g2(e,f,g,h)
+        var t = g(v0,v1,v4,v5,v8,v9,v12,v13); v0=t[0];v1=t[1];v4=t[2];v5=t[3];v8=t[4];v9=t[5];v12=t[6];v13=t[7]
+        t = g(v2,v3,v6,v7,v10,v11,v14,v15); v2=t[0];v3=t[1];v6=t[2];v7=t[3];v10=t[4];v11=t[5];v14=t[6];v15=t[7]
+        t = g(v0,v1,v6,v7,v8,v9,v14,v15); v0=t[0];v1=t[1];v6=t[2];v7=t[3];v8=t[4];v9=t[5];v14=t[6];v15=t[7]
+        t = g(v2,v3,v4,v5,v10,v11,v12,v13); v2=t[0];v3=t[1];v4=t[2];v5=t[3];v10=t[4];v11=t[5];v12=t[6];v13=t[7]
+
+        v[i0]=v0; v[i0+1]=v1; v[i1]=v2; v[i1+1]=v3; v[i2]=v4; v[i2+1]=v5; v[i3]=v6; v[i3+1]=v7
+        v[i4]=v8; v[i4+1]=v9; v[i5]=v10; v[i5+1]=v11; v[i6]=v12; v[i6+1]=v13; v[i7]=v14; v[i7+1]=v15
     }
+
+    private fun f(a: Long, b: Long): Long = a + b + 2L * (a and 0xFFFFFFFFL) * (b and 0xFFFFFFFFL)
+    private fun rotr(x: Long, n: Int): Long = java.lang.Long.rotateRight(x, n)
 
     private fun xorBlock(a: LongArray, b: LongArray) = LongArray(QWORDS) { a[it] xor b[it] }
     private fun le32(v: Int) = byteArrayOf((v and 0xFF).toByte(), ((v ushr 8) and 0xFF).toByte(), ((v ushr 16) and 0xFF).toByte(), ((v ushr 24) and 0xFF).toByte())
