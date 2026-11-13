@@ -311,6 +311,7 @@ open class KeeneticRciRepository(
             rawCookies.clear() // свежая сессия: старый cookie даёт чужой challenge
             val service = getService()
             val initialAuth = service.checkAuth()
+            AppLogger.logDebug("auth", "GET /auth -> HTTP ${initialAuth.code()}, host=$currentHost:$currentPort, https=$isHttps")
             if (initialAuth.code() == 200) {
                 return AuthResult(true)
             }
@@ -325,10 +326,17 @@ open class KeeneticRciRepository(
             val realm = initialAuth.headers()["X-NDM-Realm"] ?: "Keenetic"
             val challenge = initialAuth.headers()["X-NDM-Challenge"] ?: ""
             val www = initialAuth.headers()["WWW-Authenticate"] ?: ""
+            AppLogger.logDebug(
+                "auth",
+                "401 headers: realm=$realm challenge=${if (challenge.isEmpty()) "no" else "yes"} " +
+                    "www=${www.take(80)} ndmData=${initialAuth.headers()["X-NDM-Data"] != null}"
+            )
 
             // KeeneticOS 5.2+ NDW4 interactive auth (проверяем в первую очередь, если объявлен)
             if (www.contains("x-ndw4-interactive")) {
+                AppLogger.logInfo("auth", "Starting NDW4 interactive auth")
                 val ndw4 = authenticateNdw4(username, password)
+                AppLogger.logInfo("auth", "NDW4 result: success=${ndw4.success}, error=${ndw4.errorMessage ?: "-"}")
                 if (ndw4.success) return ndw4
                 lastNdw4Error = ndw4.errorMessage
                 // при явной ошибке проверки пароля не пытаемся legacy-фолбэки
@@ -341,12 +349,14 @@ open class KeeneticRciRepository(
 
             // Modern KeeneticOS (3.x, 4.x, 5.x) uses SHA256(challenge + hash1)
             val loginResSha = service.login(mapOf("login" to username, "password" to sha256("$challenge$hash1")))
+            AppLogger.logDebug("auth", "Legacy SHA256 login -> HTTP ${loginResSha.code()}")
             if (loginResSha.isSuccessful || loginResSha.code() == 200) {
                 return AuthResult(true)
             }
 
             // Fallback for legacy NDMS 2.x: MD5(challenge + hash1)
             val loginResMd5 = service.login(mapOf("login" to username, "password" to md5("$challenge$hash1")))
+            AppLogger.logDebug("auth", "Legacy MD5 login -> HTTP ${loginResMd5.code()}")
             if (loginResMd5.isSuccessful || loginResMd5.code() == 200) {
                 return AuthResult(true)
             }
@@ -372,6 +382,7 @@ open class KeeneticRciRepository(
                 AuthResult(false, "Ошибка сервера роутера (HTTP $code)${lastNdw4Error?.let { ". NDW4: $it" } ?: ""}")
             }
         } catch (e: Exception) {
+            AppLogger.logError("authenticateOnce", e)
             val msg = when {
                 e.message?.contains("Failed to connect", ignoreCase = true) == true ->
                     "Не удалось подключиться к $currentHost:$currentPort. Проверьте IP и подключение к Wi-Fi роутера."
@@ -395,6 +406,7 @@ open class KeeneticRciRepository(
             rawCookies.clear()
             val base = currentBaseUrl.trimEnd('/')
             val json = "application/json; charset=utf-8".toMediaTypeOrNull()
+            AppLogger.logDebug("auth", "NDW4 start: base=$base")
 
             fun postAuth(body: String): okhttp3.Response {
                 val req = okhttp3.Request.Builder()
@@ -406,13 +418,19 @@ open class KeeneticRciRepository(
             }
 
             // GET /auth -> session cookie
-            okHttpClient.newCall(okhttp3.Request.Builder().url("$base/auth").get().build()).execute().close()
+            val getResp = okHttpClient.newCall(okhttp3.Request.Builder().url("$base/auth").get().build()).execute()
+            val getCode = getResp.code
+            val getHasData = getResp.header("X-NDM-Data") != null || getResp.header("x-ndm-data") != null
+            getResp.close()
+            AppLogger.logDebug("auth", "NDW4 GET /auth -> HTTP $getCode, hasXndmData=$getHasData, cookies=${rawCookies.keys}")
 
             val clientNonce = KeeneticNdw4Auth.generateClientNonceB64()
             val p1 = postAuth("""{"login":"${escJson(username)}","nonce":"${escJson(clientNonce)}"}""")
-            val p1Data = ndmDataJson(p1)
             val p1Code = p1.code
+            val p1HasData = p1.header("X-NDM-Data") != null || p1.header("x-ndm-data") != null
+            val p1Data = ndmDataJson(p1)
             p1.close()
+            AppLogger.logDebug("auth", "NDW4 P1 -> HTTP $p1Code, hasXndmData=$p1HasData, dataKeys=${p1Data?.keySet()}")
             if (p1Code == 200) return@withContext AuthResult(true)
             if (p1Data == null) return@withContext AuthResult(false, "NDW4 фаза 1: нет данных (HTTP $p1Code)")
 
@@ -422,14 +440,17 @@ open class KeeneticRciRepository(
                 iter = p1Data.get("iter")?.asInt ?: 2,
                 memcost = p1Data.get("memcost")?.asInt ?: 8
             )
+            AppLogger.logDebug("auth", "NDW4 P1 params: iter=${params.iter}, memcost=${params.memcost}")
 
             val (proof, ctx) = KeeneticNdw4Auth.phase1Crypto(username, password, clientNonce, params)
             val proofB64 = KeeneticNdw4Auth.b64e(proof)
 
             val p2 = postAuth("""{"login":"${escJson(username)}","nonce":"${escJson(params.serverNonce)}","proof":"${escJson(proofB64)}"}""")
-            val p2Data = ndmDataJson(p2)
             val p2Code = p2.code
+            val p2HasData = p2.header("X-NDM-Data") != null || p2.header("x-ndm-data") != null
+            val p2Data = ndmDataJson(p2)
             p2.close()
+            AppLogger.logDebug("auth", "NDW4 P2 -> HTTP $p2Code, hasXndmData=$p2HasData, dataKeys=${p2Data?.keySet()}")
             if (p2Code == 200) return@withContext AuthResult(true)
             val signature = p2Data?.get("signature")?.asString
                 ?: return@withContext AuthResult(false, "NDW4 фаза 2: нет подписи сервера (HTTP $p2Code)")
@@ -439,7 +460,9 @@ open class KeeneticRciRepository(
 
             val p3 = postAuth("""{"login":"${escJson(username)}","nonce":"${escJson(params.serverNonce)}","signature-proof":"${escJson(spB64)}"}""")
             val p3Code = p3.code
+            val p3HasData = p3.header("X-NDM-Data") != null || p3.header("x-ndm-data") != null
             p3.close()
+            AppLogger.logDebug("auth", "NDW4 P3 -> HTTP $p3Code, hasXndmData=$p3HasData, cookies=${rawCookies.keys}")
             if (p3Code == 200) AuthResult(true)
             else AuthResult(false, "NDW4 фаза 3: отклонено (HTTP $p3Code)")
         } catch (e: Exception) {
