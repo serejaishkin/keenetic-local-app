@@ -70,7 +70,7 @@ fun MainAppContent() {
                     TopAppBar(
                         title = {
                             val title = bottomItems.firstOrNull { it.screen.route == currentRoute }
-                                ?.label ?: "Keenetic Local"
+                                ?.label ?: "Панель роутера"
                             Text(
                                 title,
                                 color = KeeneticColors.TextPrimary,

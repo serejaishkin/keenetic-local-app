@@ -87,7 +87,7 @@ fun LoginScreen(viewModel: RouterViewModel) {
     }
 
     SectionScaffold(
-        title = "Keenetic Local",
+        title = "Панель роутера",
         subtitle = "Прямое подключение в локальной сети",
         onBack = null
     ) { padding ->
