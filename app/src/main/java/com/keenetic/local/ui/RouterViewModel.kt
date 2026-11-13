@@ -1417,33 +1417,29 @@ class RouterViewModel : ViewModel() {
     fun loadDhcpBindings() {
         viewModelScope.launch {
             try {
-                val res = repository.queryShow("ip/dhcp/bindings") ?: repository.queryShow("ip/dhcp")
-                if (res != null) {
-                    val list = mutableListOf<DhcpBinding>()
-                    val arr = when {
-                        res.isJsonArray -> res.asJsonArray
-                        res.isJsonObject && res.asJsonObject.has("binding") && res.asJsonObject.get("binding").isJsonArray ->
-                            res.asJsonObject.getAsJsonArray("binding")
-                        res.isJsonObject && res.asJsonObject.has("lease") && res.asJsonObject.get("lease").isJsonArray ->
-                            res.asJsonObject.getAsJsonArray("lease")
-                        else -> null
+                val sources = listOfNotNull(
+                    repository.queryShow("ip/dhcp/bindings"),
+                    repository.queryShow("sc/ip/dhcp"),
+                    repository.queryShow("ip/hotspot/host"),
+                    repository.queryShow("ip/hotspot"),
+                    repository.queryShow("ip/dhcp")
+                )
+                val merged = LinkedHashMap<String, DhcpBinding>()
+                sources.forEach { res ->
+                    AssociationsParser.parseDhcpBindings(res).forEach { b ->
+                        if (b.mac.isBlank() && b.ip.isBlank()) return@forEach
+                        val key = if (b.mac.isNotBlank()) b.mac.lowercase() else b.ip
+                        val existing = merged[key]
+                        merged[key] = if (existing == null) b else existing.copy(
+                            ip = existing.ip.ifBlank { b.ip },
+                            hostname = existing.hostname.ifBlank { b.hostname },
+                            active = existing.active || b.active
+                        )
                     }
-                    arr?.forEach {
-                        if (it.isJsonObject) {
-                            val o = it.asJsonObject
-                            val mac = o.get("mac")?.takeIf { p -> p.isJsonPrimitive }?.asString ?: ""
-                            val ip = o.get("ip")?.takeIf { p -> p.isJsonPrimitive }?.asString ?: ""
-                            val hostname = o.get("name")?.takeIf { p -> p.isJsonPrimitive }?.asString
-                                ?: o.get("hostname")?.takeIf { p -> p.isJsonPrimitive }?.asString ?: ""
-                            val active = o.get("active")?.takeIf { p -> p.isJsonPrimitive }?.runCatching { asBoolean }?.getOrDefault(true) ?: true
-                            if (mac.isNotBlank() && ip.isNotBlank()) {
-                                list.add(DhcpBinding(mac, ip, hostname, active))
-                            }
-                        }
-                    }
-                    if (list.isNotEmpty()) {
-                        _dhcpBindings.value = list
-                    }
+                }
+                val list = merged.values.toList()
+                if (list.isNotEmpty() || !_isDemoMode.value) {
+                    _dhcpBindings.value = list
                 }
             } catch (e: Exception) {
                 AppLogger.logError("loadDhcpBindings", e)
@@ -2699,7 +2695,33 @@ class RouterViewModel : ViewModel() {
         if (_isDemoMode.value && _systemLogs.value.isNotEmpty()) return
         viewModelScope.launch {
             try {
-                val res = repository.queryLog()
+                var res = repository.queryLog()
+                // KeeneticOS 5.2 may wrap log payload as {show:{log:{log:{...}}}} or nested objects.
+                fun unwrapLog(node: com.google.gson.JsonElement?): com.google.gson.JsonElement? {
+                    var cur = node ?: return null
+                    var guard = 0
+                    while (cur.isJsonObject && guard++ < 6) {
+                        val o = cur.asJsonObject
+                        if (o.has("show") && o.size() == 1) { cur = o.get("show"); continue }
+                        if (o.has("log") && o.get("log").let { it.isJsonObject || it.isJsonArray || it.isJsonPrimitive }) {
+                            val inner = o.get("log")
+                            // keep plain text log string form
+                            if (inner.isJsonPrimitive) return o
+                            // if log contains actual entries/array or another nested log, descend
+                            if (inner.isJsonObject) {
+                                val io = inner.asJsonObject
+                                val looksLikeEntries = io.entrySet().any { (_, v) ->
+                                    v.isJsonObject && (v.asJsonObject.has("message") || v.asJsonObject.has("timestamp") || v.asJsonObject.has("time"))
+                                }
+                                if (looksLikeEntries || io.has("log") || io.has("entry")) { cur = inner; continue }
+                            }
+                            if (inner.isJsonArray) { cur = inner; continue }
+                        }
+                        break
+                    }
+                    return cur
+                }
+                res = unwrapLog(res)
                 if (res != null) {
                     val list = mutableListOf<SystemLogEntry>()
                     val arr = when {
@@ -2755,7 +2777,7 @@ class RouterViewModel : ViewModel() {
                         }
                     }
 
-                    if (list.isNotEmpty()) {
+                    if (list.isNotEmpty() || !_isDemoMode.value) {
                         _systemLogs.value = list
                     }
                 }
