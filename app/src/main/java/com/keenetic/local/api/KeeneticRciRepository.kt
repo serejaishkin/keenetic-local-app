@@ -3,6 +3,8 @@ package com.keenetic.local.api
 import android.util.Base64
 import com.google.gson.JsonElement
 import com.keenetic.local.util.AppLogger
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import okhttp3.Cookie
 import okhttp3.CookieJar
 import okhttp3.HttpUrl
@@ -386,9 +388,10 @@ open class KeeneticRciRepository(
 
     /**
      * KeeneticOS 5.2+ NDW4 interactive authentication (Argon2id + HMAC-SHA3-512).
+     * Performs network I/O and CPU-heavy Argon2 derivation off the main thread.
      */
-    private fun authenticateNdw4(username: String, password: String): AuthResult {
-        return try {
+    private suspend fun authenticateNdw4(username: String, password: String): AuthResult = withContext(Dispatchers.IO) {
+        try {
             rawCookies.clear()
             val base = currentBaseUrl.trimEnd('/')
             val json = "application/json; charset=utf-8".toMediaTypeOrNull()
@@ -410,12 +413,12 @@ open class KeeneticRciRepository(
             val p1Data = ndmDataJson(p1)
             val p1Code = p1.code
             p1.close()
-            if (p1Code == 200) return AuthResult(true)
-            if (p1Data == null) return AuthResult(false, "NDW4 фаза 1: нет данных (HTTP $p1Code)")
+            if (p1Code == 200) return@withContext AuthResult(true)
+            if (p1Data == null) return@withContext AuthResult(false, "NDW4 фаза 1: нет данных (HTTP $p1Code)")
 
             val params = KeeneticNdw4Auth.Phase1Params(
-                saltB64 = p1Data.get("salt")?.asString ?: return AuthResult(false, "NDW4: нет salt"),
-                serverNonce = p1Data.get("nonce")?.asString ?: return AuthResult(false, "NDW4: нет nonce"),
+                saltB64 = p1Data.get("salt")?.asString ?: return@withContext AuthResult(false, "NDW4: нет salt"),
+                serverNonce = p1Data.get("nonce")?.asString ?: return@withContext AuthResult(false, "NDW4: нет nonce"),
                 iter = p1Data.get("iter")?.asInt ?: 2,
                 memcost = p1Data.get("memcost")?.asInt ?: 8
             )
@@ -427,9 +430,9 @@ open class KeeneticRciRepository(
             val p2Data = ndmDataJson(p2)
             val p2Code = p2.code
             p2.close()
-            if (p2Code == 200) return AuthResult(true)
+            if (p2Code == 200) return@withContext AuthResult(true)
             val signature = p2Data?.get("signature")?.asString
-                ?: return AuthResult(false, "NDW4 фаза 2: нет подписи сервера (HTTP $p2Code)")
+                ?: return@withContext AuthResult(false, "NDW4 фаза 2: нет подписи сервера (HTTP $p2Code)")
 
             val sp = KeeneticNdw4Auth.phase2Verify(signature, ctx)
             val spB64 = KeeneticNdw4Auth.b64e(sp)
@@ -437,9 +440,8 @@ open class KeeneticRciRepository(
             val p3 = postAuth("""{"login":"${escJson(username)}","nonce":"${escJson(params.serverNonce)}","signature-proof":"${escJson(spB64)}"}""")
             val p3Code = p3.code
             p3.close()
-            if (p3Code == 200) return AuthResult(true)
-
-            AuthResult(false, "NDW4 фаза 3: отклонено (HTTP $p3Code)")
+            if (p3Code == 200) AuthResult(true)
+            else AuthResult(false, "NDW4 фаза 3: отклонено (HTTP $p3Code)")
         } catch (e: Exception) {
             AppLogger.logError("authenticateNdw4", e)
             AuthResult(false, "NDW4 ошибка: ${e.localizedMessage ?: e.message}")
