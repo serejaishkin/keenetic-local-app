@@ -302,6 +302,8 @@ open class KeeneticRciRepository(
         return last
     }
 
+    private var lastNdw4Error: String? = null
+
     private suspend fun authenticateOnce(username: String, password: String): AuthResult {
         return try {
             rawCookies.clear() // свежая сессия: старый cookie даёт чужой challenge
@@ -320,6 +322,17 @@ open class KeeneticRciRepository(
 
             val realm = initialAuth.headers()["X-NDM-Realm"] ?: "Keenetic"
             val challenge = initialAuth.headers()["X-NDM-Challenge"] ?: ""
+            val www = initialAuth.headers()["WWW-Authenticate"] ?: ""
+
+            // KeeneticOS 5.2+ NDW4 interactive auth (проверяем в первую очередь, если объявлен)
+            if (www.contains("x-ndw4-interactive")) {
+                val ndw4 = authenticateNdw4(username, password)
+                if (ndw4.success) return ndw4
+                lastNdw4Error = ndw4.errorMessage
+                // при явной ошибке проверки пароля не пытаемся legacy-фолбэки
+                if (ndw4.errorMessage?.contains("signature verification", true) == true ||
+                    ndw4.errorMessage?.contains("парол", true) == true) return ndw4
+            }
 
             // 1. Calculate hash1 = MD5(username:realm:password)
             val hash1 = md5("$username:$realm:$password")
@@ -346,14 +359,15 @@ open class KeeneticRciRepository(
 
             val code = loginResSha.code()
             if (code == 401 || loginResMd5.code() == 401) {
+                val extra = lastNdw4Error?.let { " NDW4: $it" } ?: ""
                 AuthResult(
                     false,
                     "Неверный логин или пароль для $currentHost (HTTP $code, realm=$realm, " +
-                        "challenge=${if (challenge.isEmpty()) "нет" else "есть"}). " +
+                        "challenge=${if (challenge.isEmpty()) "нет" else "есть"}).$extra " +
                         "Если данные точно верны — возможна временная блокировка входа, подождите 10 минут."
                 )
             } else {
-                AuthResult(false, "Ошибка сервера роутера (HTTP $code)")
+                AuthResult(false, "Ошибка сервера роутера (HTTP $code)${lastNdw4Error?.let { ". NDW4: $it" } ?: ""}")
             }
         } catch (e: Exception) {
             val msg = when {
@@ -369,6 +383,78 @@ open class KeeneticRciRepository(
             AuthResult(false, msg)
         }
     }
+
+    /**
+     * KeeneticOS 5.2+ NDW4 interactive authentication (Argon2id + HMAC-SHA3-512).
+     */
+    private fun authenticateNdw4(username: String, password: String): AuthResult {
+        return try {
+            rawCookies.clear()
+            val base = currentBaseUrl.trimEnd('/')
+            val json = "application/json; charset=utf-8".toMediaTypeOrNull()
+
+            fun postAuth(body: String): okhttp3.Response {
+                val req = okhttp3.Request.Builder()
+                    .url("$base/auth")
+                    .post(okhttp3.RequestBody.create(json, body))
+                    .header("Content-Type", "application/json")
+                    .build()
+                return okHttpClient.newCall(req).execute()
+            }
+
+            // GET /auth -> session cookie
+            okHttpClient.newCall(okhttp3.Request.Builder().url("$base/auth").get().build()).execute().close()
+
+            val clientNonce = KeeneticNdw4Auth.generateClientNonceB64()
+            val p1 = postAuth("""{"login":"${escJson(username)}","nonce":"${escJson(clientNonce)}"}""")
+            val p1Data = ndmDataJson(p1)
+            val p1Code = p1.code
+            p1.close()
+            if (p1Code == 200) return AuthResult(true)
+            if (p1Data == null) return AuthResult(false, "NDW4 фаза 1: нет данных (HTTP $p1Code)")
+
+            val params = KeeneticNdw4Auth.Phase1Params(
+                saltB64 = p1Data.get("salt")?.asString ?: return AuthResult(false, "NDW4: нет salt"),
+                serverNonce = p1Data.get("nonce")?.asString ?: return AuthResult(false, "NDW4: нет nonce"),
+                iter = p1Data.get("iter")?.asInt ?: 2,
+                memcost = p1Data.get("memcost")?.asInt ?: 8
+            )
+
+            val (proof, ctx) = KeeneticNdw4Auth.phase1Crypto(username, password, clientNonce, params)
+            val proofB64 = KeeneticNdw4Auth.b64e(proof)
+
+            val p2 = postAuth("""{"login":"${escJson(username)}","nonce":"${escJson(params.serverNonce)}","proof":"${escJson(proofB64)}"}""")
+            val p2Data = ndmDataJson(p2)
+            val p2Code = p2.code
+            p2.close()
+            if (p2Code == 200) return AuthResult(true)
+            val signature = p2Data?.get("signature")?.asString
+                ?: return AuthResult(false, "NDW4 фаза 2: нет подписи сервера (HTTP $p2Code)")
+
+            val sp = KeeneticNdw4Auth.phase2Verify(signature, ctx)
+            val spB64 = KeeneticNdw4Auth.b64e(sp)
+
+            val p3 = postAuth("""{"login":"${escJson(username)}","nonce":"${escJson(params.serverNonce)}","signature-proof":"${escJson(spB64)}"}""")
+            val p3Code = p3.code
+            p3.close()
+            if (p3Code == 200) return AuthResult(true)
+
+            AuthResult(false, "NDW4 фаза 3: отклонено (HTTP $p3Code)")
+        } catch (e: Exception) {
+            AppLogger.logError("authenticateNdw4", e)
+            AuthResult(false, "NDW4 ошибка: ${e.localizedMessage ?: e.message}")
+        }
+    }
+
+    private fun ndmDataJson(resp: okhttp3.Response): com.google.gson.JsonObject? {
+        val h = resp.header("X-NDM-Data") ?: resp.header("x-ndm-data") ?: return null
+        return try {
+            val decoded = String(android.util.Base64.decode(h, android.util.Base64.DEFAULT), Charsets.UTF_8)
+            com.google.gson.JsonParser.parseString(decoded).asJsonObject
+        } catch (e: Exception) { null }
+    }
+
+    private fun escJson(s: String): String = s.replace("\\", "\\\\").replace("\"", "\\\"")
 
     // ==========================================
     // RCI Request Handling
