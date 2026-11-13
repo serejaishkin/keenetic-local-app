@@ -20,45 +20,56 @@ import com.keenetic.local.ui.components.SectionScaffold
 import com.keenetic.local.ui.components.SectionUi
 import com.keenetic.local.ui.theme.KeeneticColors
 
-/** Новая структура разделов (макет: 5 вкладок). Каждый пункт ведёт на существующий экран. */
+/**
+ * Структура разделов, выровненная по группам веб-интерфейса KeeneticOS 5.x
+ * (Статус / Интернет / Локальная сеть / Сетевые правила / Управление),
+ * но разложенная по мобильным вкладкам: Главная, Устройства, Интернет, Сеть, Управление.
+ */
 object HubCatalog {
-    val network: List<SectionCategory> = listOf(
-        SectionCategory("Wi-Fi", Icons.Default.Wifi, listOf(
-            SectionItem("Wi-Fi сети", Screen.WiFi.route, "Точки доступа 2.4 / 5 ГГц"),
-            SectionItem("Общие параметры Wi-Fi", Screen.WifiSystem.route, "Каналы, мощность, роуминг, изоляция"),
-            SectionItem("Монитор Wi-Fi", Screen.WifiMonitor.route, "Сканирование, загрузка каналов"),
-            SectionItem("WPS", Screen.Wps.route, "Быстрое подключение по PIN"),
-            SectionItem("Mesh Wi-Fi (MWS)", Screen.Mws.route, "Mesh-сеть из нескольких роутеров"),
-            SectionItem("Подключение через соседнюю Wi-Fi (WISP)", Screen.WifiRepeater.route, "Репитер, клиентский режим")
-        )),
-        SectionCategory("Интернет", Icons.Default.Public, listOf(
-            SectionItem("Проводной интернет (ISP)", Screen.Internet.route, "WAN/LAN и интерфейсы"),
+    /** Вкладка «Интернет» — как группа «Интернет» на сайте + связанные параметры подключения. */
+    val internet: List<SectionCategory> = listOf(
+        SectionCategory("Подключения", Icons.Default.Public, listOf(
+            SectionItem("Кабель Ethernet", Screen.Internet.route, "Проводной интернет (ISP), WAN/LAN"),
             SectionItem("Интернет (подробно)", Screen.InternetDetailed.route, "IP, шлюз, DNS, скорость"),
-            SectionItem("Приоритеты подключений", Screen.Priorities.route, "Порядок интернет-каналов"),
-            SectionItem("IntelliQoS", Screen.IntelliQos.route, "Приоритизация трафика"),
-            SectionItem("DNS", Screen.DnsSettings.route, "Серверы, DoH/DoT, перехват"),
-            SectionItem("IPv6", Screen.Ipv6.route, "Адреса, префиксы, маршруты"),
             SectionItem("Мобильный интернет", Screen.Mobile.route, "USB-модемы и 4G/LTE"),
             SectionItem("Квота мобильного трафика", Screen.MobileTraffic.route, "Лимиты, SMS, отключение сети"),
+            SectionItem("Wireless ISP (WISP)", Screen.WifiRepeater.route, "Подключение через соседнюю Wi-Fi сеть"),
             SectionItem("Другие подключения", Screen.OtherConnections.route, "WireGuard, L2TP, PPTP, ZeroTier, Proxy")
         )),
-        SectionCategory("Маршрутизация", Icons.Default.AltRoute, listOf(
-            SectionItem("Переадресация портов", Screen.PortForwarding.route, "NAT и виртуальные серверы"),
-            SectionItem("Статическая и доменная маршрутизация", Screen.StaticRoutes.route, "Маршруты, DNS-маршруты"),
-            SectionItem("LAN сегменты", Screen.LanSegments.route, "Подсети и изоляция клиентов"),
-            SectionItem("UPnP / NAT-PMP", Screen.Upnp.route, "Автоматическая переадресация"),
-            SectionItem("Динамический DNS", Screen.Ddns.route, "DDNS-провайдеры")
+        SectionCategory("Приоритеты и качество", Icons.Default.SwapVert, listOf(
+            SectionItem("Приоритеты подключений", Screen.Priorities.route, "Порядок и резервирование каналов"),
+            SectionItem("IntelliQoS", Screen.IntelliQos.route, "Классификация и приоритизация трафика")
+        )),
+        SectionCategory("Параметры сети", Icons.Default.Dns, listOf(
+            SectionItem("DNS", Screen.DnsSettings.route, "Серверы, DoH/DoT, перехват"),
+            SectionItem("IPv6", Screen.Ipv6.route, "Адреса, префиксы, маршруты"),
+            SectionItem("Динамический DNS", Screen.Ddns.route, "DDNS-провайдеры и обновления"),
+            SectionItem("Доменное имя", Screen.Ddns.route, "Удалённый доступ и KeenDNS/DDNS")
         ))
     )
 
-    val protect: List<SectionCategory> = listOf(
-        SectionCategory("Фильтрация", Icons.Default.FilterAlt, listOf(
-            SectionItem("Контентная фильтрация", Screen.ContentFilter.route, "NextDNS, SafeDNS, SkyDNS"),
-            SectionItem("FQDN группы", Screen.ObjectGroup.route, "Списки доменов для фильтров и маршрутов")
+    /** Вкладка «Сеть» — «Локальная сеть» + «Сетевые правила» сайта. */
+    val network: List<SectionCategory> = listOf(
+        SectionCategory("Локальная сеть", Icons.Default.Home, listOf(
+            SectionItem("Клиенты", Screen.Devices.route, "Подключённые устройства и политики"),
+            SectionItem("Wi-Fi сети", Screen.WiFi.route, "Точки доступа 2.4 / 5 ГГц"),
+            SectionItem("Общие параметры Wi-Fi", Screen.WifiSystem.route, "Каналы, мощность, роуминг"),
+            SectionItem("Сегменты", Screen.LanSegments.route, "Подсети и изоляция клиентов"),
+            SectionItem("Контроллер (Wi-Fi-система)", Screen.Mws.route, "Mesh/MWS из нескольких роутеров")
         )),
-        SectionCategory("Доступ", Icons.Default.Lock, listOf(
-            SectionItem("Межсетевой экран", Screen.Firewall.route, "Правила фильтрации трафика"),
+        SectionCategory("Wi-Fi: мониторинг и доступ", Icons.Default.Wifi, listOf(
+            SectionItem("Монитор Wi-Fi", Screen.WifiMonitor.route, "Сканирование, загрузка каналов"),
+            SectionItem("WPS", Screen.Wps.route, "Быстрое подключение по PIN"),
             SectionItem("Контроль доступа Wi-Fi", Screen.WifiAcl.route, "Чёрные и белые списки MAC")
+        )),
+        SectionCategory("Сетевые правила", Icons.Default.Rule, listOf(
+            SectionItem("Интернет-фильтры", Screen.DnsSettings.route, "DNS-фильтрация и защита"),
+            SectionItem("Контентная фильтрация", Screen.ContentFilter.route, "NextDNS, SafeDNS, SkyDNS"),
+            SectionItem("Межсетевой экран", Screen.Firewall.route, "Правила фильтрации трафика"),
+            SectionItem("Переадресация портов", Screen.PortForwarding.route, "NAT и виртуальные серверы"),
+            SectionItem("Маршрутизация", Screen.StaticRoutes.route, "Статическая и доменная маршрутизация"),
+            SectionItem("FQDN группы", Screen.ObjectGroup.route, "Списки доменов для фильтров/маршрутов"),
+            SectionItem("UPnP / NAT-PMP", Screen.Upnp.route, "Автоматическая переадресация")
         )),
         SectionCategory("VPN", Icons.Default.VpnKey, listOf(
             SectionItem("VPN-сервер и клиенты", Screen.VpnAdvanced.route, "WireGuard, SSTP, OpenVPN, L2TP"),
@@ -66,31 +77,37 @@ object HubCatalog {
         ))
     )
 
-    val more: List<SectionCategory> = listOf(
+    /** Вкладка «Управление» — как группа «Управление» на сайте. */
+    val management: List<SectionCategory> = listOf(
         SectionCategory("Система", Icons.Default.Settings, listOf(
-            SectionItem("Системные настройки", Screen.SystemAdvanced.route, "Имя хоста, время, LED, NTP, бэкап"),
-            SectionItem("KeeneticOS и обновление", Screen.Firmware.route, "Версия прошивки"),
+            SectionItem("Настройки системы", Screen.SystemAdvanced.route, "Имя хоста, время, LED, NTP, бэкап"),
+            SectionItem("KeeneticOS и обновление", Screen.Firmware.route, "Версия прошивки и обновления"),
             SectionItem("Пользователи и доступ", Screen.UserAccounts.route, "Учётные записи и права"),
-            SectionItem("Конфигурация (RCI / CLI)", Screen.Configuration.route, "Running-config и команды NDM"),
-            SectionItem("Компоненты", Screen.Components.route, "Установка и управление"),
-            SectionItem("Менеджер пакетов OPKG", Screen.Opkg.route, "Диск и конфигурация OPKG")
+            SectionItem("Безопасность системы", Screen.SystemAdvanced.route, "Пароли, политики доступа, блокировки"),
+            SectionItem("Компоненты", Screen.Components.route, "Установка и управление компонентами")
         )),
-        SectionCategory("Сервисы", Icons.Default.Apps, listOf(
-            SectionItem("USB и накопители", Screen.UsbDevices.route, "Диски, SMB, FTP, DLNA"),
+        SectionCategory("Хранилище и приложения", Icons.Default.Apps, listOf(
+            SectionItem("Накопители и устройства", Screen.UsbDevices.route, "Диски, USB, печать, файлы"),
+            SectionItem("Приложения", Screen.Opkg.route, "OPKG и установленные приложения"),
+            SectionItem("Менеджер пакетов OPKG", Screen.Opkg.route, "Диск и конфигурация OPKG"),
             SectionItem("Торрент-клиент", Screen.TorrentDetail.route, "Статус и настройки"),
             SectionItem("Сеть Windows (SMB)", Screen.Smb.route, "Служба SMB / CIFS"),
             SectionItem("Медиасервер (DLNA)", Screen.MediaServer.route, "Доступ по DLNA / UPnP"),
-            SectionItem("Сетевые сервисы", Screen.SshSnmp.route, "SSH, SNMP, FTP, Telnet, Proxy"),
             SectionItem("Облачные сервисы", Screen.Cloud.route, "Keenetic Cloud и NDMP")
         )),
-        SectionCategory("Мониторинг", Icons.Default.Monitor, listOf(
+        SectionCategory("Диагностика и сервисы", Icons.Default.Build, listOf(
+            SectionItem("Диагностика", Screen.Diagnostics.route, "Ping, Traceroute, DNS"),
+            SectionItem("Диагностика кабеля", Screen.CableDiagnostics.route, "Длина и состояние кабелей"),
+            SectionItem("Сетевые сервисы", Screen.SshSnmp.route, "SSH, SNMP, FTP, Telnet, Proxy"),
+            SectionItem("Журнал событий", Screen.SystemLogs.route, "Системные события ndm"),
+            SectionItem("Конфигурация (RCI / CLI)", Screen.Configuration.route, "Running-config и команды NDM")
+        )),
+        SectionCategory("Мониторинг (статус)", Icons.Default.Monitor, listOf(
             SectionItem("Системный монитор", Screen.SystemMonitor.route, "CPU, RAM, радио, интерфейсы"),
             SectionItem("Монитор трафика", Screen.TrafficMonitor.route, "Скорость на интерфейсах"),
+            SectionItem("Монитор Wi-Fi", Screen.WifiMonitor.route, "Клиенты и загрузка каналов"),
             SectionItem("Мониторинг сети", Screen.NetworkMonitor.route, "Conntrack, ARP, IP-правила"),
-            SectionItem("Список устройств", Screen.DeviceListDetailed.route, "Все подключённые устройства"),
-            SectionItem("Журнал событий", Screen.SystemLogs.route, "Системные события ndm"),
-            SectionItem("Диагностика сети", Screen.Diagnostics.route, "Ping, Traceroute, DNS"),
-            SectionItem("Диагностика кабеля", Screen.CableDiagnostics.route, "Длина и состояние кабелей")
+            SectionItem("Список устройств", Screen.DeviceListDetailed.route, "Все подключённые устройства")
         )),
         SectionCategory("Инструменты для опытных", Icons.Default.Terminal, listOf(
             SectionItem("SSH-терминал", Screen.SshTerminal.route, "Команды CLI по SSH"),
@@ -98,20 +115,20 @@ object HubCatalog {
         ))
     )
 
-    val all: List<SectionItem> get() = (network + protect + more).flatMap { it.items }
+    val all: List<SectionItem> get() = (internet + network + management).flatMap { it.items }.distinctBy { it.route to it.title }
 }
 
 @Composable
 fun NetworkHubScreen(onNavigate: (String) -> Unit) =
-    HubScreen("Сеть", "Wi-Fi, подключение и маршрутизация", HubCatalog.network, onNavigate)
+    HubScreen("Интернет", "Подключения, приоритеты и параметры (как в веб-UI)", HubCatalog.internet, onNavigate, searchable = true)
 
 @Composable
 fun ProtectHubScreen(onNavigate: (String) -> Unit) =
-    HubScreen("Защита", "Фильтры, доступ и VPN", HubCatalog.protect, onNavigate)
+    HubScreen("Сеть", "Локальная сеть и сетевые правила", HubCatalog.network, onNavigate, searchable = true)
 
 @Composable
 fun MoreHubScreen(onNavigate: (String) -> Unit) =
-    HubScreen("Ещё", "Система, сервисы и инструменты", HubCatalog.more, onNavigate, searchable = true)
+    HubScreen("Управление", "Система, сервисы, диагностика и мониторинг", HubCatalog.management, onNavigate, searchable = true)
 
 @Composable
 private fun HubScreen(
