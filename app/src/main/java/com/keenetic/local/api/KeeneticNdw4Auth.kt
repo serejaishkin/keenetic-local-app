@@ -235,14 +235,15 @@ object Argon2id {
 
     private fun generateAddresses(pass: Int, lane: Int, slice: Int, mPrime: Int, t: Int, segmentLen: Int): LongArray {
         val out = LongArray(segmentLen)
-        var zero = LongArray(QWORDS)
+        var addressBlock = LongArray(QWORDS)
         var input = LongArray(QWORDS)
-        var counter = 1
+        var counter = 0
         var generated = 0
         fun set32(arr: LongArray, qwordIdx: Int, v: Int) { arr[qwordIdx] = (v.toLong() and 0xFFFFFFFFL) }
         while (generated < segmentLen) {
             if (generated % QWORDS == 0) {
-                zero = LongArray(QWORDS)
+                counter++
+                val zero = LongArray(QWORDS)
                 input = LongArray(QWORDS)
                 set32(input, 0, pass)
                 set32(input, 1, lane)
@@ -250,11 +251,11 @@ object Argon2id {
                 set32(input, 3, mPrime)
                 set32(input, 4, t)
                 set32(input, 5, TYPE_ID)
-                set32(input, 6, counter++)
-                zero = compress(zero, input)
-                zero = compress(zero, zero.copyOf())
+                set32(input, 6, counter)
+                val tmp = compress(zero, input)      // G(ZERO, input)
+                addressBlock = compress(zero, tmp)   // G(ZERO, tmp)
             }
-            out[generated] = zero[generated % QWORDS]
+            out[generated] = addressBlock[generated % QWORDS]
             generated++
         }
         return out
